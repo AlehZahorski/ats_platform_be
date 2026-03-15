@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Application update — {{ app_name }}</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f5; margin: 0; padding: 40px 0; }
+    .card { background: #fff; max-width: 560px; margin: 0 auto; border-radius: 8px;
+            padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    h1 { font-size: 22px; color: #111; }
+    .stage { display: inline-block; padding: 6px 16px; background: #dbeafe;
+             color: #1d4ed8; border-radius: 20px; font-weight: 600; margin: 12px 0; }
+    p  { color: #555; line-height: 1.6; }
+    .btn { display: inline-block; margin-top: 24px; padding: 14px 28px;
+           background: #2563eb; color: #fff; text-decoration: none;
+           border-radius: 6px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Your application has been updated</h1>
+    <p>Hi {{ candidate_name }},</p>
+    <p>There's news about your application for <strong>{{ job_title }}</strong>. Your current stage is:</p>
+    <span class="stage">{{ new_stage }}</span>
+    <p>Click below to see the full timeline.</p>
+    <a href="{{ tracking_url }}" class="btn">View application</a>
+  </div>
+</body>
+</html>

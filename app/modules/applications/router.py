@@ -10,6 +10,7 @@ from app.core.database import get_db
 from app.core.dependencies import CurrentCompany, CurrentUser
 from app.modules.applications.repository import ApplicationRepository
 from app.modules.applications.schemas import (
+    AnswerInput,
     AnswerRead,
     ApplicationCreate,
     ApplicationList,
@@ -43,9 +44,12 @@ async def apply(
     last_name: str = Form(...),
     email: str = Form(...),
     phone: Optional[str] = Form(None),
+    answers: Optional[str] = Form(None),   # JSON string: [{field_id, value}]
     cv_file: Optional[UploadFile] = File(None),
     db: AsyncSession = Depends(get_db),
 ) -> ApplicationRead:
+    import json as _json
+
     result = await db.execute(
         select(Job).where(Job.id == job_id, Job.status == "open")
     )
@@ -61,12 +65,25 @@ async def apply(
     stages = await pipeline_repo.list_stages()
     initial_stage = stages[0] if stages else None
 
+    # Parse dynamic answers
+    parsed_answers = []
+    if answers:
+        try:
+            raw = _json.loads(answers)
+            parsed_answers = [
+                AnswerInput(field_id=a["field_id"], value=a["value"])
+                for a in raw if a.get("field_id") and a.get("value") not in (None, "")
+            ]
+        except Exception:
+            pass
+
     app_repo = ApplicationRepository(db)
     data = ApplicationCreate(
         first_name=first_name,
         last_name=last_name,
         email=email,
         phone=phone,
+        answers=parsed_answers,
     )
     application = await app_repo.create(
         job_id=job_id,

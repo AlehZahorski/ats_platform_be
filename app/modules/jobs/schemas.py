@@ -25,6 +25,11 @@ class JobUpdate(BaseModel):
     department: str | None = None
     location: str | None = None
     status: JobStatus | None = None
+    template_id: uuid.UUID | None = None
+
+
+class AssignTemplateRequest(BaseModel):
+    template_id: uuid.UUID | None = None
 
 
 class JobRead(BaseModel):
@@ -38,6 +43,7 @@ class JobRead(BaseModel):
     location: str | None
     status: str
     created_at: datetime
+    template_id: uuid.UUID | None = None
 
 
 class JobList(BaseModel):

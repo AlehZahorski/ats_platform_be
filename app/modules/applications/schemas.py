@@ -24,6 +24,8 @@ class AnswerRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
     field_id: uuid.UUID
+    field_label: str | None = None
+    field_type: str | None = None
     value: Any
 
 

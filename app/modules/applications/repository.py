@@ -136,7 +136,9 @@ class ApplicationRepository:
             .where(Application.id == application_id)
             .options(
                 selectinload(Application.stage),
-                selectinload(Application.answers),
+                selectinload(Application.answers).selectinload(
+                    ApplicationAnswer.field
+                ),
                 selectinload(Application.stage_history).selectinload(
                     ApplicationStageHistory.stage
                 ),

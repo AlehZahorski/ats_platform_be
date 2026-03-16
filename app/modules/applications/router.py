@@ -1,4 +1,3 @@
-
 import uuid
 from typing import Optional
 
@@ -11,6 +10,7 @@ from app.core.database import get_db
 from app.core.dependencies import CurrentCompany, CurrentUser
 from app.modules.applications.repository import ApplicationRepository
 from app.modules.applications.schemas import (
+    AnswerRead,
     ApplicationCreate,
     ApplicationList,
     ApplicationListItem,
@@ -142,7 +142,17 @@ async def get_application(
     application = await repo.get_by_id(application_id)
     if not application:
         raise HTTPException(status_code=404, detail="Application not found")
-    return ApplicationRead.model_validate(application)
+
+    # Build response manually to populate field labels
+    result = ApplicationRead.model_validate(application)
+    result.answers = []
+    for ans in (application.answers or []):
+        answer = AnswerRead.model_validate(ans)
+        if hasattr(ans, "field") and ans.field:
+            answer.field_label = ans.field.label
+            answer.field_type = ans.field.field_type
+        result.answers.append(answer)
+    return result
 
 
 # ──────────────────────────────────────────────

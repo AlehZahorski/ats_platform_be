@@ -24,9 +24,9 @@ from app.services.mailer import mail_service
 
 
 def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
-    # In development: samesite="none" allows cross-origin cookies (port 3000 → 8000)
-    # In production: samesite="lax" is fine since frontend and backend share the same domain
-    samesite = "lax" if settings.is_production else "none"
+    # With Next.js proxy, frontend and backend share the same origin
+    # so SameSite=lax works fine and Secure=False is OK for http dev
+    samesite = "lax"
     secure = settings.is_production
 
     response.set_cookie(

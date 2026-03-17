@@ -115,7 +115,11 @@ async def track_application(
     application = await repo.get_by_token(token)
     if not application:
         raise HTTPException(status_code=404, detail="Application not found")
-    return ApplicationTrackingRead.model_validate(application)
+    result = ApplicationTrackingRead.model_validate(application)
+    if hasattr(application, "job") and application.job:
+        from app.modules.applications.schemas import TrackingJobRead
+        result.job = TrackingJobRead.model_validate(application.job)
+    return result
 
 
 # ──────────────────────────────────────────────

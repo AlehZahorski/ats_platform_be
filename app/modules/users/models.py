@@ -20,6 +20,7 @@ class User(BaseModel):
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     role: Mapped[str] = mapped_column(Text, nullable=False, default="recruiter")
     is_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    language: Mapped[str] = mapped_column(Text, nullable=False, default="en")  # v2: i18n
 
     # relationships
     company: Mapped["Company"] = relationship(back_populates="users")  # noqa: F821

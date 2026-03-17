@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
-from sqlalchemy import ForeignKey, Text
+from sqlalchemy import DateTime, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -24,6 +25,14 @@ class Application(BaseModel):
         UUID(as_uuid=True), ForeignKey("pipeline_stages.id", ondelete="SET NULL"), nullable=True, index=True
     )
     public_token: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
+
+    # v2 fields
+    source: Mapped[str | None] = mapped_column(Text, index=True)
+    # source: direct | linkedin | referral | website | other
+    language: Mapped[str] = mapped_column(Text, nullable=False, default="en")
+    data_retention_until: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), index=True
+    )
 
     # relationships
     job: Mapped["Job"] = relationship(back_populates="applications")  # noqa: F821

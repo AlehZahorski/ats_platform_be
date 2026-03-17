@@ -56,8 +56,9 @@ class ApplicationRepository:
             .where(Application.public_token == token)
             .options(
                 selectinload(Application.stage),
+                selectinload(Application.job),
                 selectinload(Application.stage_history).selectinload(
-                    Application.stage_history.property.mapper.class_.stage
+                    ApplicationStageHistory.stage
                 ),
             )
         )

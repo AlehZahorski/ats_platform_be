@@ -103,6 +103,14 @@ class TrackingStageHistory(BaseModel):
     changed_at: datetime
 
 
+class TrackingJobRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    title: str
+    department: str | None
+    location: str | None
+
+
 class ApplicationTrackingRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
@@ -111,3 +119,4 @@ class ApplicationTrackingRead(BaseModel):
     stage: StageRead | None
     stage_history: list[TrackingStageHistory] = []
     created_at: datetime
+    job: TrackingJobRead | None = None

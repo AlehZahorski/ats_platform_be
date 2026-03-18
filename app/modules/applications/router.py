@@ -2,7 +2,7 @@ import uuid
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -17,11 +17,17 @@ from app.modules.applications.schemas import (
     ApplicationListItem,
     ApplicationRead,
     ApplicationTrackingRead,
+    BulkAction,
+    BulkResult,
     ScoreCreate,
     ScoreRead,
 )
+from app.modules.application_events.models import ApplicationEvent
+from app.modules.audit.models import AuditLog
 from app.modules.jobs.models import Job
+from app.modules.pipeline.models import ApplicationStageHistory
 from app.modules.pipeline.repository import PipelineRepository
+from app.modules.tags.repository import TagRepository
 from app.services.file_storage import file_storage
 from app.services.mailer import mail_service
 
@@ -192,3 +198,96 @@ async def score_application(
         raise HTTPException(status_code=404, detail="Application not found")
     score = await repo.upsert_score(application_id, user.id, data)
     return ScoreRead.model_validate(score)
+
+# ──────────────────────────────────────────────
+# HR: bulk operations
+# ──────────────────────────────────────────────
+@router.post("/bulk", response_model=BulkResult)
+async def bulk_action(
+    data: BulkAction,
+    company: CurrentCompany,
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> BulkResult:
+    from app.modules.applications.models import Application
+
+    updated = 0
+    failed = 0
+
+    for app_id in data.application_ids:
+        try:
+            # Verify app belongs to company
+            result = await db.execute(
+                select(Application)
+                .join(Job, Application.job_id == Job.id)
+                .where(Application.id == app_id, Job.company_id == company.id)
+            )
+            app = result.scalar_one_or_none()
+            if not app:
+                failed += 1
+                continue
+
+            if data.action == "stage_change":
+                stage_id = uuid.UUID(data.payload["stage_id"])
+                app.stage_id = stage_id
+                history = ApplicationStageHistory(
+                    application_id=app_id,
+                    stage_id=stage_id,
+                    changed_by=user.id,
+                )
+                db.add(history)
+
+            elif data.action == "reject":
+                # Find rejected stage
+                from app.modules.pipeline.models import PipelineStage
+                from sqlalchemy import func as sqlfunc
+                res = await db.execute(
+                    select(PipelineStage).where(sqlfunc.lower(PipelineStage.name) == "rejected")
+                )
+                rejected_stage = res.scalar_one_or_none()
+                if rejected_stage:
+                    app.stage_id = rejected_stage.id
+                    history = ApplicationStageHistory(
+                        application_id=app_id,
+                        stage_id=rejected_stage.id,
+                        changed_by=user.id,
+                    )
+                    db.add(history)
+
+            elif data.action == "tag":
+                tag_id = uuid.UUID(data.payload["tag_id"])
+                from app.modules.tags.models import ApplicationTag
+                existing = await db.execute(
+                    select(ApplicationTag).where(
+                        ApplicationTag.application_id == app_id,
+                        ApplicationTag.tag_id == tag_id,
+                    )
+                )
+                if not existing.scalar_one_or_none():
+                    db.add(ApplicationTag(application_id=app_id, tag_id=tag_id))
+
+            # Log event
+            db.add(ApplicationEvent(
+                application_id=app_id,
+                company_id=company.id,
+                event_type="bulk_action",
+                event_value=data.action,
+                metadata_={"payload": data.payload, "user_id": str(user.id)},
+            ))
+            updated += 1
+
+        except Exception:
+            failed += 1
+            continue
+
+    # Audit log
+    db.add(AuditLog(
+        company_id=company.id,
+        user_id=user.id,
+        action="bulk_action",
+        entity_type="application",
+        metadata_={"action": data.action, "count": updated, "ids": [str(i) for i in data.application_ids]},
+    ))
+
+    await db.commit()
+    return BulkResult(updated=updated, failed=failed, action=data.action)

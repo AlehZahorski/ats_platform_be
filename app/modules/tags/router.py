@@ -1,4 +1,3 @@
-
 import uuid
 
 from typing import Optional
@@ -36,6 +35,20 @@ async def list_tags(
 ) -> list[TagRead]:
     tags = await repo.list(company.id)
     return [TagRead.model_validate(t) for t in tags]
+
+
+@router.delete("/{tag_id}")
+async def delete_tag(
+    tag_id: uuid.UUID,
+    company: CurrentCompany,
+    _user: CurrentUser,
+    repo: TagRepository = Depends(_repo),
+) -> Response:
+    tag = await repo.get_by_id(tag_id, company.id)
+    if not tag:
+        raise HTTPException(status_code=404, detail="Tag not found")
+    await repo.delete(tag)
+    return Response(status_code=204)
 
 
 @router.post("/applications/{application_id}/tags")

@@ -79,6 +79,7 @@ def create_app() -> FastAPI:
     # -----------------------------------------------------------------------
     # Routers
     # -----------------------------------------------------------------------
+    # v1 routers
     from app.modules.auth.router import router as auth_router
     from app.modules.companies.router import router as companies_router
     from app.modules.users.router import router as users_router
@@ -90,8 +91,18 @@ def create_app() -> FastAPI:
     from app.modules.tags.router import router as tags_router
     from app.modules.audit.router import router as audit_router
 
+    # v2 routers
+    from app.modules.email_templates.router import router as email_templates_router
+    from app.modules.automation.router import router as automation_router
+    from app.modules.interviews.router import router as interviews_router
+    from app.modules.tasks.router import router as tasks_router
+    from app.modules.reports.router import router as reports_router
+    from app.modules.consents.router import router as gdpr_router
+    from app.modules.consents.router import router as gdpr_router
+
     API_V1 = "/api/v1"
 
+    # v1
     app.include_router(auth_router,         prefix=f"{API_V1}/auth",         tags=["Auth"])
     app.include_router(companies_router,    prefix=f"{API_V1}/company",      tags=["Company"])
     app.include_router(users_router,        prefix=f"{API_V1}/users",        tags=["Users"])
@@ -102,6 +113,15 @@ def create_app() -> FastAPI:
     app.include_router(notes_router,        prefix=f"{API_V1}/notes",        tags=["Notes"])
     app.include_router(tags_router,         prefix=f"{API_V1}/tags",         tags=["Tags"])
     app.include_router(audit_router,        prefix=f"{API_V1}/audit",        tags=["Audit"])
+
+    # v2
+    app.include_router(email_templates_router, prefix=f"{API_V1}/email-templates", tags=["Email Templates"])
+    app.include_router(automation_router,      prefix=f"{API_V1}/automations",     tags=["Automations"])
+    app.include_router(interviews_router,      prefix=f"{API_V1}/interviews",      tags=["Interviews"])
+    app.include_router(tasks_router,           prefix=f"{API_V1}/tasks",           tags=["Tasks"])
+    app.include_router(reports_router,         prefix=f"{API_V1}/reports",         tags=["Reports"])
+    app.include_router(gdpr_router,            prefix=f"{API_V1}/gdpr",            tags=["GDPR"])
+    app.include_router(gdpr_router,            prefix=f"{API_V1}/gdpr",            tags=["GDPR"])
 
     # -----------------------------------------------------------------------
     # Health check

@@ -64,3 +64,7 @@ class TagRepository:
             .where(ApplicationTag.application_id == application_id)
         )
         return list(result.scalars().all())
+
+    async def delete(self, tag) -> None:
+        await self.db.delete(tag)
+        await self.db.flush()

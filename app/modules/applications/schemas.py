@@ -120,3 +120,20 @@ class ApplicationTrackingRead(BaseModel):
     stage_history: list[TrackingStageHistory] = []
     created_at: datetime
     job: TrackingJobRead | None = None
+
+
+# ─── Bulk Operations ──────────────────────────────────────────────────────────
+from typing import Literal
+
+class BulkAction(BaseModel):
+    application_ids: list[uuid.UUID]
+    action: Literal["stage_change", "reject", "tag"]
+    payload: dict = {}
+    # stage_change: {"stage_id": "uuid"}
+    # reject:       {}
+    # tag:          {"tag_id": "uuid"}
+
+class BulkResult(BaseModel):
+    updated: int
+    failed: int
+    action: str

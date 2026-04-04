@@ -28,6 +28,7 @@ from app.modules.jobs.models import Job
 from app.modules.pipeline.models import ApplicationStageHistory
 from app.modules.pipeline.repository import PipelineRepository
 from app.modules.tags.repository import TagRepository
+from app.services.candidate_notifications import send_stage_change_notification
 from app.services.file_storage import file_storage
 from app.services.mailer import mail_service
 
@@ -205,6 +206,7 @@ async def score_application(
 @router.post("/bulk", response_model=BulkResult)
 async def bulk_action(
     data: BulkAction,
+    background_tasks: BackgroundTasks,
     company: CurrentCompany,
     user: CurrentUser,
     db: AsyncSession = Depends(get_db),
@@ -229,6 +231,11 @@ async def bulk_action(
 
             if data.action == "stage_change":
                 stage_id = uuid.UUID(data.payload["stage_id"])
+                pipeline_repo = PipelineRepository(db)
+                stage = await pipeline_repo.get_stage(stage_id)
+                if not stage:
+                    failed += 1
+                    continue
                 app.stage_id = stage_id
                 history = ApplicationStageHistory(
                     application_id=app_id,
@@ -236,6 +243,23 @@ async def bulk_action(
                     changed_by=user.id,
                 )
                 db.add(history)
+
+                if data.payload.get("notify_candidate"):
+                    tracking_url = f"{settings.frontend_url}/track/{app.public_token}"
+                    job_result = await db.execute(select(Job).where(Job.id == app.job_id))
+                    job = job_result.scalar_one_or_none()
+                    await send_stage_change_notification(
+                        db=db,
+                        background_tasks=background_tasks,
+                        company_id=company.id,
+                        stage_id=stage.id,
+                        candidate_email=app.email,
+                        candidate_name=f"{app.first_name} {app.last_name}",
+                        job_title=job.title if job else "position",
+                        stage_name=stage.name,
+                        tracking_url=tracking_url,
+                        company_name=company.name,
+                    )
 
             elif data.action == "reject":
                 # Find rejected stage
@@ -253,6 +277,23 @@ async def bulk_action(
                         changed_by=user.id,
                     )
                     db.add(history)
+
+                    if data.payload.get("notify_candidate"):
+                        tracking_url = f"{settings.frontend_url}/track/{app.public_token}"
+                        job_result = await db.execute(select(Job).where(Job.id == app.job_id))
+                        job = job_result.scalar_one_or_none()
+                        await send_stage_change_notification(
+                            db=db,
+                            background_tasks=background_tasks,
+                            company_id=company.id,
+                            stage_id=rejected_stage.id,
+                            candidate_email=app.email,
+                            candidate_name=f"{app.first_name} {app.last_name}",
+                            job_title=job.title if job else "position",
+                            stage_name=rejected_stage.name,
+                            tracking_url=tracking_url,
+                            company_name=company.name,
+                        )
 
             elif data.action == "tag":
                 tag_id = uuid.UUID(data.payload["tag_id"])

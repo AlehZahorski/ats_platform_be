@@ -70,6 +70,15 @@ class MailService:
     ) -> None:
         background_tasks.add_task(_send_smtp, to_email, subject, html)
 
+    def send_html(
+        self,
+        background_tasks: BackgroundTasks,
+        to_email: str,
+        subject: str,
+        html_body: str,
+    ) -> None:
+        self._enqueue(background_tasks, to_email, subject, html_body)
+
     # ------------------------------------------------------------------
     # Email verification
     # ------------------------------------------------------------------

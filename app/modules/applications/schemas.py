@@ -128,7 +128,7 @@ from typing import Literal
 class BulkAction(BaseModel):
     application_ids: list[uuid.UUID]
     action: Literal["stage_change", "reject", "tag"]
-    payload: dict = {}
+    payload: dict[str, Any] = {}
     # stage_change: {"stage_id": "uuid"}
     # reject:       {}
     # tag:          {"tag_id": "uuid"}

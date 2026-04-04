@@ -102,3 +102,4 @@ def require_roles(*roles: str):
 # ---------------------------------------------------------------------------
 CurrentUser = Annotated[Any, Depends(get_current_user)]
 CurrentCompany = Annotated[Any, Depends(get_current_company)]
+RecruiterOrOwner = Annotated[Any, Depends(require_roles("owner", "recruiter"))]

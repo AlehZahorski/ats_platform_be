@@ -25,3 +25,20 @@ class StageHistoryRead(BaseModel):
 class UpdateStageRequest(BaseModel):
     stage_id: uuid.UUID
     notify_candidate: bool = False
+
+
+class StageCreate(BaseModel):
+    name: str
+
+
+class StageUpdate(BaseModel):
+    name: str
+
+
+class StageReorderItem(BaseModel):
+    id: uuid.UUID
+    order_index: int
+
+
+class StageReorderRequest(BaseModel):
+    stages: list[StageReorderItem]

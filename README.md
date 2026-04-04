@@ -1,6 +1,6 @@
-# ATS Platform — Backend API
+# TalentMatch - Backend API
 
-Production-ready FastAPI backend for a multi-tenant SaaS Applicant Tracking System (ATS).
+Production-ready FastAPI backend for the TalentMatch Applicant Tracking System.
 
 ## Tech Stack
 
@@ -22,38 +22,38 @@ Production-ready FastAPI backend for a multi-tenant SaaS Applicant Tracking Syst
 
 ```
 backend/
-├── app/
-│   ├── core/
-│   │   ├── config.py          # Pydantic settings
-│   │   ├── database.py        # SQLAlchemy engine + session
-│   │   ├── dependencies.py    # FastAPI dependency injection
-│   │   └── security.py        # JWT, bcrypt, OAuth
-│   ├── models/
-│   │   └── base.py            # Base ORM model (UUID + timestamps)
-│   ├── modules/
-│   │   ├── auth/              # Login, signup, refresh, Google OAuth
-│   │   ├── companies/         # Company management
-│   │   ├── users/             # User management
-│   │   ├── jobs/              # Job postings
-│   │   ├── forms/             # Dynamic form templates
-│   │   ├── applications/      # Candidate applications + scoring
-│   │   ├── pipeline/          # Recruitment pipeline stages
-│   │   ├── notes/             # Recruiter notes
-│   │   ├── tags/              # Candidate tagging
-│   │   └── audit/             # Audit logging
-│   ├── services/
-│   │   ├── mailer.py          # SMTP email service
-│   │   └── file_storage.py    # CV file upload service
-│   └── main.py                # FastAPI app factory
-├── alembic/                   # Database migrations
-├── seeds/
-│   └── seed.py                # Database seeder
-├── templates/email/           # HTML email templates
-├── tests/                     # pytest test suite
-├── uploads/cv/                # Uploaded CV files
-├── .env.example               # Environment variable template
-├── alembic.ini                # Alembic configuration
-└── requirements.txt           # Python dependencies
+Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ app/
+Ă˘â€ťâ€š   Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ core/
+Ă˘â€ťâ€š   Ă˘â€ťâ€š   Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ config.py          # Pydantic settings
+Ă˘â€ťâ€š   Ă˘â€ťâ€š   Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ database.py        # SQLAlchemy engine + session
+Ă˘â€ťâ€š   Ă˘â€ťâ€š   Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ dependencies.py    # FastAPI dependency injection
+Ă˘â€ťâ€š   Ă˘â€ťâ€š   Ă˘â€ťâ€ťĂ˘â€ťâ‚¬Ă˘â€ťâ‚¬ security.py        # JWT, bcrypt, OAuth
+Ă˘â€ťâ€š   Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ models/
+Ă˘â€ťâ€š   Ă˘â€ťâ€š   Ă˘â€ťâ€ťĂ˘â€ťâ‚¬Ă˘â€ťâ‚¬ base.py            # Base ORM model (UUID + timestamps)
+Ă˘â€ťâ€š   Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ modules/
+Ă˘â€ťâ€š   Ă˘â€ťâ€š   Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ auth/              # Login, signup, refresh, Google OAuth
+Ă˘â€ťâ€š   Ă˘â€ťâ€š   Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ companies/         # Company management
+Ă˘â€ťâ€š   Ă˘â€ťâ€š   Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ users/             # User management
+Ă˘â€ťâ€š   Ă˘â€ťâ€š   Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ jobs/              # Job postings
+Ă˘â€ťâ€š   Ă˘â€ťâ€š   Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ forms/             # Dynamic form templates
+Ă˘â€ťâ€š   Ă˘â€ťâ€š   Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ applications/      # Candidate applications + scoring
+Ă˘â€ťâ€š   Ă˘â€ťâ€š   Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ pipeline/          # Recruitment pipeline stages
+Ă˘â€ťâ€š   Ă˘â€ťâ€š   Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ notes/             # Recruiter notes
+Ă˘â€ťâ€š   Ă˘â€ťâ€š   Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ tags/              # Candidate tagging
+Ă˘â€ťâ€š   Ă˘â€ťâ€š   Ă˘â€ťâ€ťĂ˘â€ťâ‚¬Ă˘â€ťâ‚¬ audit/             # Audit logging
+Ă˘â€ťâ€š   Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ services/
+Ă˘â€ťâ€š   Ă˘â€ťâ€š   Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ mailer.py          # SMTP email service
+Ă˘â€ťâ€š   Ă˘â€ťâ€š   Ă˘â€ťâ€ťĂ˘â€ťâ‚¬Ă˘â€ťâ‚¬ file_storage.py    # CV file upload service
+Ă˘â€ťâ€š   Ă˘â€ťâ€ťĂ˘â€ťâ‚¬Ă˘â€ťâ‚¬ main.py                # FastAPI app factory
+Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ alembic/                   # Database migrations
+Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ seeds/
+Ă˘â€ťâ€š   Ă˘â€ťâ€ťĂ˘â€ťâ‚¬Ă˘â€ťâ‚¬ seed.py                # Database seeder
+Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ templates/email/           # HTML email templates
+Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ tests/                     # pytest test suite
+Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ uploads/cv/                # Uploaded CV files
+Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ .env.example               # Environment variable template
+Ă˘â€ťĹ›Ă˘â€ťâ‚¬Ă˘â€ťâ‚¬ alembic.ini                # Alembic configuration
+Ă˘â€ťâ€ťĂ˘â€ťâ‚¬Ă˘â€ťâ‚¬ requirements.txt           # Python dependencies
 ```
 
 ---
@@ -270,12 +270,12 @@ alembic downgrade -1
 | `FRONTEND_URL` | Frontend URL for CORS | `http://localhost:3000` |
 | `SMTP_HOST` | SMTP server host | `smtp.gmail.com` |
 | `SMTP_PORT` | SMTP server port | `587` |
-| `SMTP_USER` | SMTP username | — |
-| `SMTP_PASSWORD` | SMTP password | — |
+| `SMTP_USER` | SMTP username | Ă˘â‚¬â€ť |
+| `SMTP_PASSWORD` | SMTP password | Ă˘â‚¬â€ť |
 | `UPLOAD_DIR` | File upload directory | `uploads` |
 | `MAX_UPLOAD_SIZE_MB` | Max CV file size in MB | `10` |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID | — |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | — |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID | Ă˘â‚¬â€ť |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret | Ă˘â‚¬â€ť |
 
 ---
 

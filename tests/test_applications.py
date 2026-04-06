@@ -6,12 +6,20 @@ import uuid
 import pytest
 from httpx import AsyncClient
 
+from app.services.mailer import mail_service
 from tests.helpers import (
     create_company,
     create_job,
     create_pipeline_stages,
     create_verified_user,
 )
+
+
+@pytest.fixture(autouse=True)
+def disable_email_sending(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(mail_service, "send_application_confirmation", lambda *args, **kwargs: None)
+    monkeypatch.setattr(mail_service, "send_status_change", lambda *args, **kwargs: None)
+    monkeypatch.setattr(mail_service, "send_html", lambda *args, **kwargs: None)
 
 
 async def _authed_client(client: AsyncClient, db_session, suffix: str = ""):
@@ -177,3 +185,79 @@ async def test_public_token_is_unique(client: AsyncClient, db_session) -> None:
         tokens.append(resp.json()["public_token"])
 
     assert len(set(tokens)) == 5, "All public tokens must be unique"
+
+
+@pytest.mark.asyncio
+async def test_duplicate_check_detects_existing_candidate(client: AsyncClient, db_session) -> None:
+    _, _, job, _ = await _authed_client(client, db_session, "dupecheck")
+    client.cookies.clear()
+
+    await client.post(
+        f"/api/v1/applications/apply/{job.id}",
+        data={
+            "first_name": "Jane",
+            "last_name": "Doe",
+            "email": "jane@example.com",
+            "phone": "+48 500-600-700",
+        },
+    )
+
+    response = await client.post(
+        "/api/v1/applications/duplicate-check",
+        json={
+            "job_id": str(job.id),
+            "email": "JANE@example.com",
+            "phone": "500600700",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["has_duplicates"] is True
+    assert data["confidence"] == "high"
+    assert len(data["matches"]) == 1
+    assert set(data["matches"][0]["match_reasons"]) == {"email", "phone"}
+
+
+@pytest.mark.asyncio
+async def test_apply_requires_override_for_duplicate_candidate(client: AsyncClient, db_session) -> None:
+    _, _, job, _ = await _authed_client(client, db_session, "dupeapply")
+    client.cookies.clear()
+
+    first_response = await client.post(
+        f"/api/v1/applications/apply/{job.id}",
+        data={
+            "first_name": "John",
+            "last_name": "Smith",
+            "email": "john@example.com",
+            "phone": "555 111 222",
+        },
+    )
+    assert first_response.status_code == 201
+
+    duplicate_response = await client.post(
+        f"/api/v1/applications/apply/{job.id}",
+        data={
+            "first_name": "John",
+            "last_name": "Smith",
+            "email": "john@example.com",
+            "phone": "555111222",
+        },
+    )
+    assert duplicate_response.status_code == 409
+    detail = duplicate_response.json()["detail"]
+    assert detail["code"] == "duplicate_candidate_detected"
+    assert detail["has_duplicates"] is True
+    assert len(detail["matches"]) == 1
+
+    override_response = await client.post(
+        f"/api/v1/applications/apply/{job.id}",
+        data={
+            "first_name": "John",
+            "last_name": "Smith",
+            "email": "john@example.com",
+            "phone": "555111222",
+            "ignore_duplicate_warning": "true",
+        },
+    )
+    assert override_response.status_code == 201

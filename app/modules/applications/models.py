@@ -19,7 +19,9 @@ class Application(BaseModel):
     first_name: Mapped[str] = mapped_column(Text, nullable=False)
     last_name: Mapped[str] = mapped_column(Text, nullable=False)
     email: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    normalized_email: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     phone: Mapped[str | None] = mapped_column(Text)
+    normalized_phone: Mapped[str | None] = mapped_column(Text, index=True)
     cv_url: Mapped[str | None] = mapped_column(Text)
     stage_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("pipeline_stages.id", ondelete="SET NULL"), nullable=True, index=True
@@ -42,6 +44,16 @@ class Application(BaseModel):
     notes: Mapped[list["Note"]] = relationship(back_populates="application", cascade="all, delete-orphan")  # noqa: F821
     scores: Mapped[list["CandidateScore"]] = relationship(back_populates="application", cascade="all, delete-orphan")  # noqa: F821
     tag_links: Mapped[list["ApplicationTag"]] = relationship(back_populates="application", cascade="all, delete-orphan")  # noqa: F821
+    duplicate_links_from: Mapped[list["ApplicationDuplicateLink"]] = relationship(
+        foreign_keys="ApplicationDuplicateLink.source_application_id",
+        back_populates="source_application",
+        cascade="all, delete-orphan",
+    )
+    duplicate_links_to: Mapped[list["ApplicationDuplicateLink"]] = relationship(
+        foreign_keys="ApplicationDuplicateLink.duplicate_application_id",
+        back_populates="duplicate_application",
+        cascade="all, delete-orphan",
+    )
 
 
 class ApplicationAnswer(BaseModel):
@@ -74,3 +86,24 @@ class CandidateScore(BaseModel):
 
     application: Mapped["Application"] = relationship(back_populates="scores")
     recruiter: Mapped["User | None"] = relationship()  # noqa: F821
+
+
+class ApplicationDuplicateLink(BaseModel):
+    __tablename__ = "application_duplicate_links"
+
+    source_application_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("applications.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    duplicate_application_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("applications.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    match_reasons: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+
+    source_application: Mapped["Application"] = relationship(
+        foreign_keys=[source_application_id],
+        back_populates="duplicate_links_from",
+    )
+    duplicate_application: Mapped["Application"] = relationship(
+        foreign_keys=[duplicate_application_id],
+        back_populates="duplicate_links_to",
+    )

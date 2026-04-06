@@ -50,8 +50,8 @@ async def test_create_job(client: AsyncClient, db_session) -> None:
 async def test_list_jobs(client: AsyncClient, db_session) -> None:
     client, _ = await _get_authed_client(client, db_session, "list")
 
-    await client.post("/api/v1/jobs", json={"title": "Job A", "status": "open"})
-    await client.post("/api/v1/jobs", json={"title": "Job B", "status": "open"})
+    await client.post("/api/v1/jobs", json={"title": "Job A", "status": "draft"})
+    await client.post("/api/v1/jobs", json={"title": "Job B", "status": "draft"})
 
     response = await client.get("/api/v1/jobs")
     assert response.status_code == 200
@@ -80,7 +80,23 @@ async def test_update_job(client: AsyncClient, db_session) -> None:
 
     response = await client.patch(
         f"/api/v1/jobs/{job_id}",
-        json={"title": "New Title", "status": "open"},
+        json={
+            "title": "New Title",
+            "status": "open",
+            "role_summary": "Lead the backend platform that powers the product.",
+            "role_purpose": "Own core services and improve reliability across the platform.",
+            "responsibilities": ["Build APIs", "Improve reliability"],
+            "must_haves": ["Python", "FastAPI"],
+            "salary_min": 18000,
+            "salary_max": 24000,
+            "salary_currency": "PLN",
+            "salary_period": "month",
+            "work_mode": "hybrid",
+            "contract_type": "b2b",
+            "location": "Warsaw, Poland",
+            "value_proposition": "High impact role with strong ownership.",
+            "hiring_process": ["Intro call", "Technical interview", "Decision"],
+        },
     )
     assert response.status_code == 200
     assert response.json()["title"] == "New Title"
@@ -119,7 +135,7 @@ async def test_jobs_company_isolation(client: AsyncClient, db_session) -> None:
     # Create job as company A
     token_a = create_access_token(str(user_a.id), {"company_id": str(company_a.id), "role": "owner"})
     client.cookies.set("access_token", token_a)
-    create_resp = await client.post("/api/v1/jobs", json={"title": "Company A Job", "status": "open"})
+    create_resp = await client.post("/api/v1/jobs", json={"title": "Company A Job", "status": "draft"})
     job_id = create_resp.json()["id"]
 
     # Try to access as company B
@@ -133,10 +149,62 @@ async def test_jobs_company_isolation(client: AsyncClient, db_session) -> None:
 async def test_filter_jobs_by_status(client: AsyncClient, db_session) -> None:
     client, _ = await _get_authed_client(client, db_session, "filter")
 
-    await client.post("/api/v1/jobs", json={"title": "Open Job", "status": "open"})
+    await client.post("/api/v1/jobs", json={"title": "Open Job", "status": "draft"})
     await client.post("/api/v1/jobs", json={"title": "Draft Job", "status": "draft"})
 
-    response = await client.get("/api/v1/jobs?status=open")
+    response = await client.get("/api/v1/jobs?status=draft")
     assert response.status_code == 200
     items = response.json()["items"]
-    assert all(j["status"] == "open" for j in items)
+    assert all(j["status"] == "draft" for j in items)
+
+
+@pytest.mark.asyncio
+async def test_cannot_publish_incomplete_job_offer(client: AsyncClient, db_session) -> None:
+    client, _ = await _get_authed_client(client, db_session, "publishfail")
+
+    response = await client.post(
+        "/api/v1/jobs",
+        json={"title": "Incomplete Offer", "status": "open"},
+    )
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    assert detail["message"] == "Job is not ready to publish"
+    assert len(detail["issues"]) > 0
+
+
+@pytest.mark.asyncio
+async def test_public_job_contains_structured_offer_content(client: AsyncClient, db_session) -> None:
+    client, company = await _get_authed_client(client, db_session, "publicstructured")
+
+    create_resp = await client.post(
+        "/api/v1/jobs",
+        json={
+            "title": "Platform Engineer",
+            "status": "open",
+            "role_summary": "Build the platform behind our product.",
+            "role_purpose": "Improve engineering speed and system reliability.",
+            "responsibilities": ["Own platform roadmap", "Improve CI/CD"],
+            "must_haves": ["Python", "Cloud"],
+            "nice_to_haves": ["Kubernetes"],
+            "tech_stack": ["Python", "FastAPI", "PostgreSQL"],
+            "domain_context": "B2B SaaS workflow automation",
+            "salary_min": 18000,
+            "salary_max": 24000,
+            "salary_currency": "PLN",
+            "salary_period": "month",
+            "work_mode": "remote",
+            "remote_constraints": "Europe timezones only",
+            "contract_type": "b2b",
+            "value_proposition": "Meaningful ownership and fast growth.",
+            "hiring_process": ["Intro", "Technical", "Final"],
+        },
+    )
+    assert create_resp.status_code == 201
+    job_id = create_resp.json()["id"]
+
+    client.cookies.clear()
+    response = await client.get(f"/api/v1/jobs/public/{job_id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["role_summary"] == "Build the platform behind our product."
+    assert data["tech_stack"] == ["Python", "FastAPI", "PostgreSQL"]

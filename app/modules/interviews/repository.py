@@ -42,6 +42,19 @@ class InterviewRepository:
         )
         return list(result.scalars().all())
 
+    async def get_stage_ready_interview(self, application_id: uuid.UUID) -> Optional[Interview]:
+        result = await self.db.execute(
+            select(Interview)
+            .where(
+                Interview.application_id == application_id,
+                Interview.meeting_url.is_not(None),
+                Interview.status != "cancelled",
+            )
+            .options(selectinload(Interview.recruiter))
+            .order_by(Interview.scheduled_at.asc())
+        )
+        return result.scalars().first()
+
     async def update(self, interview: Interview, data: InterviewUpdate) -> Interview:
         for field, value in data.model_dump(exclude_unset=True).items():
             setattr(interview, field, value)

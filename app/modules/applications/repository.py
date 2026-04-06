@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.security import generate_public_token
-from app.modules.applications.models import Application, ApplicationAnswer, CandidateScore
+from app.modules.applications.models import (
+    Application,
+    ApplicationAnswer,
+    ApplicationDuplicateLink,
+    CandidateScore,
+)
 from app.modules.applications.schemas import ApplicationCreate, ScoreCreate
 from app.modules.pipeline.models import ApplicationStageHistory
 
@@ -22,13 +27,17 @@ class ApplicationRepository:
         data: ApplicationCreate,
         cv_url: str | None,
         initial_stage_id: uuid.UUID | None,
+        normalized_email: str,
+        normalized_phone: str | None,
     ) -> Application:
         app = Application(
             job_id=job_id,
             first_name=data.first_name,
             last_name=data.last_name,
             email=data.email,
+            normalized_email=normalized_email,
             phone=data.phone,
+            normalized_phone=normalized_phone,
             cv_url=cv_url,
             stage_id=initial_stage_id,
             public_token=generate_public_token(),
@@ -130,6 +139,46 @@ class ApplicationRepository:
         await self.db.flush()
         await self.db.refresh(score)
         return score
+
+    async def list_potential_duplicates(
+        self,
+        company_id: uuid.UUID,
+        normalized_email: str,
+        normalized_phone: str | None,
+        limit: int = 10,
+    ) -> list[Application]:
+        from app.modules.jobs.models import Job
+
+        conditions = [Application.normalized_email == normalized_email]
+        if normalized_phone:
+            conditions.append(Application.normalized_phone == normalized_phone)
+
+        result = await self.db.execute(
+            select(Application)
+            .join(Job, Application.job_id == Job.id)
+            .where(Job.company_id == company_id)
+            .where(or_(*conditions))
+            .options(selectinload(Application.stage), selectinload(Application.job))
+            .order_by(Application.created_at.desc())
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def create_duplicate_links(
+        self,
+        source_application_id: uuid.UUID,
+        duplicate_application_ids: list[uuid.UUID],
+        match_reasons: dict[uuid.UUID, list[str]],
+    ) -> None:
+        for duplicate_application_id in duplicate_application_ids:
+            self.db.add(
+                ApplicationDuplicateLink(
+                    source_application_id=source_application_id,
+                    duplicate_application_id=duplicate_application_id,
+                    match_reasons=match_reasons.get(duplicate_application_id, []),
+                )
+            )
+        await self.db.flush()
 
     async def _load(self, application_id: uuid.UUID) -> Application | None:
         result = await self.db.execute(

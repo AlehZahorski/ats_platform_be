@@ -2,6 +2,7 @@ import uuid
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,6 +10,11 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import CurrentCompany, CurrentUser
 from app.modules.applications.repository import ApplicationRepository
+from app.modules.applications.duplicate_service import (
+    DuplicateCheckService,
+    normalize_email,
+    normalize_phone,
+)
 from app.modules.applications.schemas import (
     AnswerInput,
     AnswerRead,
@@ -19,11 +25,14 @@ from app.modules.applications.schemas import (
     ApplicationTrackingRead,
     BulkAction,
     BulkResult,
+    DuplicateCheckRequest,
+    DuplicateCheckResponse,
     ScoreCreate,
     ScoreRead,
 )
 from app.modules.application_events.models import ApplicationEvent
 from app.modules.audit.models import AuditLog
+from app.modules.interviews.repository import InterviewRepository
 from app.modules.jobs.models import Job
 from app.modules.pipeline.models import ApplicationStageHistory
 from app.modules.pipeline.repository import PipelineRepository
@@ -53,6 +62,7 @@ async def apply(
     phone: Optional[str] = Form(None),
     answers: Optional[str] = Form(None),   # JSON string: [{field_id, value}]
     cv_file: Optional[UploadFile] = File(None),
+    ignore_duplicate_warning: bool = Form(False),
     db: AsyncSession = Depends(get_db),
 ) -> ApplicationRead:
     import json as _json
@@ -63,6 +73,23 @@ async def apply(
     job = result.scalar_one_or_none()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found or not open")
+
+    duplicate_service = DuplicateCheckService(db)
+    duplicate_check = await duplicate_service.check(
+        company_id=job.company_id,
+        email=email,
+        phone=phone,
+    )
+    if duplicate_check.has_duplicates and not ignore_duplicate_warning:
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={
+                "detail": {
+                    "code": "duplicate_candidate_detected",
+                    **duplicate_check.model_dump(mode="json"),
+                }
+            },
+        )
 
     cv_url: Optional[str] = None
     if cv_file and cv_file.filename:
@@ -97,7 +124,16 @@ async def apply(
         data=data,
         cv_url=cv_url,
         initial_stage_id=initial_stage.id if initial_stage else None,
+        normalized_email=normalize_email(email),
+        normalized_phone=normalize_phone(phone),
     )
+
+    if duplicate_check.has_duplicates:
+        await app_repo.create_duplicate_links(
+            source_application_id=application.id,
+            duplicate_application_ids=[match.application_id for match in duplicate_check.matches],
+            match_reasons={match.application_id: match.match_reasons for match in duplicate_check.matches},
+        )
 
     tracking_url = f"{settings.frontend_url}/track/{application.public_token}"
     mail_service.send_application_confirmation(
@@ -109,6 +145,20 @@ async def apply(
     )
 
     return ApplicationRead.model_validate(application)
+
+
+@router.post("/duplicate-check", response_model=DuplicateCheckResponse)
+async def duplicate_check(
+    data: DuplicateCheckRequest,
+    db: AsyncSession = Depends(get_db),
+) -> DuplicateCheckResponse:
+    result = await db.execute(select(Job).where(Job.id == data.job_id, Job.status == "open"))
+    job = result.scalar_one_or_none()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found or not open")
+
+    service = DuplicateCheckService(db)
+    return await service.check(company_id=job.company_id, email=data.email, phone=data.phone)
 
 
 # ──────────────────────────────────────────────
@@ -236,6 +286,14 @@ async def bulk_action(
                 if not stage:
                     failed += 1
                     continue
+
+                interview = None
+                if stage.name.strip().lower() == "interview":
+                    interview_repo = InterviewRepository(db)
+                    interview = await interview_repo.get_stage_ready_interview(app.id)
+                    if not interview:
+                        failed += 1
+                        continue
                 app.stage_id = stage_id
                 history = ApplicationStageHistory(
                     application_id=app_id,
@@ -259,6 +317,10 @@ async def bulk_action(
                         stage_name=stage.name,
                         tracking_url=tracking_url,
                         company_name=company.name,
+                        interview_at=interview.scheduled_at if interview else None,
+                        interview_url=interview.meeting_url if interview else None,
+                        interview_notes=interview.notes if interview else None,
+                        interview_duration_minutes=interview.duration_minutes if interview else None,
                     )
 
             elif data.action == "reject":

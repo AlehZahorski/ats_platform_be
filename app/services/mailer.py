@@ -5,6 +5,7 @@ import ssl
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
+from datetime import datetime
 
 from fastapi import BackgroundTasks
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -162,6 +163,41 @@ class MailService:
             background_tasks,
             to_email,
             f"Update on your application for {job_title}",
+            html,
+        )
+
+    def send_interview_stage_update(
+        self,
+        background_tasks: BackgroundTasks,
+        to_email: str,
+        candidate_name: str,
+        job_title: str,
+        tracking_url: str,
+        interview_at: datetime,
+        meeting_url: str,
+        duration_minutes: int | None = None,
+        notes: str | None = None,
+    ) -> None:
+        interview_date = interview_at.strftime("%Y-%m-%d")
+        interview_time = interview_at.strftime("%H:%M")
+        html = _render_template(
+            "interview_stage_update.html",
+            {
+                "candidate_name": candidate_name,
+                "job_title": job_title,
+                "tracking_url": tracking_url,
+                "interview_date": interview_date,
+                "interview_time": interview_time,
+                "interview_url": meeting_url,
+                "duration_minutes": duration_minutes,
+                "notes": notes,
+                "app_name": settings.app_name,
+            },
+        )
+        self._enqueue(
+            background_tasks,
+            to_email,
+            f"Interview details for your application to {job_title}",
             html,
         )
 

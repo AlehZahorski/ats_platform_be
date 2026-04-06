@@ -10,6 +10,7 @@ from app.core.database import get_db
 from app.core.dependencies import CurrentCompany, CurrentUser, RecruiterOrOwner
 from app.modules.applications.models import Application
 from app.modules.audit.service import AuditService
+from app.modules.interviews.repository import InterviewRepository
 from app.modules.pipeline.repository import PipelineRepository
 from app.modules.pipeline.schemas import (
     StageCreate,
@@ -22,6 +23,24 @@ from app.modules.pipeline.schemas import (
 from app.services.candidate_notifications import send_stage_change_notification
 
 router = APIRouter()
+
+
+async def _get_required_interview(
+    db: AsyncSession,
+    application_id: uuid.UUID,
+    stage_name: str,
+):
+    if stage_name.strip().lower() != "interview":
+        return None
+
+    interview_repo = InterviewRepository(db)
+    interview = await interview_repo.get_stage_ready_interview(application_id)
+    if not interview:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Interview stage requires a scheduled interview with a meeting link",
+        )
+    return interview
 
 
 def _repo(db: AsyncSession = Depends(get_db)) -> PipelineRepository:
@@ -137,6 +156,8 @@ async def update_stage(
     if not stage:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stage not found")
 
+    interview = await _get_required_interview(db, application_id, stage.name)
+
     # Update stage on application
     application.stage_id = stage.id
     await db.flush()
@@ -172,6 +193,10 @@ async def update_stage(
             stage_name=stage.name,
             tracking_url=tracking_url,
             company_name=company.name,
+            interview_at=interview.scheduled_at if interview else None,
+            interview_url=interview.meeting_url if interview else None,
+            interview_notes=interview.notes if interview else None,
+            interview_duration_minutes=interview.duration_minutes if interview else None,
         )
 
     return StageHistoryRead.model_validate(history)

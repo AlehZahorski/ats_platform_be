@@ -26,6 +26,7 @@ class InterviewService:
         data: InterviewCreate,
         background_tasks: BackgroundTasks,
     ) -> Interview:
+        self._validate_meeting_url(data.meeting_url, data.status)
         interview = await self.repo.create(application_id, data)
 
         # Log application event
@@ -72,6 +73,9 @@ class InterviewService:
         data: InterviewUpdate,
     ) -> Interview:
         interview = await self.get(interview_id)
+        next_status = data.status or interview.status
+        next_meeting_url = data.meeting_url if data.meeting_url is not None else interview.meeting_url
+        self._validate_meeting_url(next_meeting_url, next_status)
         return await self.repo.update(interview, data)
 
     async def delete(
@@ -92,3 +96,10 @@ class InterviewService:
         self.db.add(audit)
 
         await self.repo.delete(interview)
+
+    def _validate_meeting_url(self, meeting_url: str | None, interview_status: str | None) -> None:
+        if interview_status != "cancelled" and not meeting_url:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Interview scheduling requires a meeting link",
+            )

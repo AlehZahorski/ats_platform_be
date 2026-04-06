@@ -99,6 +99,7 @@ def create_app() -> FastAPI:
     from app.modules.reports.router import router as reports_router
     from app.modules.consents.router import router as gdpr_router
     from app.modules.consents.router import router as gdpr_router
+    from app.modules.reviews.router import router as reviews_router
 
     API_V1 = "/api/v1"
 
@@ -122,6 +123,7 @@ def create_app() -> FastAPI:
     app.include_router(reports_router,         prefix=f"{API_V1}/reports",         tags=["Reports"])
     app.include_router(gdpr_router,            prefix=f"{API_V1}/gdpr",            tags=["GDPR"])
     app.include_router(gdpr_router,            prefix=f"{API_V1}/gdpr",            tags=["GDPR"])
+    app.include_router(reviews_router,         prefix=f"{API_V1}/reviews",         tags=["Reviews"])
 
     # -----------------------------------------------------------------------
     # Health check

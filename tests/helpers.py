@@ -5,7 +5,8 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import hash_password
+from app.core.security import generate_public_token, hash_password
+from app.modules.applications.models import Application
 from app.modules.companies.models import Company
 from app.modules.jobs.models import Job
 from app.modules.pipeline.models import PipelineStage
@@ -62,3 +63,27 @@ async def create_pipeline_stages(db: AsyncSession) -> list[PipelineStage]:
         db.add(s)
     await db.flush()
     return stages
+
+
+async def create_application(
+    db: AsyncSession,
+    job_id: uuid.UUID,
+    email: str = "candidate@test.com",
+    phone: str | None = "555123123",
+    stage_id: uuid.UUID | None = None,
+) -> Application:
+    application = Application(
+        job_id=job_id,
+        first_name="Test",
+        last_name="Candidate",
+        email=email,
+        normalized_email=email.strip().lower(),
+        phone=phone,
+        normalized_phone="".join(ch for ch in phone if ch.isdigit()) if phone else None,
+        stage_id=stage_id,
+        public_token=generate_public_token(),
+        language="en",
+    )
+    db.add(application)
+    await db.flush()
+    return application

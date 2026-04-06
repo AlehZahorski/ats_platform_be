@@ -35,6 +35,7 @@ import app.modules.interviews.models        # noqa: F401
 import app.modules.tasks.models             # noqa: F401
 import app.modules.consents.models          # noqa: F401
 import app.modules.application_events.models  # noqa: F401
+import app.modules.reviews.models           # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)

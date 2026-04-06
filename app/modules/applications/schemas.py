@@ -73,6 +73,31 @@ class ApplicationRead(BaseModel):
     stage_history: list[StageHistoryRead] = []
 
 
+class DuplicateCheckRequest(BaseModel):
+    job_id: uuid.UUID
+    email: EmailStr
+    phone: str | None = None
+
+
+class DuplicateCheckMatch(BaseModel):
+    application_id: uuid.UUID
+    job_id: uuid.UUID
+    candidate_name: str
+    email: str
+    phone: str | None
+    stage_name: str | None = None
+    job_title: str | None = None
+    public_token: str
+    created_at: datetime
+    match_reasons: list[str] = []
+
+
+class DuplicateCheckResponse(BaseModel):
+    has_duplicates: bool
+    confidence: str = "none"
+    matches: list[DuplicateCheckMatch] = []
+
+
 class ApplicationListItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID

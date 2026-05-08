@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 import traceback
+from datetime import UTC, datetime
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,9 +10,11 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
+from sqlalchemy import update
 
 from app.core.config import settings
-from app.core.database import engine, Base
+from app.core.database import engine, Base, AsyncSessionLocal
+from app.modules.applications.models import CVParseJob
 
 # ---------------------------------------------------------------------------
 # Rate limiter
@@ -24,6 +27,17 @@ limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 # ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    async with AsyncSessionLocal() as db:
+        await db.execute(
+            update(CVParseJob)
+            .where(CVParseJob.status.in_(["extracting", "parsing"]))
+            .values(
+                status="failed",
+                error_message="Server restarted — kliknij Retry aby przetworzyć ponownie.",
+                completed_at=datetime.now(UTC),
+            )
+        )
+        await db.commit()
     yield
     await engine.dispose()
 

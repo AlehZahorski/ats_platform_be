@@ -11,6 +11,8 @@ from app.modules.applications.models import (
     Application,
     ApplicationAnswer,
     ApplicationDuplicateLink,
+    CVParseJob,
+    CandidateProfile,
     CandidateScore,
 )
 from app.modules.applications.schemas import ApplicationCreate, ScoreCreate
@@ -194,6 +196,79 @@ class ApplicationRepository:
                 ),
                 selectinload(Application.scores),
                 selectinload(Application.tag_links),
+                selectinload(Application.cv_parse_jobs),
+                selectinload(Application.candidate_profile),
             )
         )
         return result.scalar_one_or_none()
+
+    async def create_cv_parse_job(self, application_id: uuid.UUID, cv_url: str | None) -> CVParseJob:
+        job = CVParseJob(application_id=application_id, cv_url=cv_url, status="queued")
+        self.db.add(job)
+        await self.db.flush()
+        await self.db.refresh(job)
+        return job
+
+    async def get_cv_parse_job(self, parse_job_id: uuid.UUID) -> CVParseJob | None:
+        result = await self.db.execute(
+            select(CVParseJob).where(CVParseJob.id == parse_job_id).options(selectinload(CVParseJob.application))
+        )
+        return result.scalar_one_or_none()
+
+    async def get_latest_cv_parse_job(self, application_id: uuid.UUID) -> CVParseJob | None:
+        result = await self.db.execute(
+            select(CVParseJob)
+            .where(CVParseJob.application_id == application_id)
+            .order_by(CVParseJob.created_at.desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    async def create_or_replace_cv_parse_job(self, application_id: uuid.UUID, cv_url: str | None) -> CVParseJob:
+        latest = await self.get_latest_cv_parse_job(application_id)
+        if latest and latest.status in {"queued", "extracting", "parsing"}:
+            return latest
+        return await self.create_cv_parse_job(application_id, cv_url)
+
+    async def upsert_candidate_profile(
+        self,
+        application_id: uuid.UUID,
+        *,
+        headline: str | None,
+        summary: str | None,
+        skills: list[dict],
+        experience: list[dict],
+        education: list[dict],
+        parsing_status: str,
+        parsing_error: str | None = None,
+        last_parsed_at=None,
+    ) -> CandidateProfile:
+        result = await self.db.execute(
+            select(CandidateProfile).where(CandidateProfile.application_id == application_id)
+        )
+        profile = result.scalar_one_or_none()
+        if profile:
+            profile.headline = headline
+            profile.summary = summary
+            profile.skills = skills
+            profile.experience = experience
+            profile.education = education
+            profile.parsing_status = parsing_status
+            profile.parsing_error = parsing_error
+            profile.last_parsed_at = last_parsed_at
+        else:
+            profile = CandidateProfile(
+                application_id=application_id,
+                headline=headline,
+                summary=summary,
+                skills=skills,
+                experience=experience,
+                education=education,
+                parsing_status=parsing_status,
+                parsing_error=parsing_error,
+                last_parsed_at=last_parsed_at,
+            )
+            self.db.add(profile)
+        await self.db.flush()
+        await self.db.refresh(profile)
+        return profile

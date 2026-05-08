@@ -25,6 +25,9 @@ from app.modules.applications.schemas import (
     ApplicationTrackingRead,
     BulkAction,
     BulkResult,
+    CandidateProfileRead,
+    CVParseConfirmPayload,
+    CVParseJobRead,
     DuplicateCheckRequest,
     DuplicateCheckResponse,
     ScoreCreate,
@@ -38,6 +41,7 @@ from app.modules.pipeline.models import ApplicationStageHistory
 from app.modules.pipeline.repository import PipelineRepository
 from app.modules.tags.repository import TagRepository
 from app.services.candidate_notifications import send_stage_change_notification
+from app.services.cv_parsing import run_cv_parse_job
 from app.services.file_storage import file_storage
 from app.services.mailer import mail_service
 
@@ -127,6 +131,10 @@ async def apply(
         normalized_email=normalize_email(email),
         normalized_phone=normalize_phone(phone),
     )
+
+    if cv_url:
+        parse_job = await app_repo.create_cv_parse_job(application.id, cv_url)
+        background_tasks.add_task(run_cv_parse_job, parse_job.id)
 
     if duplicate_check.has_duplicates:
         await app_repo.create_duplicate_links(
@@ -230,6 +238,97 @@ async def get_application(
             answer.field_label = ans.field.label
             answer.field_type = ans.field.field_type
         result.answers.append(answer)
+    if application.candidate_profile:
+        result.candidate_profile = CandidateProfileRead.model_validate(application.candidate_profile)
+    latest_parse_job = application.cv_parse_jobs[0] if application.cv_parse_jobs else None
+    if latest_parse_job:
+        result.latest_cv_parse_job = CVParseJobRead.model_validate(latest_parse_job)
+    return result
+
+
+@router.get("/{application_id}/cv-parse", response_model=CVParseJobRead | None)
+async def get_cv_parse_status(
+    application_id: uuid.UUID,
+    _company: CurrentCompany,
+    _user: CurrentUser,
+    repo: ApplicationRepository = Depends(_repo),
+) -> CVParseJobRead | None:
+    parse_job = await repo.get_latest_cv_parse_job(application_id)
+    if not parse_job:
+        return None
+    return CVParseJobRead.model_validate(parse_job)
+
+
+@router.post("/{application_id}/cv-parse/retry", response_model=CVParseJobRead)
+async def retry_cv_parse(
+    application_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
+    _company: CurrentCompany,
+    _user: CurrentUser,
+    repo: ApplicationRepository = Depends(_repo),
+) -> CVParseJobRead:
+    application = await repo.get_by_id(application_id)
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+    if not application.cv_url:
+        raise HTTPException(status_code=400, detail="Application does not have a CV to parse")
+    parse_job = await repo.create_cv_parse_job(application_id, application.cv_url)
+    background_tasks.add_task(run_cv_parse_job, parse_job.id)
+    return CVParseJobRead.model_validate(parse_job)
+
+
+@router.post("/{application_id}/cv-parse/confirm", response_model=ApplicationRead)
+async def confirm_cv_parse(
+    application_id: uuid.UUID,
+    data: CVParseConfirmPayload,
+    _company: CurrentCompany,
+    _user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> ApplicationRead:
+    repo = ApplicationRepository(db)
+    application = await repo.get_by_id(application_id)
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    application.first_name = data.first_name
+    application.last_name = data.last_name
+    application.email = data.email
+    application.normalized_email = normalize_email(data.email)
+    application.phone = data.phone
+    application.normalized_phone = normalize_phone(data.phone)
+
+    latest_job = await repo.get_latest_cv_parse_job(application_id)
+    if latest_job:
+        latest_job.status = "completed"
+        latest_job.completed_at = latest_job.completed_at or latest_job.updated_at
+        latest_job.normalized_result = data.model_dump(mode="json")
+
+    await repo.upsert_candidate_profile(
+        application_id,
+        headline=data.headline,
+        summary=data.summary,
+        skills=[item.model_dump() for item in data.skills],
+        experience=[item.model_dump() for item in data.experience],
+        education=[item.model_dump() for item in data.education],
+        parsing_status="completed",
+        parsing_error=None,
+        last_parsed_at=latest_job.completed_at if latest_job else application.updated_at,
+    )
+
+    refreshed = await repo.get_by_id(application_id)
+    result = ApplicationRead.model_validate(refreshed)
+    result.answers = []
+    for ans in (refreshed.answers or []):
+        answer = AnswerRead.model_validate(ans)
+        if hasattr(ans, "field") and ans.field:
+            answer.field_label = ans.field.label
+            answer.field_type = ans.field.field_type
+        result.answers.append(answer)
+    if refreshed.candidate_profile:
+        result.candidate_profile = CandidateProfileRead.model_validate(refreshed.candidate_profile)
+    latest_parse_job = refreshed.cv_parse_jobs[0] if refreshed.cv_parse_jobs else None
+    if latest_parse_job:
+        result.latest_cv_parse_job = CVParseJobRead.model_validate(latest_parse_job)
     return result
 
 

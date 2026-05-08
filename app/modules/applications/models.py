@@ -54,6 +54,16 @@ class Application(BaseModel):
         back_populates="duplicate_application",
         cascade="all, delete-orphan",
     )
+    cv_parse_jobs: Mapped[list["CVParseJob"]] = relationship(
+        back_populates="application",
+        cascade="all, delete-orphan",
+        order_by="desc(CVParseJob.created_at)",
+    )
+    candidate_profile: Mapped["CandidateProfile | None"] = relationship(
+        back_populates="application",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
 
 
 class ApplicationAnswer(BaseModel):
@@ -107,3 +117,40 @@ class ApplicationDuplicateLink(BaseModel):
         foreign_keys=[duplicate_application_id],
         back_populates="duplicate_links_to",
     )
+
+
+class CVParseJob(BaseModel):
+    __tablename__ = "cv_parse_jobs"
+
+    application_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("applications.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    cv_url: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="queued", index=True)
+    error_message: Mapped[str | None] = mapped_column(Text)
+    raw_text: Mapped[str | None] = mapped_column(Text)
+    raw_result: Mapped[dict | None] = mapped_column(JSON)
+    normalized_result: Mapped[dict | None] = mapped_column(JSON)
+    parser_version: Mapped[str] = mapped_column(Text, nullable=False, default="v1")
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    application: Mapped["Application"] = relationship(back_populates="cv_parse_jobs")
+
+
+class CandidateProfile(BaseModel):
+    __tablename__ = "candidate_profiles"
+
+    application_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("applications.id", ondelete="CASCADE"), nullable=False, unique=True, index=True
+    )
+    headline: Mapped[str | None] = mapped_column(Text)
+    summary: Mapped[str | None] = mapped_column(Text)
+    skills: Mapped[list[dict]] = mapped_column(JSON, nullable=False, default=list)
+    experience: Mapped[list[dict]] = mapped_column(JSON, nullable=False, default=list)
+    education: Mapped[list[dict]] = mapped_column(JSON, nullable=False, default=list)
+    parsing_status: Mapped[str] = mapped_column(Text, nullable=False, default="idle", index=True)
+    parsing_error: Mapped[str | None] = mapped_column(Text)
+    last_parsed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    application: Mapped["Application"] = relationship(back_populates="candidate_profile")

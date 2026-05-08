@@ -71,6 +71,8 @@ class ApplicationRead(BaseModel):
     answers: list[AnswerRead] = []
     scores: list[ScoreRead] = []
     stage_history: list[StageHistoryRead] = []
+    candidate_profile: "CandidateProfileRead | None" = None
+    latest_cv_parse_job: "CVParseJobRead | None" = None
 
 
 class DuplicateCheckRequest(BaseModel):
@@ -162,3 +164,65 @@ class BulkResult(BaseModel):
     updated: int
     failed: int
     action: str
+
+
+class ParsedSkillRead(BaseModel):
+    name: str
+
+
+class ParsedExperienceRead(BaseModel):
+    title: str | None = None
+    company: str | None = None
+    date_range: str | None = None
+    description: str | None = None
+
+
+class ParsedEducationRead(BaseModel):
+    school: str | None = None
+    degree: str | None = None
+    date_range: str | None = None
+    description: str | None = None
+
+
+class CandidateProfileRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    application_id: uuid.UUID
+    headline: str | None
+    summary: str | None
+    skills: list[ParsedSkillRead] = []
+    experience: list[ParsedExperienceRead] = []
+    education: list[ParsedEducationRead] = []
+    parsing_status: str
+    parsing_error: str | None
+    last_parsed_at: datetime | None
+
+
+class CVParseJobRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    application_id: uuid.UUID
+    cv_url: str | None
+    status: str
+    error_message: str | None
+    raw_result: dict[str, Any] | None = None
+    normalized_result: dict[str, Any] | None = None
+    parser_version: str
+    started_at: datetime | None
+    completed_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class CVParseConfirmPayload(BaseModel):
+    first_name: str
+    last_name: str
+    email: EmailStr
+    phone: str | None = None
+    headline: str | None = None
+    summary: str | None = None
+    skills: list[ParsedSkillRead] = []
+    experience: list[ParsedExperienceRead] = []
+    education: list[ParsedEducationRead] = []

@@ -1,16 +1,12 @@
-
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import CurrentCompany, CurrentUser, RecruiterOrOwner
-from app.modules.applications.models import Application
 from app.modules.audit.service import AuditService
-from app.modules.interviews.repository import InterviewRepository
 from app.modules.pipeline.repository import PipelineRepository
 from app.modules.pipeline.schemas import (
     StageCreate,
@@ -20,54 +16,32 @@ from app.modules.pipeline.schemas import (
     StageUpdate,
     UpdateStageRequest,
 )
+from app.modules.pipeline.service import PipelineService
 from app.services.candidate_notifications import send_stage_change_notification
 
 router = APIRouter()
 
 
-async def _get_required_interview(
-    db: AsyncSession,
-    application_id: uuid.UUID,
-    stage_name: str,
-):
-    if stage_name.strip().lower() != "interview":
-        return None
-
-    interview_repo = InterviewRepository(db)
-    interview = await interview_repo.get_stage_ready_interview(application_id)
-    if not interview:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Interview stage requires a scheduled interview with a meeting link",
-        )
-    return interview
-
-
-def _repo(db: AsyncSession = Depends(get_db)) -> PipelineRepository:
-    return PipelineRepository(db)
+def _get_service(db: AsyncSession = Depends(get_db)) -> PipelineService:
+    return PipelineService(PipelineRepository(db), AuditService(db), db)
 
 
 @router.get("", response_model=list[StageRead])
 async def list_stages(
     _user: CurrentUser,
-    repo: PipelineRepository = Depends(_repo),
+    service: PipelineService = Depends(_get_service),
 ) -> list[StageRead]:
-    stages = await repo.list_stages()
+    stages = await service.repository.list_stages()
     return [StageRead.model_validate(s) for s in stages]
 
 
-@router.post("", response_model=StageRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=StageRead, status_code=201)
 async def create_stage(
     data: StageCreate,
     _user: RecruiterOrOwner,
-    repo: PipelineRepository = Depends(_repo),
-    db: AsyncSession = Depends(get_db),
+    service: PipelineService = Depends(_get_service),
 ) -> StageRead:
-    name = data.name.strip()
-    if not name:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Stage name is required")
-    stage = await repo.create_stage(name)
-    await db.commit()
+    stage = await service.create_stage(data.name)
     return StageRead.model_validate(stage)
 
 
@@ -76,19 +50,9 @@ async def rename_stage(
     stage_id: uuid.UUID,
     data: StageUpdate,
     _user: RecruiterOrOwner,
-    repo: PipelineRepository = Depends(_repo),
-    db: AsyncSession = Depends(get_db),
+    service: PipelineService = Depends(_get_service),
 ) -> StageRead:
-    stage = await repo.get_stage(stage_id)
-    if not stage:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stage not found")
-
-    name = data.name.strip()
-    if not name:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Stage name is required")
-
-    stage = await repo.update_stage_name(stage, name)
-    await db.commit()
+    stage = await service.rename_stage(stage_id, data.name)
     return StageRead.model_validate(stage)
 
 
@@ -96,39 +60,19 @@ async def rename_stage(
 async def reorder_stages(
     data: StageReorderRequest,
     _user: RecruiterOrOwner,
-    repo: PipelineRepository = Depends(_repo),
-    db: AsyncSession = Depends(get_db),
+    service: PipelineService = Depends(_get_service),
 ) -> list[StageRead]:
-    existing_ids = {stage.id for stage in await repo.list_stages()}
-    requested_ids = {item.id for item in data.stages}
-    if existing_ids != requested_ids:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="All stages must be included in reorder request")
-
-    reordered = await repo.reorder_stages([(item.id, item.order_index) for item in data.stages])
-    await db.commit()
-    return [StageRead.model_validate(stage) for stage in reordered]
+    reordered = await service.reorder_stages([(item.id, item.order_index) for item in data.stages])
+    return [StageRead.model_validate(s) for s in reordered]
 
 
-@router.delete("/{stage_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{stage_id}", status_code=204)
 async def delete_stage(
     stage_id: uuid.UUID,
     _user: RecruiterOrOwner,
-    repo: PipelineRepository = Depends(_repo),
-    db: AsyncSession = Depends(get_db),
+    service: PipelineService = Depends(_get_service),
 ) -> None:
-    stage = await repo.get_stage(stage_id)
-    if not stage:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stage not found")
-
-    applications_count, history_count = await repo.stage_usage_counts(stage_id)
-    if applications_count > 0 or history_count > 0:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Stage cannot be deleted because it is already used by candidates or stage history",
-        )
-
-    await repo.delete_stage(stage)
-    await db.commit()
+    await service.delete_stage(stage_id)
 
 
 @router.patch("/applications/{application_id}/stage", response_model=StageHistoryRead)
@@ -138,68 +82,35 @@ async def update_stage(
     background_tasks: BackgroundTasks,
     company: CurrentCompany,
     user: CurrentUser,
-    db: AsyncSession = Depends(get_db),
-    repo: PipelineRepository = Depends(_repo),
+    service: PipelineService = Depends(_get_service),
 ) -> StageHistoryRead:
-    # Verify application belongs to this company
-    from app.modules.jobs.models import Job
-    result = await db.execute(
-        select(Application)
-        .join(Job, Application.job_id == Job.id)
-        .where(Application.id == application_id, Job.company_id == company.id)
-    )
-    application = result.scalar_one_or_none()
-    if not application:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
-
-    stage = await repo.get_stage(data.stage_id)
-    if not stage:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stage not found")
-
-    interview = await _get_required_interview(db, application_id, stage.name)
-
-    # Update stage on application
-    application.stage_id = stage.id
-    await db.flush()
-
-    # Record history
-    history = await repo.record_stage_change(application_id, stage.id, user.id)
-
-    # Audit log
-    audit = AuditService(db)
-    await audit.log(
+    ctx = await service.update_application_stage(
+        application_id=application_id,
+        stage_id=data.stage_id,
         company_id=company.id,
         user_id=user.id,
-        action="candidate_moved_stage",
-        entity_type="application",
-        entity_id=application_id,
-        metadata={"stage_name": stage.name},
     )
 
-    # Optional candidate notification
     if data.notify_candidate:
-        tracking_url = f"{settings.frontend_url}/track/{application.public_token}"
-        from app.modules.jobs.models import Job as JobModel
-        job_result = await db.execute(select(JobModel).where(JobModel.id == application.job_id))
-        job = job_result.scalar_one_or_none()
+        tracking_url = f"{settings.frontend_url}/track/{application_id}"
         await send_stage_change_notification(
-            db=db,
+            db=service.db,
             background_tasks=background_tasks,
             company_id=company.id,
-            stage_id=stage.id,
-            candidate_email=application.email,
-            candidate_name=f"{application.first_name} {application.last_name}",
-            job_title=job.title if job else "position",
-            stage_name=stage.name,
+            stage_id=data.stage_id,
+            candidate_email=ctx.candidate_email,
+            candidate_name=ctx.candidate_name,
+            job_title=ctx.job_title,
+            stage_name=ctx.stage_name,
             tracking_url=tracking_url,
             company_name=company.name,
-            interview_at=interview.scheduled_at if interview else None,
-            interview_url=interview.meeting_url if interview else None,
-            interview_notes=interview.notes if interview else None,
-            interview_duration_minutes=interview.duration_minutes if interview else None,
+            interview_at=ctx.interview.scheduled_at if ctx.interview else None,
+            interview_url=ctx.interview.meeting_url if ctx.interview else None,
+            interview_notes=ctx.interview.notes if ctx.interview else None,
+            interview_duration_minutes=ctx.interview.duration_minutes if ctx.interview else None,
         )
 
-    return StageHistoryRead.model_validate(history)
+    return StageHistoryRead.model_validate(ctx.history)
 
 
 @router.get("/applications/{application_id}/history", response_model=list[StageHistoryRead])
@@ -207,7 +118,7 @@ async def get_stage_history(
     application_id: uuid.UUID,
     _company: CurrentCompany,
     _user: CurrentUser,
-    repo: PipelineRepository = Depends(_repo),
+    service: PipelineService = Depends(_get_service),
 ) -> list[StageHistoryRead]:
-    history = await repo.get_history(application_id)
+    history = await service.get_history(application_id)
     return [StageHistoryRead.model_validate(h) for h in history]

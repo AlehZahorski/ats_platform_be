@@ -3,14 +3,13 @@ from __future__ import annotations
 import uuid
 
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.base_repository import BaseRepository
 from app.modules.audit.models import AuditLog
 
 
-class AuditRepository:
-    def __init__(self, db: AsyncSession) -> None:
-        self.db = db
+class AuditRepository(BaseRepository[AuditLog]):
+    model = AuditLog
 
     async def list(
         self,

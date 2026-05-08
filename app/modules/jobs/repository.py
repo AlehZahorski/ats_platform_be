@@ -3,22 +3,19 @@ from __future__ import annotations
 import uuid
 
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.base_repository import BaseRepository
+from app.core.enums.jobs import JobStatus
 from app.modules.jobs.models import Job, JobFormTemplate
 from app.modules.jobs.schemas import JobCreate, JobUpdate
 
 
-class JobRepository:
-    def __init__(self, db: AsyncSession) -> None:
-        self.db = db
+class JobRepository(BaseRepository[Job]):
+    model = Job
 
     async def create(self, company_id: uuid.UUID, data: JobCreate) -> Job:
-        job = Job(
-            company_id=company_id,
-            **data.model_dump(exclude={"template_id"}),
-        )
+        job = Job(company_id=company_id, **data.model_dump(exclude={"template_id"}))
         self.db.add(job)
         await self.db.flush()
 
@@ -29,38 +26,36 @@ class JobRepository:
 
         return await self._load(job.id, company_id)
 
-    async def get_by_id(self, job_id: uuid.UUID, company_id: uuid.UUID) -> Job | None:
+    async def get_by_id_and_company(self, job_id: uuid.UUID, company_id: uuid.UUID) -> Job | None:
         return await self._load(job_id, company_id)
 
-    async def list(
+    async def list_by_company(
         self,
         company_id: uuid.UUID,
         skip: int = 0,
         limit: int = 50,
-        status: str | None = None,
+        status: JobStatus | None = None,
     ) -> tuple[list[Job], int]:
         query = select(Job).where(Job.company_id == company_id)
         if status:
             query = query.where(Job.status == status)
 
-        count_result = await self.db.execute(
-            select(func.count()).select_from(query.subquery())
-        )
-        total = count_result.scalar_one()
+        total = (await self.db.execute(select(func.count()).select_from(query.subquery()))).scalar_one()
+        items = (
+            await self.db.execute(
+                query.offset(skip).limit(limit)
+                .order_by(Job.created_at.desc())
+                .options(selectinload(Job.form_template_link))
+            )
+        ).scalars().all()
 
-        result = await self.db.execute(
-            query.offset(skip).limit(limit).order_by(Job.created_at.desc())
-            .options(selectinload(Job.form_template_link))
-        )
-        return list(result.scalars().all()), total
+        return list(items), total
 
     async def update(self, job: Job, data: JobUpdate) -> Job:
-        exclude = {"template_id"}
-        for field, value in data.model_dump(exclude_unset=True, exclude=exclude).items():
+        for field, value in data.model_dump(exclude_unset=True, exclude={"template_id"}).items():
             setattr(job, field, value)
         await self.db.flush()
 
-        # Handle template assignment change
         if "template_id" in data.model_dump(exclude_unset=True):
             await self._update_template(job.id, data.template_id)
 
@@ -68,10 +63,6 @@ class JobRepository:
 
     async def assign_template(self, job_id: uuid.UUID, template_id: uuid.UUID | None) -> None:
         await self._update_template(job_id, template_id)
-
-    async def delete(self, job: Job) -> None:
-        await self.db.delete(job)
-        await self.db.flush()
 
     # ------------------------------------------------------------------
     # Private helpers

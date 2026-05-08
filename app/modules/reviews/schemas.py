@@ -5,6 +5,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.core.enums.reviews import ReviewStatus
+
 
 class ScorecardCriterionCreate(BaseModel):
     label: str
@@ -84,7 +86,7 @@ class ReviewAssignmentRead(BaseModel):
     reviewer_id: uuid.UUID
     assigned_by: uuid.UUID | None
     template_id: uuid.UUID
-    status: str
+    status: ReviewStatus
     due_at: datetime | None
     submitted_at: datetime | None
     overall_comment: str | None

@@ -6,11 +6,13 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
+from app.core.enums.tasks import TaskType
+
 
 class TaskCreate(BaseModel):
     title: str
     description: Optional[str] = None
-    type: Optional[str] = None          # follow_up | reminder | review | call
+    type: Optional[TaskType] = None
     application_id: Optional[uuid.UUID] = None
     assigned_to: Optional[uuid.UUID] = None
     due_date: Optional[datetime] = None
@@ -19,7 +21,7 @@ class TaskCreate(BaseModel):
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
-    type: Optional[str] = None
+    type: Optional[TaskType] = None
     application_id: Optional[uuid.UUID] = None
     assigned_to: Optional[uuid.UUID] = None
     due_date: Optional[datetime] = None
@@ -42,7 +44,7 @@ class TaskRead(BaseModel):
     created_by: Optional[uuid.UUID]
     title: str
     description: Optional[str]
-    type: Optional[str]
+    type: Optional[TaskType]
     due_date: Optional[datetime]
     completed: bool
     completed_at: Optional[datetime]

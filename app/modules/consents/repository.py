@@ -4,9 +4,9 @@ import uuid
 from typing import Optional
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.base_repository import BaseRepository
 from app.modules.consents.models import ApplicationConsent, Consent
 from app.modules.consents.schemas import (
     ApplicationConsentCreate,
@@ -15,19 +15,16 @@ from app.modules.consents.schemas import (
 )
 
 
-class ConsentRepository:
-    def __init__(self, db: AsyncSession) -> None:
-        self.db = db
+class ConsentRepository(BaseRepository[Consent]):
+    model = Consent
 
-    # ── Consent definitions ────────────────────────────────────────────────────
     async def create(self, company_id: uuid.UUID, data: ConsentCreate) -> Consent:
         consent = Consent(company_id=company_id, **data.model_dump())
-        self.db.add(consent)
-        await self.db.flush()
-        await self.db.refresh(consent)
-        return consent
+        return await self.save(consent)
 
-    async def get_by_id(self, consent_id: uuid.UUID, company_id: uuid.UUID) -> Optional[Consent]:
+    async def get_by_id_and_company(
+        self, consent_id: uuid.UUID, company_id: uuid.UUID
+    ) -> Consent | None:
         result = await self.db.execute(
             select(Consent).where(
                 Consent.id == consent_id,
@@ -36,7 +33,7 @@ class ConsentRepository:
         )
         return result.scalar_one_or_none()
 
-    async def list(
+    async def list_by_company(
         self,
         company_id: uuid.UUID,
         active_only: bool = False,
@@ -58,17 +55,11 @@ class ConsentRepository:
         await self.db.refresh(consent)
         return consent
 
-    async def delete(self, consent: Consent) -> None:
-        await self.db.delete(consent)
-        await self.db.flush()
-
-    # ── Application consents ───────────────────────────────────────────────────
     async def record_consent(
         self,
         application_id: uuid.UUID,
         data: ApplicationConsentCreate,
     ) -> ApplicationConsent:
-        # Upsert — update if already exists
         result = await self.db.execute(
             select(ApplicationConsent).where(
                 ApplicationConsent.application_id == application_id,

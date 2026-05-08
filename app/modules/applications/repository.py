@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.base_repository import BaseRepository
+from app.core.enums.applications import CVParseStatus, ParsingStatus
 from app.core.security import generate_public_token
 from app.modules.applications.models import (
     Application,
@@ -19,9 +22,8 @@ from app.modules.applications.schemas import ApplicationCreate, ScoreCreate
 from app.modules.pipeline.models import ApplicationStageHistory
 
 
-class ApplicationRepository:
-    def __init__(self, db: AsyncSession) -> None:
-        self.db = db
+class ApplicationRepository(BaseRepository[Application]):
+    model = Application
 
     async def create(
         self,
@@ -48,13 +50,11 @@ class ApplicationRepository:
         await self.db.flush()
 
         for answer in data.answers:
-            self.db.add(
-                ApplicationAnswer(
-                    application_id=app.id,
-                    field_id=answer.field_id,
-                    value=answer.value,
-                )
-            )
+            self.db.add(ApplicationAnswer(
+                application_id=app.id,
+                field_id=answer.field_id,
+                value=answer.value,
+            ))
         await self.db.flush()
         return await self._load(app.id)
 
@@ -68,14 +68,12 @@ class ApplicationRepository:
             .options(
                 selectinload(Application.stage),
                 selectinload(Application.job),
-                selectinload(Application.stage_history).selectinload(
-                    ApplicationStageHistory.stage
-                ),
+                selectinload(Application.stage_history).selectinload(ApplicationStageHistory.stage),
             )
         )
         return result.scalar_one_or_none()
 
-    async def list(
+    async def list_by_company(
         self,
         company_id: uuid.UUID,
         job_id: uuid.UUID | None = None,
@@ -104,15 +102,11 @@ class ApplicationRepository:
                 | Application.email.ilike(term)
             )
 
-        count_result = await self.db.execute(
-            select(func.count()).select_from(query.subquery())
-        )
-        total = count_result.scalar_one()
-
-        result = await self.db.execute(
-            query.offset(skip).limit(limit).order_by(Application.created_at.desc())
-        )
-        return list(result.scalars().all()), total
+        total = (await self.db.execute(select(func.count()).select_from(query.subquery()))).scalar_one()
+        items = (
+            await self.db.execute(query.offset(skip).limit(limit).order_by(Application.created_at.desc()))
+        ).scalars().all()
+        return list(items), total
 
     async def upsert_score(
         self,
@@ -172,46 +166,23 @@ class ApplicationRepository:
         duplicate_application_ids: list[uuid.UUID],
         match_reasons: dict[uuid.UUID, list[str]],
     ) -> None:
-        for duplicate_application_id in duplicate_application_ids:
-            self.db.add(
-                ApplicationDuplicateLink(
-                    source_application_id=source_application_id,
-                    duplicate_application_id=duplicate_application_id,
-                    match_reasons=match_reasons.get(duplicate_application_id, []),
-                )
-            )
+        for dup_id in duplicate_application_ids:
+            self.db.add(ApplicationDuplicateLink(
+                source_application_id=source_application_id,
+                duplicate_application_id=dup_id,
+                match_reasons=match_reasons.get(dup_id, []),
+            ))
         await self.db.flush()
-
-    async def _load(self, application_id: uuid.UUID) -> Application | None:
-        result = await self.db.execute(
-            select(Application)
-            .where(Application.id == application_id)
-            .options(
-                selectinload(Application.stage),
-                selectinload(Application.answers).selectinload(
-                    ApplicationAnswer.field
-                ),
-                selectinload(Application.stage_history).selectinload(
-                    ApplicationStageHistory.stage
-                ),
-                selectinload(Application.scores),
-                selectinload(Application.tag_links),
-                selectinload(Application.cv_parse_jobs),
-                selectinload(Application.candidate_profile),
-            )
-        )
-        return result.scalar_one_or_none()
 
     async def create_cv_parse_job(self, application_id: uuid.UUID, cv_url: str | None) -> CVParseJob:
-        job = CVParseJob(application_id=application_id, cv_url=cv_url, status="queued")
-        self.db.add(job)
-        await self.db.flush()
-        await self.db.refresh(job)
-        return job
+        job = CVParseJob(application_id=application_id, cv_url=cv_url, status=CVParseStatus.queued)
+        return await self.save(job)
 
     async def get_cv_parse_job(self, parse_job_id: uuid.UUID) -> CVParseJob | None:
         result = await self.db.execute(
-            select(CVParseJob).where(CVParseJob.id == parse_job_id).options(selectinload(CVParseJob.application))
+            select(CVParseJob)
+            .where(CVParseJob.id == parse_job_id)
+            .options(selectinload(CVParseJob.application))
         )
         return result.scalar_one_or_none()
 
@@ -226,7 +197,7 @@ class ApplicationRepository:
 
     async def create_or_replace_cv_parse_job(self, application_id: uuid.UUID, cv_url: str | None) -> CVParseJob:
         latest = await self.get_latest_cv_parse_job(application_id)
-        if latest and latest.status in {"queued", "extracting", "parsing"}:
+        if latest and latest.status in {CVParseStatus.queued, CVParseStatus.extracting, CVParseStatus.parsing}:
             return latest
         return await self.create_cv_parse_job(application_id, cv_url)
 
@@ -239,9 +210,9 @@ class ApplicationRepository:
         skills: list[dict],
         experience: list[dict],
         education: list[dict],
-        parsing_status: str,
+        parsing_status: ParsingStatus,
         parsing_error: str | None = None,
-        last_parsed_at=None,
+        last_parsed_at: datetime | None = None,
     ) -> CandidateProfile:
         result = await self.db.execute(
             select(CandidateProfile).where(CandidateProfile.application_id == application_id)
@@ -272,3 +243,19 @@ class ApplicationRepository:
         await self.db.flush()
         await self.db.refresh(profile)
         return profile
+
+    async def _load(self, application_id: uuid.UUID) -> Application | None:
+        result = await self.db.execute(
+            select(Application)
+            .where(Application.id == application_id)
+            .options(
+                selectinload(Application.stage),
+                selectinload(Application.answers).selectinload(ApplicationAnswer.field),
+                selectinload(Application.stage_history).selectinload(ApplicationStageHistory.stage),
+                selectinload(Application.scores),
+                selectinload(Application.tag_links),
+                selectinload(Application.cv_parse_jobs),
+                selectinload(Application.candidate_profile),
+            )
+        )
+        return result.scalar_one_or_none()

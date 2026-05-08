@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import CurrentCompany, CurrentUser
+from app.modules.consents.repository import ConsentRepository
 from app.modules.consents.schemas import (
     AnonymizeResult,
     ApplicationConsentCreate,
@@ -21,8 +22,8 @@ from app.modules.consents.service import ConsentService
 router = APIRouter()
 
 
-def _svc(db: AsyncSession = Depends(get_db)) -> ConsentService:
-    return ConsentService(db)
+def _get_service(db: AsyncSession = Depends(get_db)) -> ConsentService:
+    return ConsentService(ConsentRepository(db))
 
 
 # ── Consent definitions ────────────────────────────────────────────────────────
@@ -31,9 +32,9 @@ async def create_consent(
     data: ConsentCreate,
     company: CurrentCompany,
     _user: CurrentUser,
-    svc: ConsentService = Depends(_svc),
+    service: ConsentService = Depends(_get_service),
 ) -> ConsentRead:
-    consent = await svc.create(company.id, data)
+    consent = await service.create(company.id, data)
     return ConsentRead.model_validate(consent)
 
 
@@ -43,9 +44,9 @@ async def list_consents(
     _user: CurrentUser,
     active_only: bool = Query(False),
     language: Optional[str] = Query(None),
-    svc: ConsentService = Depends(_svc),
+    service: ConsentService = Depends(_get_service),
 ) -> list[ConsentRead]:
-    consents = await svc.list(company.id, active_only=active_only, language=language)
+    consents = await service.list(company.id, active_only=active_only, language=language)
     return [ConsentRead.model_validate(c) for c in consents]
 
 
@@ -55,20 +56,20 @@ async def update_consent(
     data: ConsentUpdate,
     company: CurrentCompany,
     _user: CurrentUser,
-    svc: ConsentService = Depends(_svc),
+    service: ConsentService = Depends(_get_service),
 ) -> ConsentRead:
-    consent = await svc.update(consent_id, company.id, data)
+    consent = await service.update(consent_id, company.id, data)
     return ConsentRead.model_validate(consent)
 
 
-@router.delete("/{consent_id}")
+@router.delete("/{consent_id}", status_code=204)
 async def delete_consent(
     consent_id: uuid.UUID,
     company: CurrentCompany,
     _user: CurrentUser,
-    svc: ConsentService = Depends(_svc),
+    service: ConsentService = Depends(_get_service),
 ) -> Response:
-    await svc.delete(consent_id, company.id)
+    await service.delete(consent_id, company.id)
     return Response(status_code=204)
 
 
@@ -79,9 +80,9 @@ async def record_consent(
     data: ApplicationConsentCreate,
     _company: CurrentCompany,
     _user: CurrentUser,
-    svc: ConsentService = Depends(_svc),
+    service: ConsentService = Depends(_get_service),
 ) -> dict:
-    await svc.record_application_consent(application_id, data)
+    await service.record_application_consent(application_id, data)
     return {"recorded": True}
 
 
@@ -93,9 +94,9 @@ async def get_application_consents(
     application_id: uuid.UUID,
     _company: CurrentCompany,
     _user: CurrentUser,
-    svc: ConsentService = Depends(_svc),
+    service: ConsentService = Depends(_get_service),
 ) -> list[ApplicationConsentRead]:
-    records = await svc.get_application_consents(application_id)
+    records = await service.get_application_consents(application_id)
     return [ApplicationConsentRead.model_validate(r) for r in records]
 
 
@@ -106,9 +107,9 @@ async def set_retention(
     data: DataRetentionUpdate,
     company: CurrentCompany,
     _user: CurrentUser,
-    svc: ConsentService = Depends(_svc),
+    service: ConsentService = Depends(_get_service),
 ) -> dict:
-    await svc.set_retention(application_id, company.id, data)
+    await service.set_retention(application_id, company.id, data)
     return {"updated": True}
 
 
@@ -121,9 +122,9 @@ async def anonymize_application(
     application_id: uuid.UUID,
     company: CurrentCompany,
     _user: CurrentUser,
-    svc: ConsentService = Depends(_svc),
+    service: ConsentService = Depends(_get_service),
 ) -> AnonymizeResult:
-    return await svc.anonymize(application_id, company.id)
+    return await service.anonymize(application_id, company.id)
 
 
 # ── GDPR: hard delete ──────────────────────────────────────────────────────────
@@ -132,9 +133,9 @@ async def delete_application_data(
     application_id: uuid.UUID,
     company: CurrentCompany,
     _user: CurrentUser,
-    svc: ConsentService = Depends(_svc),
+    service: ConsentService = Depends(_get_service),
 ) -> dict:
-    return await svc.delete_application_data(application_id, company.id)
+    return await service.delete_application_data(application_id, company.id)
 
 
 # ── GDPR: cleanup expired ──────────────────────────────────────────────────────
@@ -142,6 +143,6 @@ async def delete_application_data(
 async def cleanup_expired(
     company: CurrentCompany,
     _user: CurrentUser,
-    svc: ConsentService = Depends(_svc),
+    service: ConsentService = Depends(_get_service),
 ) -> dict:
-    return await svc.cleanup_expired(company.id)
+    return await service.cleanup_expired(company.id)

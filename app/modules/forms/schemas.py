@@ -2,14 +2,11 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-FieldType = Literal[
-    "text", "textarea", "number", "email", "phone",
-    "select", "multiselect", "checkbox", "file", "date",
-]
+from app.core.enums.forms import FieldType
 
 
 class FormFieldCreate(BaseModel):

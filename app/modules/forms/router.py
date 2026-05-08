@@ -1,8 +1,6 @@
-
 import uuid
 
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -15,12 +13,13 @@ from app.modules.forms.schemas import (
     FormTemplateRead,
     FormTemplateUpdate,
 )
+from app.modules.forms.service import FormService
 
 router = APIRouter()
 
 
-def _repo(db: AsyncSession = Depends(get_db)) -> FormRepository:
-    return FormRepository(db)
+def _get_service(db: AsyncSession = Depends(get_db)) -> FormService:
+    return FormService(FormRepository(db))
 
 
 @router.post("/templates", response_model=FormTemplateRead, status_code=201)
@@ -28,9 +27,9 @@ async def create_template(
     data: FormTemplateCreate,
     company: CurrentCompany,
     _user: CurrentUser,
-    repo: FormRepository = Depends(_repo),
+    service: FormService = Depends(_get_service),
 ) -> FormTemplateRead:
-    template = await repo.create_template(company.id, data)
+    template = await service.create_template(company.id, data)
     return FormTemplateRead.model_validate(template)
 
 
@@ -38,9 +37,9 @@ async def create_template(
 async def list_templates(
     company: CurrentCompany,
     _user: CurrentUser,
-    repo: FormRepository = Depends(_repo),
+    service: FormService = Depends(_get_service),
 ) -> list[FormTemplateRead]:
-    templates = await repo.list(company.id)
+    templates = await service.list_templates(company.id)
     return [FormTemplateRead.model_validate(t) for t in templates]
 
 
@@ -49,11 +48,9 @@ async def get_template(
     template_id: uuid.UUID,
     company: CurrentCompany,
     _user: CurrentUser,
-    repo: FormRepository = Depends(_repo),
+    service: FormService = Depends(_get_service),
 ) -> FormTemplateRead:
-    template = await repo.get_by_id(template_id, company.id)
-    if not template:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+    template = await service.get_template(template_id, company.id)
     return FormTemplateRead.model_validate(template)
 
 
@@ -63,13 +60,10 @@ async def update_template(
     data: FormTemplateUpdate,
     company: CurrentCompany,
     _user: CurrentUser,
-    repo: FormRepository = Depends(_repo),
+    service: FormService = Depends(_get_service),
 ) -> FormTemplateRead:
-    template = await repo.get_by_id(template_id, company.id)
-    if not template:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
-    updated = await repo.update(template, data)
-    return FormTemplateRead.model_validate(updated)
+    template = await service.update_template(template_id, company.id, data)
+    return FormTemplateRead.model_validate(template)
 
 
 @router.post("/templates/{template_id}/fields", response_model=FormFieldRead, status_code=201)
@@ -78,25 +72,19 @@ async def add_field(
     data: FormFieldCreate,
     company: CurrentCompany,
     _user: CurrentUser,
-    repo: FormRepository = Depends(_repo),
+    service: FormService = Depends(_get_service),
 ) -> FormFieldRead:
-    template = await repo.get_by_id(template_id, company.id)
-    if not template:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
-    field = await repo.add_field(template_id, data)
+    field = await service.add_field(template_id, company.id, data)
     return FormFieldRead.model_validate(field)
 
 
-@router.delete("/templates/{template_id}/fields/{field_id}")
+@router.delete("/templates/{template_id}/fields/{field_id}", status_code=204)
 async def delete_field(
     template_id: uuid.UUID,
     field_id: uuid.UUID,
     company: CurrentCompany,
     _user: CurrentUser,
-    repo: FormRepository = Depends(_repo),
+    service: FormService = Depends(_get_service),
 ) -> Response:
-    template = await repo.get_by_id(template_id, company.id)
-    if not template:
-        raise HTTPException(status_code=404, detail="Template not found")
-    await repo.delete_field(field_id)
+    await service.delete_field(template_id, field_id, company.id)
     return Response(status_code=204)

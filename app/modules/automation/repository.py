@@ -1,28 +1,26 @@
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.base_repository import BaseRepository
+from app.core.enums.automation import AutomationTriggerType
 from app.modules.automation.models import AutomationRule
 from app.modules.automation.schemas import AutomationRuleCreate, AutomationRuleUpdate
 
 
-class AutomationRepository:
-    def __init__(self, db: AsyncSession) -> None:
-        self.db = db
+class AutomationRepository(BaseRepository[AutomationRule]):
+    model = AutomationRule
 
     async def create(self, company_id: uuid.UUID, data: AutomationRuleCreate) -> AutomationRule:
         rule = AutomationRule(company_id=company_id, **data.model_dump())
-        self.db.add(rule)
-        await self.db.flush()
-        await self.db.refresh(rule)
-        return rule
+        return await self.save(rule)
 
-    async def get_by_id(self, rule_id: uuid.UUID, company_id: uuid.UUID) -> Optional[AutomationRule]:
+    async def get_by_id_and_company(
+        self, rule_id: uuid.UUID, company_id: uuid.UUID
+    ) -> AutomationRule | None:
         result = await self.db.execute(
             select(AutomationRule).where(
                 AutomationRule.id == rule_id,
@@ -31,7 +29,7 @@ class AutomationRepository:
         )
         return result.scalar_one_or_none()
 
-    async def list(self, company_id: uuid.UUID) -> list[AutomationRule]:
+    async def list_by_company(self, company_id: uuid.UUID) -> list[AutomationRule]:
         result = await self.db.execute(
             select(AutomationRule)
             .where(AutomationRule.company_id == company_id)
@@ -42,15 +40,17 @@ class AutomationRepository:
     async def get_matching_rules(
         self,
         company_id: uuid.UUID,
-        trigger_type: str,
-        trigger_value: Optional[str] = None,
+        trigger_type: AutomationTriggerType,
+        trigger_value: str | None = None,
     ) -> list[AutomationRule]:
-        """Fetch active rules matching the given trigger."""
-        query = select(AutomationRule).where(
-            AutomationRule.company_id == company_id,
-            AutomationRule.trigger_type == trigger_type,
-            AutomationRule.is_active.is_(True),
-            AutomationRule.template_id.isnot(None),
+        query = (
+            select(AutomationRule)
+            .where(
+                AutomationRule.company_id == company_id,
+                AutomationRule.trigger_type == trigger_type,
+                AutomationRule.is_active.is_(True),
+                AutomationRule.template_id.isnot(None),
+            )
         )
         if trigger_value:
             query = query.where(AutomationRule.trigger_value == trigger_value)
@@ -66,7 +66,3 @@ class AutomationRepository:
         await self.db.flush()
         await self.db.refresh(rule)
         return rule
-
-    async def delete(self, rule: AutomationRule) -> None:
-        await self.db.delete(rule)
-        await self.db.flush()

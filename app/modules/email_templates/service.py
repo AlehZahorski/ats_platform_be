@@ -4,9 +4,8 @@ import re
 import uuid
 from typing import Any, Optional
 
-from fastapi import HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.core.base_service import BaseService
+from app.core.exceptions import NotFoundError
 from app.modules.email_templates.models import EmailTemplate
 from app.modules.email_templates.repository import EmailTemplateRepository
 from app.modules.email_templates.schemas import (
@@ -15,8 +14,7 @@ from app.modules.email_templates.schemas import (
     EmailTemplateUpdate,
 )
 
-# Default variables available in all templates
-DEFAULT_VARIABLES = {
+DEFAULT_VARIABLES: dict[str, str] = {
     "candidate_name": "John Doe",
     "candidate_email": "candidate@example.com",
     "job_title": "Senior Developer",
@@ -28,24 +26,10 @@ DEFAULT_VARIABLES = {
 }
 
 
-def render_template(subject: str, body: str, variables: dict[str, Any]) -> tuple[str, str]:
-    """Replace {{variable}} placeholders with actual values."""
-    def replace(text: str) -> str:
-        def replacer(match: re.Match) -> str:
-            key = match.group(1).strip()
-            return str(variables.get(key, f"{{{{{key}}}}}"))
-        return re.sub(r"\{\{(\w+)\}\}", replacer, text)
-
-    return replace(subject), replace(body)
-
-
-class EmailTemplateService:
-    def __init__(self, db: AsyncSession) -> None:
-        self.db = db
-        self.repo = EmailTemplateRepository(db)
+class EmailTemplateService(BaseService[EmailTemplateRepository]):
 
     async def create(self, company_id: uuid.UUID, data: EmailTemplateCreate) -> EmailTemplate:
-        return await self.repo.create(company_id, data)
+        return await self.repository.create(company_id, data)
 
     async def list(
         self,
@@ -53,23 +37,23 @@ class EmailTemplateService:
         language: Optional[str] = None,
         type: Optional[str] = None,
     ) -> list[EmailTemplate]:
-        return await self.repo.list(company_id, language=language, type=type)
+        return await self.repository.list_by_company(company_id, language=language, type=type)
 
     async def get(self, template_id: uuid.UUID, company_id: uuid.UUID) -> EmailTemplate:
-        template = await self.repo.get_by_id(template_id, company_id)
+        template = await self.repository.get_by_id_and_company(template_id, company_id)
         if not template:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+            raise NotFoundError("Template not found.")
         return template
 
     async def update(
         self, template_id: uuid.UUID, company_id: uuid.UUID, data: EmailTemplateUpdate
     ) -> EmailTemplate:
         template = await self.get(template_id, company_id)
-        return await self.repo.update(template, data)
+        return await self.repository.update(template, data)
 
     async def delete(self, template_id: uuid.UUID, company_id: uuid.UUID) -> None:
         template = await self.get(template_id, company_id)
-        await self.repo.delete(template)
+        await self.repository.delete(template)
 
     async def preview(
         self,
@@ -79,7 +63,7 @@ class EmailTemplateService:
     ) -> EmailTemplatePreview:
         template = await self.get(template_id, company_id)
         merged = {**DEFAULT_VARIABLES, **(variables or {})}
-        subject, body = render_template(template.subject, template.body, merged)
+        subject, body = self._render(template.subject, template.body, merged)
         return EmailTemplatePreview(subject=subject, body=body)
 
     async def render_for_send(
@@ -87,6 +71,15 @@ class EmailTemplateService:
         template: EmailTemplate,
         variables: dict[str, Any],
     ) -> tuple[str, str]:
-        """Render a template for actual sending. Returns (subject, body)."""
         merged = {**DEFAULT_VARIABLES, **variables}
-        return render_template(template.subject, template.body, merged)
+        return self._render(template.subject, template.body, merged)
+
+    @staticmethod
+    def _render(subject: str, body: str, variables: dict[str, Any]) -> tuple[str, str]:
+        def replace(text: str) -> str:
+            def replacer(match: re.Match) -> str:
+                key = match.group(1).strip()
+                return str(variables.get(key, f"{{{{{key}}}}}"))
+            return re.sub(r"\{\{(\w+)\}\}", replacer, text)
+
+        return replace(subject), replace(body)

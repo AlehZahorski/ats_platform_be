@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,12 +9,13 @@ from app.core.database import get_db
 from app.core.dependencies import CurrentCompany, CurrentUser
 from app.modules.tasks.repository import TaskRepository
 from app.modules.tasks.schemas import TaskCreate, TaskRead, TaskUpdate
+from app.modules.tasks.service import TaskService
 
 router = APIRouter()
 
 
-def _repo(db: AsyncSession = Depends(get_db)) -> TaskRepository:
-    return TaskRepository(db)
+def _get_service(db: AsyncSession = Depends(get_db)) -> TaskService:
+    return TaskService(TaskRepository(db))
 
 
 @router.post("", response_model=TaskRead, status_code=201)
@@ -22,9 +23,9 @@ async def create_task(
     data: TaskCreate,
     company: CurrentCompany,
     user: CurrentUser,
-    repo: TaskRepository = Depends(_repo),
+    service: TaskService = Depends(_get_service),
 ) -> TaskRead:
-    task = await repo.create(company.id, user.id, data)
+    task = await service.create(company.id, user.id, data)
     return TaskRead.model_validate(task)
 
 
@@ -35,9 +36,9 @@ async def list_tasks(
     assigned_to_me: bool = Query(False),
     completed: Optional[bool] = Query(None),
     application_id: Optional[uuid.UUID] = Query(None),
-    repo: TaskRepository = Depends(_repo),
+    service: TaskService = Depends(_get_service),
 ) -> list[TaskRead]:
-    tasks = await repo.list(
+    tasks = await service.list(
         company_id=company.id,
         assigned_to=user.id if assigned_to_me else None,
         completed=completed,
@@ -52,24 +53,18 @@ async def update_task(
     data: TaskUpdate,
     company: CurrentCompany,
     _user: CurrentUser,
-    repo: TaskRepository = Depends(_repo),
+    service: TaskService = Depends(_get_service),
 ) -> TaskRead:
-    task = await repo.get_by_id(task_id, company.id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    task = await repo.update(task, data)
+    task = await service.update(task_id, company.id, data)
     return TaskRead.model_validate(task)
 
 
-@router.delete("/{task_id}")
+@router.delete("/{task_id}", status_code=204)
 async def delete_task(
     task_id: uuid.UUID,
     company: CurrentCompany,
     _user: CurrentUser,
-    repo: TaskRepository = Depends(_repo),
+    service: TaskService = Depends(_get_service),
 ) -> Response:
-    task = await repo.get_by_id(task_id, company.id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    await repo.delete(task)
+    await service.delete(task_id, company.id)
     return Response(status_code=204)

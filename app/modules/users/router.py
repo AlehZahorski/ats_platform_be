@@ -1,21 +1,20 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
+
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.core.dependencies import CurrentCompany, CurrentUser
-from app.modules.users.models import User
-from app.modules.users.schemas import UserRead
+from app.core.enums.users import UserRole
+from app.modules.users.repository import UserRepository
+from app.modules.users.schemas import UserLanguageUpdate, UserRead
+from app.modules.users.service import UserService
 
 router = APIRouter()
 
-SUPPORTED_LANGUAGES = {"en", "pl"}
 
-
-class UserLanguageUpdate(BaseModel):
-    language: str
+def _get_service(db: AsyncSession = Depends(get_db)) -> UserService:
+    return UserService(UserRepository(db))
 
 
 @router.get("/me", response_model=UserRead)
@@ -26,28 +25,19 @@ async def get_me(current_user: CurrentUser) -> UserRead:
 @router.get("", response_model=list[UserRead])
 async def list_users(
     company: CurrentCompany,
-    _current_user: CurrentUser,
-    role: Optional[str] = None,
-    db: AsyncSession = Depends(get_db),
+    _user: CurrentUser,
+    role: Optional[UserRole] = None,
+    service: UserService = Depends(_get_service),
 ) -> list[UserRead]:
-    query = select(User).where(User.company_id == company.id)
-    if role:
-        query = query.where(User.role == role)
-    result = await db.execute(query.order_by(User.created_at.asc()))
-    return [UserRead.model_validate(user) for user in result.scalars().all()]
+    users = await service.list_by_company(company.id, role)
+    return [UserRead.model_validate(u) for u in users]
 
 
 @router.patch("/me/language")
 async def update_language(
     data: UserLanguageUpdate,
     current_user: CurrentUser,
-    db: AsyncSession = Depends(get_db),
+    service: UserService = Depends(_get_service),
 ) -> dict:
-    if data.language not in SUPPORTED_LANGUAGES:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported language. Supported: {sorted(SUPPORTED_LANGUAGES)}"
-        )
-    current_user.language = data.language
-    await db.flush()
-    return {"language": data.language}
+    user = await service.update_language(current_user, data.language)
+    return {"language": user.language}

@@ -2,16 +2,10 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
-JobStatus = Literal["draft", "open", "closed"]
-WorkMode = Literal["remote", "hybrid", "onsite"]
-SalaryPeriod = Literal["hour", "month", "year"]
-ContractType = Literal["b2b", "employment", "contract", "internship", "temporary"]
-Seniority = Literal["junior", "mid", "senior", "lead"]
+from app.core.enums.jobs import ContractType, JobStatus, Seniority, SalaryPeriod, WorkMode
 
 
 class JobOfferBase(BaseModel):
@@ -45,7 +39,7 @@ class JobOfferBase(BaseModel):
 
 
 class JobCreate(JobOfferBase):
-    status: JobStatus = "draft"
+    status: JobStatus = JobStatus.draft
     template_id: uuid.UUID | None = None
 
 
@@ -94,7 +88,7 @@ class JobRead(BaseModel):
     description: str | None
     department: str | None
     location: str | None
-    status: str
+    status: JobStatus
     role_summary: str | None
     role_purpose: str | None
     responsibilities: list[str] = []
@@ -102,10 +96,10 @@ class JobRead(BaseModel):
     nice_to_haves: list[str] = []
     tech_stack: list[str] = []
     domain_context: str | None
-    seniority: str | None
+    seniority: Seniority | None
     experience_min_years: int | None
     experience_max_years: int | None
-    work_mode: str | None
+    work_mode: WorkMode | None
     remote_constraints: str | None
     success_profile: str | None
     team_context: str | None
@@ -116,8 +110,8 @@ class JobRead(BaseModel):
     salary_min: int | None
     salary_max: int | None
     salary_currency: str | None
-    salary_period: str | None
-    contract_type: str | None
+    salary_period: SalaryPeriod | None
+    contract_type: ContractType | None
     created_at: datetime
     template_id: uuid.UUID | None = None
     publish_ready: bool = False

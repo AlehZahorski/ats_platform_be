@@ -1,5 +1,5 @@
+import logging
 from contextlib import asynccontextmanager
-import traceback
 from datetime import UTC, datetime
 
 from fastapi import FastAPI, Request, status
@@ -12,8 +12,13 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 from sqlalchemy import update
 
+from app.api.router import api_router
+
+logger = logging.getLogger(__name__)
 from app.core.config import settings
 from app.core.database import engine, Base, AsyncSessionLocal
+from app.core.enums import CVParseStatus
+from app.core.exceptions import DomainException
 from app.modules.applications.models import CVParseJob
 
 # ---------------------------------------------------------------------------
@@ -30,9 +35,9 @@ async def lifespan(app: FastAPI):
     async with AsyncSessionLocal() as db:
         await db.execute(
             update(CVParseJob)
-            .where(CVParseJob.status.in_(["extracting", "parsing"]))
+            .where(CVParseJob.status.in_([CVParseStatus.extracting, CVParseStatus.parsing]))
             .values(
-                status="failed",
+                status=CVParseStatus.failed,
                 error_message="Server restarted — kliknij Retry aby przetworzyć ponownie.",
                 completed_at=datetime.now(UTC),
             )
@@ -93,51 +98,7 @@ def create_app() -> FastAPI:
     # -----------------------------------------------------------------------
     # Routers
     # -----------------------------------------------------------------------
-    # v1 routers
-    from app.modules.auth.router import router as auth_router
-    from app.modules.companies.router import router as companies_router
-    from app.modules.users.router import router as users_router
-    from app.modules.jobs.router import router as jobs_router
-    from app.modules.forms.router import router as forms_router
-    from app.modules.applications.router import router as applications_router
-    from app.modules.pipeline.router import router as pipeline_router
-    from app.modules.notes.router import router as notes_router
-    from app.modules.tags.router import router as tags_router
-    from app.modules.audit.router import router as audit_router
-
-    # v2 routers
-    from app.modules.email_templates.router import router as email_templates_router
-    from app.modules.automation.router import router as automation_router
-    from app.modules.interviews.router import router as interviews_router
-    from app.modules.tasks.router import router as tasks_router
-    from app.modules.reports.router import router as reports_router
-    from app.modules.consents.router import router as gdpr_router
-    from app.modules.consents.router import router as gdpr_router
-    from app.modules.reviews.router import router as reviews_router
-
-    API_V1 = "/api/v1"
-
-    # v1
-    app.include_router(auth_router,         prefix=f"{API_V1}/auth",         tags=["Auth"])
-    app.include_router(companies_router,    prefix=f"{API_V1}/company",      tags=["Company"])
-    app.include_router(users_router,        prefix=f"{API_V1}/users",        tags=["Users"])
-    app.include_router(jobs_router,         prefix=f"{API_V1}/jobs",         tags=["Jobs"])
-    app.include_router(forms_router,        prefix=f"{API_V1}/forms",        tags=["Forms"])
-    app.include_router(applications_router, prefix=f"{API_V1}/applications", tags=["Applications"])
-    app.include_router(pipeline_router,     prefix=f"{API_V1}/pipeline",     tags=["Pipeline"])
-    app.include_router(notes_router,        prefix=f"{API_V1}/notes",        tags=["Notes"])
-    app.include_router(tags_router,         prefix=f"{API_V1}/tags",         tags=["Tags"])
-    app.include_router(audit_router,        prefix=f"{API_V1}/audit",        tags=["Audit"])
-
-    # v2
-    app.include_router(email_templates_router, prefix=f"{API_V1}/email-templates", tags=["Email Templates"])
-    app.include_router(automation_router,      prefix=f"{API_V1}/automations",     tags=["Automations"])
-    app.include_router(interviews_router,      prefix=f"{API_V1}/interviews",      tags=["Interviews"])
-    app.include_router(tasks_router,           prefix=f"{API_V1}/tasks",           tags=["Tasks"])
-    app.include_router(reports_router,         prefix=f"{API_V1}/reports",         tags=["Reports"])
-    app.include_router(gdpr_router,            prefix=f"{API_V1}/gdpr",            tags=["GDPR"])
-    app.include_router(gdpr_router,            prefix=f"{API_V1}/gdpr",            tags=["GDPR"])
-    app.include_router(reviews_router,         prefix=f"{API_V1}/reviews",         tags=["Reviews"])
+    app.include_router(api_router)
 
     # -----------------------------------------------------------------------
     # Health check
@@ -147,15 +108,24 @@ def create_app() -> FastAPI:
         return {"status": "ok", "env": settings.app_env}
 
     # -----------------------------------------------------------------------
-    # Global exception handler — always return JSON, always log the error
+    # Domain exception handler — converts DomainException subclasses to JSON
+    # -----------------------------------------------------------------------
+    @app.exception_handler(DomainException)
+    async def domain_exception_handler(request: Request, exc: DomainException) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+        )
+
+    # -----------------------------------------------------------------------
+    # Fallback handler — always return JSON, always log the error
     # -----------------------------------------------------------------------
     @app.exception_handler(Exception)
-    async def unhandled_exception_handler(request: Request, exc: Exception):
-        # Always print the real error to terminal
-        traceback.print_exc()
+    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        logger.exception("Unhandled exception on %s %s", request.method, request.url)
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"detail": str(exc)},
+            content={"detail": "An unexpected error occurred."},
         )
 
     return app

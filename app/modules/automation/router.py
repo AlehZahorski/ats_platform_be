@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import CurrentCompany, CurrentUser
+from app.modules.automation.repository import AutomationRepository
 from app.modules.automation.schemas import (
     AutomationRuleCreate,
     AutomationRuleRead,
@@ -16,8 +17,8 @@ from app.modules.automation.service import AutomationService
 router = APIRouter()
 
 
-def _svc(db: AsyncSession = Depends(get_db)) -> AutomationService:
-    return AutomationService(db)
+def _get_service(db: AsyncSession = Depends(get_db)) -> AutomationService:
+    return AutomationService(AutomationRepository(db))
 
 
 @router.post("", response_model=AutomationRuleRead, status_code=201)
@@ -25,9 +26,9 @@ async def create_rule(
     data: AutomationRuleCreate,
     company: CurrentCompany,
     _user: CurrentUser,
-    svc: AutomationService = Depends(_svc),
+    service: AutomationService = Depends(_get_service),
 ) -> AutomationRuleRead:
-    rule = await svc.create(company.id, data)
+    rule = await service.create(company.id, data)
     return AutomationRuleRead.model_validate(rule)
 
 
@@ -35,9 +36,9 @@ async def create_rule(
 async def list_rules(
     company: CurrentCompany,
     _user: CurrentUser,
-    svc: AutomationService = Depends(_svc),
+    service: AutomationService = Depends(_get_service),
 ) -> list[AutomationRuleRead]:
-    rules = await svc.list(company.id)
+    rules = await service.list(company.id)
     return [AutomationRuleRead.model_validate(r) for r in rules]
 
 
@@ -46,9 +47,9 @@ async def get_rule(
     rule_id: uuid.UUID,
     company: CurrentCompany,
     _user: CurrentUser,
-    svc: AutomationService = Depends(_svc),
+    service: AutomationService = Depends(_get_service),
 ) -> AutomationRuleRead:
-    rule = await svc.get(rule_id, company.id)
+    rule = await service.get(rule_id, company.id)
     return AutomationRuleRead.model_validate(rule)
 
 
@@ -58,9 +59,9 @@ async def update_rule(
     data: AutomationRuleUpdate,
     company: CurrentCompany,
     _user: CurrentUser,
-    svc: AutomationService = Depends(_svc),
+    service: AutomationService = Depends(_get_service),
 ) -> AutomationRuleRead:
-    rule = await svc.update(rule_id, company.id, data)
+    rule = await service.update(rule_id, company.id, data)
     return AutomationRuleRead.model_validate(rule)
 
 
@@ -69,18 +70,18 @@ async def toggle_rule(
     rule_id: uuid.UUID,
     company: CurrentCompany,
     _user: CurrentUser,
-    svc: AutomationService = Depends(_svc),
+    service: AutomationService = Depends(_get_service),
 ) -> AutomationRuleRead:
-    rule = await svc.toggle(rule_id, company.id)
+    rule = await service.toggle(rule_id, company.id)
     return AutomationRuleRead.model_validate(rule)
 
 
-@router.delete("/{rule_id}")
+@router.delete("/{rule_id}", status_code=204)
 async def delete_rule(
     rule_id: uuid.UUID,
     company: CurrentCompany,
     _user: CurrentUser,
-    svc: AutomationService = Depends(_svc),
+    service: AutomationService = Depends(_get_service),
 ) -> Response:
-    await svc.delete(rule_id, company.id)
+    await service.delete(rule_id, company.id)
     return Response(status_code=204)

@@ -6,6 +6,8 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
+from app.core.enums.interviews import InterviewStatus
+
 
 class InterviewCreate(BaseModel):
     scheduled_at: datetime
@@ -13,7 +15,7 @@ class InterviewCreate(BaseModel):
     meeting_url: Optional[str] = None
     notes: Optional[str] = None
     recruiter_id: Optional[uuid.UUID] = None
-    status: str = "scheduled"
+    status: InterviewStatus = InterviewStatus.scheduled
 
 
 class InterviewUpdate(BaseModel):
@@ -22,7 +24,7 @@ class InterviewUpdate(BaseModel):
     meeting_url: Optional[str] = None
     notes: Optional[str] = None
     recruiter_id: Optional[uuid.UUID] = None
-    status: Optional[str] = None
+    status: Optional[InterviewStatus] = None
 
 
 class RecruiterRead(BaseModel):
@@ -41,7 +43,7 @@ class InterviewRead(BaseModel):
     duration_minutes: Optional[int]
     meeting_url: Optional[str]
     notes: Optional[str]
-    status: str
+    status: InterviewStatus
     recruiter: Optional[RecruiterRead]
     created_at: datetime
     updated_at: datetime

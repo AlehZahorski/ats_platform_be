@@ -3,9 +3,10 @@ from __future__ import annotations
 import uuid
 
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.base_repository import BaseRepository
+from app.core.enums.reviews import ReviewStatus
 from app.modules.reviews.models import (
     ReviewAssignment,
     ReviewResponse,
@@ -15,9 +16,8 @@ from app.modules.reviews.models import (
 from app.modules.reviews.schemas import ReviewAssignmentCreate, ScorecardTemplateCreate
 
 
-class ReviewsRepository:
-    def __init__(self, db: AsyncSession) -> None:
-        self.db = db
+class ReviewsRepository(BaseRepository[ScorecardTemplate]):
+    model = ScorecardTemplate
 
     async def list_templates(self, company_id: uuid.UUID) -> list[ScorecardTemplate]:
         result = await self.db.execute(
@@ -28,15 +28,22 @@ class ReviewsRepository:
         )
         return list(result.scalars().all())
 
-    async def get_template(self, template_id: uuid.UUID, company_id: uuid.UUID) -> ScorecardTemplate | None:
+    async def get_template(
+        self, template_id: uuid.UUID, company_id: uuid.UUID
+    ) -> ScorecardTemplate | None:
         result = await self.db.execute(
             select(ScorecardTemplate)
-            .where(ScorecardTemplate.id == template_id, ScorecardTemplate.company_id == company_id)
+            .where(
+                ScorecardTemplate.id == template_id,
+                ScorecardTemplate.company_id == company_id,
+            )
             .options(selectinload(ScorecardTemplate.criteria))
         )
         return result.scalar_one_or_none()
 
-    async def create_template(self, company_id: uuid.UUID, data: ScorecardTemplateCreate) -> ScorecardTemplate:
+    async def create_template(
+        self, company_id: uuid.UUID, data: ScorecardTemplateCreate
+    ) -> ScorecardTemplate:
         template = ScorecardTemplate(
             company_id=company_id,
             name=data.name,
@@ -71,7 +78,7 @@ class ReviewsRepository:
             assigned_by=assigned_by,
             template_id=data.template_id,
             due_at=data.due_at,
-            status="pending",
+            status=ReviewStatus.pending,
         )
         self.db.add(assignment)
         await self.db.flush()
@@ -142,7 +149,7 @@ class ReviewsRepository:
                 )
             )
 
-        assignment.status = "submitted"
+        assignment.status = ReviewStatus.submitted
         assignment.submitted_at = func.now()
         assignment.overall_comment = overall_comment
         assignment.recommendation = recommendation

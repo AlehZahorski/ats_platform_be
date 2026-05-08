@@ -6,19 +6,20 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.base_repository import BaseRepository
+from app.core.enums.users import UserRole
 from app.modules.users.models import RefreshToken, User
 
 
-class UserRepository:
-    def __init__(self, db: AsyncSession) -> None:
-        self.db = db
+class UserRepository(BaseRepository[User]):
+    model = User
 
     async def create(
         self,
         company_id: uuid.UUID,
         email: str,
         password_hash: str,
-        role: str = "recruiter",
+        role: UserRole = UserRole.recruiter,
         is_verified: bool = False,
     ) -> User:
         user = User(
@@ -28,18 +29,18 @@ class UserRepository:
             role=role,
             is_verified=is_verified,
         )
-        self.db.add(user)
-        await self.db.flush()
-        await self.db.refresh(user)
-        return user
-
-    async def get_by_id(self, user_id: uuid.UUID) -> User | None:
-        result = await self.db.execute(select(User).where(User.id == user_id))
-        return result.scalar_one_or_none()
+        return await self.save(user)
 
     async def get_by_email(self, email: str) -> User | None:
         result = await self.db.execute(select(User).where(User.email == email))
         return result.scalar_one_or_none()
+
+    async def list_by_company(self, company_id: uuid.UUID, role: UserRole | None = None) -> list[User]:
+        query = select(User).where(User.company_id == company_id)
+        if role:
+            query = query.where(User.role == role)
+        result = await self.db.execute(query.order_by(User.created_at.asc()))
+        return list(result.scalars().all())
 
     async def verify(self, user: User) -> User:
         user.is_verified = True
@@ -75,12 +76,12 @@ class UserRepository:
         await self.db.flush()
 
     async def revoke_all_user_tokens(self, user_id: uuid.UUID) -> None:
-        tokens_result = await self.db.execute(
+        result = await self.db.execute(
             select(RefreshToken).where(
                 RefreshToken.user_id == user_id,
                 RefreshToken.revoked.is_(False),
             )
         )
-        for token in tokens_result.scalars().all():
+        for token in result.scalars().all():
             token.revoked = True
         await self.db.flush()

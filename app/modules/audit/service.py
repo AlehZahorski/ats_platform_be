@@ -9,10 +9,8 @@ from app.modules.audit.models import AuditLog
 
 
 class AuditService:
-    """
-    Thin service for recording audit events.
-    Call this from any router/service that performs a significant action.
-    """
+    """Cross-cutting service for recording audit events. Exposes `db` so callers
+    can attach related domain events in the same flush."""
 
     def __init__(self, db: AsyncSession) -> None:
         self.db = db

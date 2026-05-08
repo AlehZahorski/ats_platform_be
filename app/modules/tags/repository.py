@@ -5,28 +5,25 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.base_repository import BaseRepository
 from app.modules.tags.models import ApplicationTag, Tag
 from app.modules.tags.schemas import TagCreate
 
 
-class TagRepository:
-    def __init__(self, db: AsyncSession) -> None:
-        self.db = db
+class TagRepository(BaseRepository[Tag]):
+    model = Tag
 
     async def create(self, company_id: uuid.UUID, data: TagCreate) -> Tag:
         tag = Tag(company_id=company_id, name=data.name)
-        self.db.add(tag)
-        await self.db.flush()
-        await self.db.refresh(tag)
-        return tag
+        return await self.save(tag)
 
-    async def list(self, company_id: uuid.UUID) -> list[Tag]:
+    async def list_by_company(self, company_id: uuid.UUID) -> list[Tag]:
         result = await self.db.execute(
             select(Tag).where(Tag.company_id == company_id).order_by(Tag.name)
         )
         return list(result.scalars().all())
 
-    async def get_by_id(self, tag_id: uuid.UUID, company_id: uuid.UUID) -> Tag | None:
+    async def get_by_id_and_company(self, tag_id: uuid.UUID, company_id: uuid.UUID) -> Tag | None:
         result = await self.db.execute(
             select(Tag).where(Tag.id == tag_id, Tag.company_id == company_id)
         )
@@ -40,7 +37,7 @@ class TagRepository:
             )
         )
         if existing.scalar_one_or_none():
-            return  # already assigned
+            return
         link = ApplicationTag(application_id=application_id, tag_id=tag_id)
         self.db.add(link)
         await self.db.flush()
@@ -64,7 +61,3 @@ class TagRepository:
             .where(ApplicationTag.application_id == application_id)
         )
         return list(result.scalars().all())
-
-    async def delete(self, tag) -> None:
-        await self.db.delete(tag)
-        await self.db.flush()

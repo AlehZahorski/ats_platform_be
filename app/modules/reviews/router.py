@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import CurrentCompany, CurrentUser, RecruiterOrOwner
+from app.modules.reviews.repository import ReviewsRepository
 from app.modules.reviews.schemas import (
     ReviewAssignmentCreate,
     ReviewAssignmentRead,
@@ -20,17 +21,17 @@ from app.modules.reviews.service import ReviewsService
 router = APIRouter()
 
 
-def _svc(db: AsyncSession = Depends(get_db)) -> ReviewsService:
-    return ReviewsService(db)
+def _get_service(db: AsyncSession = Depends(get_db)) -> ReviewsService:
+    return ReviewsService(ReviewsRepository(db))
 
 
 @router.get("/templates", response_model=list[ScorecardTemplateRead])
 async def list_templates(
     company: CurrentCompany,
     _user: CurrentUser,
-    svc: ReviewsService = Depends(_svc),
+    service: ReviewsService = Depends(_get_service),
 ) -> list[ScorecardTemplateRead]:
-    templates = await svc.list_templates(company.id)
+    templates = await service.list_templates(company.id)
     return [ScorecardTemplateRead.model_validate(item) for item in templates]
 
 
@@ -39,9 +40,9 @@ async def create_template(
     data: ScorecardTemplateCreate,
     company: CurrentCompany,
     _user: RecruiterOrOwner,
-    svc: ReviewsService = Depends(_svc),
+    service: ReviewsService = Depends(_get_service),
 ) -> ScorecardTemplateRead:
-    template = await svc.create_template(company.id, data)
+    template = await service.create_template(company.id, data)
     return ScorecardTemplateRead.model_validate(template)
 
 
@@ -50,9 +51,9 @@ async def list_assignments(
     application_id: uuid.UUID,
     company: CurrentCompany,
     _user: CurrentUser,
-    svc: ReviewsService = Depends(_svc),
+    service: ReviewsService = Depends(_get_service),
 ) -> list[ReviewAssignmentRead]:
-    assignments = await svc.list_assignments(application_id, company.id)
+    assignments = await service.list_assignments(application_id, company.id)
     return [ReviewAssignmentRead.model_validate(item) for item in assignments]
 
 
@@ -61,20 +62,24 @@ async def get_summary(
     application_id: uuid.UUID,
     company: CurrentCompany,
     _user: CurrentUser,
-    svc: ReviewsService = Depends(_svc),
+    service: ReviewsService = Depends(_get_service),
 ) -> ReviewSummaryRead:
-    return await svc.get_summary(application_id, company.id)
+    return await service.get_summary(application_id, company.id)
 
 
-@router.post("/applications/{application_id}/assignments", response_model=ReviewAssignmentRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/applications/{application_id}/assignments",
+    response_model=ReviewAssignmentRead,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_assignment(
     application_id: uuid.UUID,
     data: ReviewAssignmentCreate,
     company: CurrentCompany,
     user: RecruiterOrOwner,
-    svc: ReviewsService = Depends(_svc),
+    service: ReviewsService = Depends(_get_service),
 ) -> ReviewAssignmentRead:
-    assignment = await svc.create_assignment(
+    assignment = await service.create_assignment(
         application_id=application_id,
         company_id=company.id,
         assigned_by=user.id,
@@ -89,9 +94,9 @@ async def submit_assignment(
     data: ReviewAssignmentSubmit,
     company: CurrentCompany,
     user: CurrentUser,
-    svc: ReviewsService = Depends(_svc),
+    service: ReviewsService = Depends(_get_service),
 ) -> ReviewAssignmentRead:
-    assignment = await svc.submit_assignment(
+    assignment = await service.submit_assignment(
         assignment_id=assignment_id,
         current_user_id=user.id,
         company_id=company.id,

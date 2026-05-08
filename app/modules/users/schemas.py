@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr
+
+from app.core.enums.users import UserRole
 
 
 class UserBase(BaseModel):
     email: EmailStr
-    role: Literal["owner", "recruiter", "manager"] = "recruiter"
+    role: UserRole = UserRole.recruiter
 
 
 class UserCreate(UserBase):
@@ -22,8 +23,13 @@ class UserRead(UserBase):
     id: uuid.UUID
     company_id: uuid.UUID
     is_verified: bool
+    language: str
     created_at: datetime
 
 
 class UserUpdate(BaseModel):
-    role: Literal["owner", "recruiter", "manager"] | None = None
+    role: UserRole | None = None
+
+
+class UserLanguageUpdate(BaseModel):
+    language: str

@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+from app.core.enums.applications import BulkActionType, CVParseStatus, ParsingStatus
+
 
 class AnswerInput(BaseModel):
     field_id: uuid.UUID
@@ -71,8 +73,8 @@ class ApplicationRead(BaseModel):
     answers: list[AnswerRead] = []
     scores: list[ScoreRead] = []
     stage_history: list[StageHistoryRead] = []
-    candidate_profile: "CandidateProfileRead | None" = None
-    latest_cv_parse_job: "CVParseJobRead | None" = None
+    candidate_profile: CandidateProfileRead | None = None
+    latest_cv_parse_job: CVParseJobRead | None = None
 
 
 class DuplicateCheckRequest(BaseModel):
@@ -123,7 +125,6 @@ class ScoreCreate(BaseModel):
     culture_fit: int = Field(ge=1, le=5)
 
 
-# Public tracking response
 class TrackingStageHistory(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     stage: StageRead
@@ -149,21 +150,16 @@ class ApplicationTrackingRead(BaseModel):
     job: TrackingJobRead | None = None
 
 
-# ─── Bulk Operations ──────────────────────────────────────────────────────────
-from typing import Literal
-
 class BulkAction(BaseModel):
     application_ids: list[uuid.UUID]
-    action: Literal["stage_change", "reject", "tag"]
+    action: BulkActionType
     payload: dict[str, Any] = {}
-    # stage_change: {"stage_id": "uuid"}
-    # reject:       {}
-    # tag:          {"tag_id": "uuid"}
+
 
 class BulkResult(BaseModel):
     updated: int
     failed: int
-    action: str
+    action: BulkActionType
 
 
 class ParsedSkillRead(BaseModel):
@@ -194,7 +190,7 @@ class CandidateProfileRead(BaseModel):
     skills: list[ParsedSkillRead] = []
     experience: list[ParsedExperienceRead] = []
     education: list[ParsedEducationRead] = []
-    parsing_status: str
+    parsing_status: ParsingStatus
     parsing_error: str | None
     last_parsed_at: datetime | None
 
@@ -205,7 +201,7 @@ class CVParseJobRead(BaseModel):
     id: uuid.UUID
     application_id: uuid.UUID
     cv_url: str | None
-    status: str
+    status: CVParseStatus
     error_message: str | None
     raw_result: dict[str, Any] | None = None
     normalized_result: dict[str, Any] | None = None

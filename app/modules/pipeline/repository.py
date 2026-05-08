@@ -3,27 +3,20 @@ from __future__ import annotations
 import uuid
 
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.base_repository import BaseRepository
 from app.modules.pipeline.models import ApplicationStageHistory, PipelineStage
 
 
-class PipelineRepository:
-    def __init__(self, db: AsyncSession) -> None:
-        self.db = db
+class PipelineRepository(BaseRepository[PipelineStage]):
+    model = PipelineStage
 
     async def list_stages(self) -> list[PipelineStage]:
         result = await self.db.execute(
             select(PipelineStage).order_by(PipelineStage.order_index)
         )
         return list(result.scalars().all())
-
-    async def get_stage(self, stage_id: uuid.UUID) -> PipelineStage | None:
-        result = await self.db.execute(
-            select(PipelineStage).where(PipelineStage.id == stage_id)
-        )
-        return result.scalar_one_or_none()
 
     async def get_max_order_index(self) -> int:
         result = await self.db.execute(select(func.max(PipelineStage.order_index)))
@@ -35,9 +28,7 @@ class PipelineRepository:
             name=name,
             order_index=await self.get_max_order_index() + 1,
         )
-        self.db.add(stage)
-        await self.db.flush()
-        return stage
+        return await self.save(stage)
 
     async def update_stage_name(self, stage: PipelineStage, name: str) -> PipelineStage:
         stage.name = name
@@ -45,13 +36,9 @@ class PipelineRepository:
         return stage
 
     async def reorder_stages(self, stage_orders: list[tuple[uuid.UUID, int]]) -> list[PipelineStage]:
-        stage_map = {
-            stage.id: stage
-            for stage in await self.list_stages()
-        }
+        stage_map = {stage.id: stage for stage in await self.list_stages()}
         for stage_id, order_index in stage_orders:
-            stage = stage_map.get(stage_id)
-            if stage:
+            if stage := stage_map.get(stage_id):
                 stage.order_index = order_index
         await self.db.flush()
         return await self.list_stages()
@@ -59,17 +46,19 @@ class PipelineRepository:
     async def stage_usage_counts(self, stage_id: uuid.UUID) -> tuple[int, int]:
         from app.modules.applications.models import Application
 
-        applications_result = await self.db.execute(
-            select(func.count(Application.id)).where(Application.stage_id == stage_id)
-        )
-        history_result = await self.db.execute(
-            select(func.count(ApplicationStageHistory.id)).where(ApplicationStageHistory.stage_id == stage_id)
-        )
-        return applications_result.scalar_one(), history_result.scalar_one()
-
-    async def delete_stage(self, stage: PipelineStage) -> None:
-        await self.db.delete(stage)
-        await self.db.flush()
+        applications_count = (
+            await self.db.execute(
+                select(func.count(Application.id)).where(Application.stage_id == stage_id)
+            )
+        ).scalar_one()
+        history_count = (
+            await self.db.execute(
+                select(func.count(ApplicationStageHistory.id)).where(
+                    ApplicationStageHistory.stage_id == stage_id
+                )
+            )
+        ).scalar_one()
+        return applications_count, history_count
 
     async def record_stage_change(
         self,
@@ -84,7 +73,6 @@ class PipelineRepository:
         )
         self.db.add(history)
         await self.db.flush()
-        # reload with stage relationship
         result = await self.db.execute(
             select(ApplicationStageHistory)
             .where(ApplicationStageHistory.id == history.id)

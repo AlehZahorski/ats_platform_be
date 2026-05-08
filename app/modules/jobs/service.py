@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import HTTPException, status
-
+from app.core.base_service import BaseService
+from app.core.enums.jobs import JobStatus
+from app.core.exceptions import UnprocessableError
 from app.modules.jobs.repository import JobRepository
 from app.modules.jobs.schemas import JobCreate, JobRead, JobUpdate
 
@@ -22,18 +23,16 @@ PUBLISH_REQUIREMENTS = {
 }
 
 
-class JobService:
-    def __init__(self, repo: JobRepository) -> None:
-        self.repo = repo
+class JobService(BaseService[JobRepository]):
 
     async def create(self, company_id: uuid.UUID, data: JobCreate):
         self._validate_status_transition(data.model_dump())
-        return await self.repo.create(company_id, data)
+        return await self.repository.create(company_id, data)
 
     async def update(self, job, data: JobUpdate):
         next_state = self._merged_job_state(job, data)
         self._validate_status_transition(next_state)
-        return await self.repo.update(job, data)
+        return await self.repository.update(job, data)
 
     @classmethod
     def serialize(cls, job) -> JobRead:
@@ -45,8 +44,12 @@ class JobService:
         data.publish_issues = issues
         return data
 
-    def get_publish_issues(self, job) -> list[str]:
-        return self._compute_publish_issues(job)
+    def _validate_status_transition(self, payload: dict) -> None:
+        if payload.get("status") != JobStatus.open:
+            return
+        issues = self._compute_publish_issues(type("JobState", (), payload)())
+        if issues:
+            raise UnprocessableError(f"Job is not ready to publish: {'; '.join(issues)}")
 
     @classmethod
     def _compute_publish_issues(cls, job) -> list[str]:
@@ -72,16 +75,6 @@ class JobService:
         if not job.hiring_process:
             issues.append(PUBLISH_REQUIREMENTS["hiring_process"])
         return issues
-
-    def _validate_status_transition(self, payload: dict) -> None:
-        if payload.get("status") != "open":
-            return
-        issues = self.get_publish_issues(type("JobState", (), payload)())
-        if issues:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"message": "Job is not ready to publish", "issues": issues},
-            )
 
     def _merged_job_state(self, job, data: JobUpdate) -> dict:
         state = {

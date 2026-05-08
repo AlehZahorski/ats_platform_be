@@ -5,41 +5,35 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.base_repository import BaseRepository
 from app.modules.tasks.models import Task
 from app.modules.tasks.schemas import TaskCreate, TaskUpdate
 
 
-class TaskRepository:
-    def __init__(self, db: AsyncSession) -> None:
-        self.db = db
+class TaskRepository(BaseRepository[Task]):
+    model = Task
 
     async def create(
         self, company_id: uuid.UUID, created_by: uuid.UUID, data: TaskCreate
     ) -> Task:
-        task = Task(
-            company_id=company_id,
-            created_by=created_by,
-            **data.model_dump(),
-        )
+        task = Task(company_id=company_id, created_by=created_by, **data.model_dump())
         self.db.add(task)
         await self.db.flush()
-        return await self._load(task.id)
+        return await self._load(task.id)  # type: ignore[return-value]
 
-    async def get_by_id(self, task_id: uuid.UUID, company_id: uuid.UUID) -> Optional[Task]:
+    async def get_by_id_and_company(
+        self, task_id: uuid.UUID, company_id: uuid.UUID
+    ) -> Task | None:
         result = await self.db.execute(
             select(Task)
             .where(Task.id == task_id, Task.company_id == company_id)
-            .options(
-                selectinload(Task.assignee),
-                selectinload(Task.creator),
-            )
+            .options(selectinload(Task.assignee), selectinload(Task.creator))
         )
         return result.scalar_one_or_none()
 
-    async def list(
+    async def list_by_company(
         self,
         company_id: uuid.UUID,
         assigned_to: Optional[uuid.UUID] = None,
@@ -69,13 +63,9 @@ class TaskRepository:
         elif data.completed is False:
             task.completed_at = None
         await self.db.flush()
-        return await self._load(task.id)
+        return await self._load(task.id)  # type: ignore[return-value]
 
-    async def delete(self, task: Task) -> None:
-        await self.db.delete(task)
-        await self.db.flush()
-
-    async def _load(self, task_id: uuid.UUID) -> Optional[Task]:
+    async def _load(self, task_id: uuid.UUID) -> Task | None:
         result = await self.db.execute(
             select(Task)
             .where(Task.id == task_id)

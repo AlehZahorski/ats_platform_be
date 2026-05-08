@@ -1,19 +1,18 @@
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.base_repository import BaseRepository
+from app.core.enums.interviews import InterviewStatus
 from app.modules.interviews.models import Interview
 from app.modules.interviews.schemas import InterviewCreate, InterviewUpdate
 
 
-class InterviewRepository:
-    def __init__(self, db: AsyncSession) -> None:
-        self.db = db
+class InterviewRepository(BaseRepository[Interview]):
+    model = Interview
 
     async def create(self, application_id: uuid.UUID, data: InterviewCreate) -> Interview:
         interview = Interview(application_id=application_id, **data.model_dump())
@@ -21,7 +20,7 @@ class InterviewRepository:
         await self.db.flush()
         return await self._load(interview.id)
 
-    async def get_by_id(self, interview_id: uuid.UUID) -> Optional[Interview]:
+    async def get_by_id(self, interview_id: uuid.UUID) -> Interview | None:
         return await self._load(interview_id)
 
     async def list_by_application(self, application_id: uuid.UUID) -> list[Interview]:
@@ -42,13 +41,13 @@ class InterviewRepository:
         )
         return list(result.scalars().all())
 
-    async def get_stage_ready_interview(self, application_id: uuid.UUID) -> Optional[Interview]:
+    async def get_stage_ready_interview(self, application_id: uuid.UUID) -> Interview | None:
         result = await self.db.execute(
             select(Interview)
             .where(
                 Interview.application_id == application_id,
                 Interview.meeting_url.is_not(None),
-                Interview.status != "cancelled",
+                Interview.status != InterviewStatus.cancelled,
             )
             .options(selectinload(Interview.recruiter))
             .order_by(Interview.scheduled_at.asc())
@@ -61,11 +60,7 @@ class InterviewRepository:
         await self.db.flush()
         return await self._load(interview.id)
 
-    async def delete(self, interview: Interview) -> None:
-        await self.db.delete(interview)
-        await self.db.flush()
-
-    async def _load(self, interview_id: uuid.UUID) -> Optional[Interview]:
+    async def _load(self, interview_id: uuid.UUID) -> Interview | None:
         result = await self.db.execute(
             select(Interview)
             .where(Interview.id == interview_id)

@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, Request, UploadFile
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +19,7 @@ from app.modules.applications.schemas import (
     BulkResult,
     CVParseConfirmPayload,
     CVParseJobRead,
+    CandidateJobMatchRead,
     DuplicateCheckRequest,
     DuplicateCheckResponse,
     ScoreCreate,
@@ -27,6 +28,7 @@ from app.modules.applications.schemas import (
 from app.modules.applications.service import ApplicationService
 from app.modules.audit.service import AuditService
 from app.modules.pipeline.repository import PipelineRepository
+from app.core.i18n import detect_language
 
 router = APIRouter()
 
@@ -46,6 +48,7 @@ def _get_service(db: AsyncSession = Depends(get_db)) -> ApplicationService:
 # ──────────────────────────────────────────────
 @router.post("/apply/{job_id}", status_code=201)
 async def apply(
+    request: Request,
     job_id: uuid.UUID,
     background_tasks: BackgroundTasks,
     first_name: str = Form(...),
@@ -69,6 +72,7 @@ async def apply(
             ignore_duplicate_warning=ignore_duplicate_warning,
             background_tasks=background_tasks,
             frontend_url=settings.frontend_url,
+            language=detect_language(request),
         )
     except DuplicateDetectedError as exc:
         return JSONResponse(
@@ -151,24 +155,30 @@ async def get_cv_parse_status(
 
 @router.post("/{application_id}/cv-parse/retry", response_model=CVParseJobRead)
 async def retry_cv_parse(
+    request: Request,
     application_id: uuid.UUID,
     background_tasks: BackgroundTasks,
     _company: CurrentCompany,
     _user: CurrentUser,
     service: ApplicationService = Depends(_get_service),
 ) -> CVParseJobRead:
-    return await service.retry_cv_parse(application_id, background_tasks)
+    return await service.retry_cv_parse(application_id, background_tasks, language=detect_language(request))
 
 
-@router.post("/{application_id}/cv-parse/confirm", response_model=ApplicationRead)
-async def confirm_cv_parse(
+
+# ──────────────────────────────────────────────
+# HR: job matching results
+# ──────────────────────────────────────────────
+@router.get("/{application_id}/matches", response_model=list[CandidateJobMatchRead])
+async def get_job_matches(
     application_id: uuid.UUID,
-    data: CVParseConfirmPayload,
     _company: CurrentCompany,
     _user: CurrentUser,
-    service: ApplicationService = Depends(_get_service),
-) -> ApplicationRead:
-    return await service.confirm_cv_parse(application_id, data)
+    db: AsyncSession = Depends(get_db),
+) -> list[CandidateJobMatchRead]:
+    repo = ApplicationRepository(db)
+    matches = await repo.get_job_matches(application_id)
+    return [CandidateJobMatchRead.model_validate(m) for m in matches]
 
 
 # ──────────────────────────────────────────────

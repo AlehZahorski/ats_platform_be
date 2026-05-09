@@ -180,11 +180,37 @@ class ParsedEducationRead(BaseModel):
     description: str | None = None
 
 
+class PersonalitySignalsRead(BaseModel):
+    team_player: bool | None = None
+    team_player_reason: str | None = None
+    leadership_indicators: str | None = None
+    growth_mindset: str | None = None
+    communication_style: str | None = None
+
+
+class TechnicalSkillRead(BaseModel):
+    name: str
+    level: str | None = None
+
+
+class LanguageRead(BaseModel):
+    name: str
+    level: str | None = None
+
+
+class CertificationRead(BaseModel):
+    name: str
+    issuer: str | None = None
+    year: int | None = None
+
+
 class CandidateProfileRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
     application_id: uuid.UUID
+    parser_version: str = "v1-regex"
+    # v1 fields
     headline: str | None
     summary: str | None
     skills: list[ParsedSkillRead] = []
@@ -193,6 +219,24 @@ class CandidateProfileRead(BaseModel):
     parsing_status: ParsingStatus
     parsing_error: str | None
     last_parsed_at: datetime | None
+    # v2 LLM enrichment fields
+    personal_summary: str | None = None
+    executive_summary: str | None = None
+    location: str | None = None
+    linkedin_url: str | None = None
+    github_url: str | None = None
+    technical_skills: list[TechnicalSkillRead] | None = None
+    soft_skills: list[ParsedSkillRead] | None = None
+    languages: list[LanguageRead] | None = None
+    certifications: list[CertificationRead] | None = None
+    hobbies: list[str] | None = None
+    volunteering: list[str] | None = None
+    total_experience_years: float | None = None
+    seniority_estimate: str | None = None
+    strengths: list[str] | None = None
+    red_flags: list[str] | None = None
+    personality_signals: PersonalitySignalsRead | None = None
+    culture_fit_notes: str | None = None
 
 
 class CVParseJobRead(BaseModel):
@@ -206,6 +250,8 @@ class CVParseJobRead(BaseModel):
     raw_result: dict[str, Any] | None = None
     normalized_result: dict[str, Any] | None = None
     parser_version: str
+    llm_model: str | None = None
+    token_usage: dict[str, Any] | None = None
     started_at: datetime | None
     completed_at: datetime | None
     created_at: datetime
@@ -222,3 +268,26 @@ class CVParseConfirmPayload(BaseModel):
     skills: list[ParsedSkillRead] = []
     experience: list[ParsedExperienceRead] = []
     education: list[ParsedEducationRead] = []
+    # LLM enrichment fields — recruiter can edit before confirming
+    personal_summary: str | None = None
+    executive_summary: str | None = None
+    location: str | None = None
+    hobbies: list[str] | None = None
+    seniority_estimate: str | None = None
+    culture_fit_notes: str | None = None
+
+
+class CandidateJobMatchRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    application_id: uuid.UUID
+    job_id: uuid.UUID
+    match_score: int | None
+    fit_score: int | None
+    reasoning: str | None
+    strengths_match: list[str] | None = None
+    gaps: list[str] | None = None
+    recommendation: str | None
+    llm_model: str | None = None
+    created_at: datetime

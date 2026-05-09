@@ -24,7 +24,15 @@ from app.core.config import settings
 from app.core.security import generate_public_token, hash_password
 
 # ── models ───────────────────────────────────────────────────────────────────
-from app.modules.applications.models import Application, ApplicationAnswer, CandidateScore
+from app.modules.applications.models import (
+    ApiUsageLog,
+    Application,
+    ApplicationAnswer,
+    CandidateJobMatch,
+    CandidateProfile,
+    CandidateScore,
+    CVParseJob,
+)
 from app.modules.audit.models import AuditLog
 from app.modules.companies.models import Company
 from app.modules.forms.models import FormField, FormTemplate
@@ -150,6 +158,7 @@ class Seeder:
         await self._seed_form_templates()
         await self._seed_jobs()
         await self._seed_applications()
+        await self._seed_llm_data()
         await self.db.commit()
         print("\n✅ Database seeded successfully!\n")
         self._print_credentials()
@@ -407,6 +416,161 @@ class Seeder:
 
         await self.db.flush()
         print(f"   Created {app_count} applications with history, notes, scores and tags.")
+
+    # ------------------------------------------------------------------
+    # LLM enrichment data (candidate profiles + matches + usage logs)
+    # ------------------------------------------------------------------
+    async def _seed_llm_data(self):
+        print("🌱 Seeding LLM enrichment data...")
+
+        result = await self.db.execute(text("SELECT id, job_id FROM applications ORDER BY created_at LIMIT 10"))
+        applications = result.fetchall()
+        if not applications:
+            print("   No applications found, skipping LLM data.")
+            return
+
+        llm_profiles = [
+            {
+                "parser_version": "v2-llm",
+                "personal_summary": "Pasjonat technologii z 6-letnim doświadczeniem w backendzie. Lubię rozwiązywać złożone problemy i dzielić się wiedzą z zespołem.",
+                "executive_summary": "Doświadczony inżynier backendowy specjalizujący się w Pythonie i architekturze mikrousług. Znany z proaktywnego podejścia i dbałości o jakość kodu. Dobry mentor dla młodszych developerów.",
+                "location": "Warszawa, Polska",
+                "linkedin_url": "https://linkedin.com/in/jan-kowalski",
+                "github_url": "https://github.com/jankowalski",
+                "technical_skills": [{"name": "Python", "level": "expert"}, {"name": "FastAPI", "level": "advanced"}, {"name": "PostgreSQL", "level": "advanced"}, {"name": "Docker", "level": "intermediate"}, {"name": "AWS", "level": "intermediate"}],
+                "soft_skills": [{"name": "Komunikacja"}, {"name": "Mentoring"}, {"name": "Problem solving"}],
+                "languages": [{"name": "Polish", "level": "native"}, {"name": "English", "level": "B2"}],
+                "certifications": [{"name": "AWS Solutions Architect", "issuer": "Amazon", "year": 2023}],
+                "hobbies": ["open source", "wspinaczka", "fotografia"],
+                "volunteering": ["CoderDojo mentor 2022-2023"],
+                "total_experience_years": 6.5,
+                "seniority_estimate": "senior",
+                "strengths": ["Głęboka wiedza backendowa", "Silne poczucie ownership", "Dobry mentor"],
+                "red_flags": [],
+                "personality_signals": {"team_player": True, "team_player_reason": "Aktywnie mentoruje juniorów i uczestniczy w code review", "leadership_indicators": "Prowadził zespół 4 developerów przez 2 lata", "growth_mindset": "Regularnie zdobywa certyfikaty, prowadzi projekty open source", "communication_style": "techniczny i precyzyjny"},
+                "culture_fit_notes": "Kandydat wykazuje silne zaangażowanie w społeczność tech. Hobby (wspinaczka) sugeruje determinację i odporność na trudności. Wolontariat w CoderDojo wskazuje na chęć dzielenia się wiedzą.",
+            },
+            {
+                "parser_version": "v2-llm",
+                "personal_summary": "Frontend developer z pasją do UX i dostępności. Tworzę interfejsy które są zarówno piękne jak i użyteczne.",
+                "executive_summary": "Kreatywna frontend developerka łącząca umiejętności techniczne z wyczuciem designu. Doświadczona w React i TypeScript. Bardzo dobra do ról wymagających współpracy z designerami.",
+                "location": "Kraków, Polska",
+                "linkedin_url": "https://linkedin.com/in/anna-nowak-dev",
+                "github_url": "",
+                "technical_skills": [{"name": "React", "level": "advanced"}, {"name": "TypeScript", "level": "advanced"}, {"name": "CSS/Tailwind", "level": "expert"}, {"name": "Next.js", "level": "intermediate"}],
+                "soft_skills": [{"name": "Kreatywność"}, {"name": "Empatia"}, {"name": "Dokładność"}],
+                "languages": [{"name": "Polish", "level": "native"}, {"name": "English", "level": "C1"}, {"name": "German", "level": "A2"}],
+                "certifications": [],
+                "hobbies": ["malarstwo", "bieganie", "podcasts o designie"],
+                "volunteering": [],
+                "total_experience_years": 4.0,
+                "seniority_estimate": "mid",
+                "strengths": ["Silne wyczucie UX", "Dbałość o dostępność (a11y)", "Szybkie prototypowanie"],
+                "red_flags": ["Krótki staż w ostatniej firmie (8 miesięcy)"],
+                "personality_signals": {"team_player": True, "team_player_reason": "Wymienia liczne projekty grupowe i cross-functional collaboration", "leadership_indicators": "Brak wyraźnych wskaźników przywódczych", "growth_mindset": "Aktywnie śledzi trendy designu, uczy się nowych narzędzi", "communication_style": "otwarty i empatyczny"},
+                "culture_fit_notes": "Kandydatka wydaje się być osobą kreatywną i zorientowaną na jakość. Zainteresowanie malarstwem i designem sugeruje estetyczną wrażliwość. Dobra do zespołów dbających o product design.",
+            },
+            {
+                "parser_version": "v1-regex",
+                "personal_summary": None,
+                "executive_summary": None,
+                "location": None,
+                "linkedin_url": None,
+                "github_url": None,
+                "technical_skills": None,
+                "soft_skills": None,
+                "languages": None,
+                "certifications": None,
+                "hobbies": None,
+                "volunteering": None,
+                "total_experience_years": None,
+                "seniority_estimate": None,
+                "strengths": None,
+                "red_flags": None,
+                "personality_signals": None,
+                "culture_fit_notes": None,
+            },
+        ]
+
+        created_profiles = []
+        for i, (app_id, job_id) in enumerate(applications[:len(llm_profiles)]):
+            profile_data = llm_profiles[i % len(llm_profiles)]
+
+            parse_job = CVParseJob(
+                application_id=app_id,
+                cv_url=f"uploads/cv/seed_{i}.pdf",
+                status="completed",
+                parser_version=profile_data["parser_version"],
+                llm_model="claude-haiku-4-5-20251001" if profile_data["parser_version"] == "v2-llm" else None,
+                token_usage={"input_tokens": 1200, "output_tokens": 800, "total_tokens": 2000} if profile_data["parser_version"] == "v2-llm" else None,
+                raw_text="[seed text]",
+                normalized_result={"first_name": "Seed", "last_name": "User"},
+                started_at=datetime.now(UTC) - timedelta(hours=2),
+                completed_at=datetime.now(UTC) - timedelta(hours=1),
+            )
+            self.db.add(parse_job)
+
+            profile = CandidateProfile(
+                application_id=app_id,
+                headline="Software Engineer" if i % 2 == 0 else "Frontend Developer",
+                summary="Experienced developer with strong problem-solving skills.",
+                skills=[{"name": "Python"}, {"name": "JavaScript"}],
+                experience=[{"title": "Senior Dev", "company": "Acme Corp", "date_range": "2020-present", "description": "Backend development"}],
+                education=[{"school": "Politechnika Warszawska", "degree": "Informatyka", "date_range": "2015-2020", "description": None}],
+                parsing_status="completed",
+                **{k: v for k, v in profile_data.items() if k != "parser_version"},
+                parser_version=profile_data["parser_version"],
+            )
+            self.db.add(profile)
+            await self.db.flush()
+            created_profiles.append((profile, job_id))
+
+        # Seed job matches for v2-llm profiles
+        match_data = [
+            {"match_score": 87, "fit_score": 82, "recommendation": "hire", "reasoning": "Kandydat spełnia wszystkie wymagania techniczne i wykazuje silne dopasowanie kulturowe. Doświadczenie w architekturze mikrousług jest dokładnie tym czego szukamy.", "strengths_match": ["6+ lat Python — spełnia senior requirement", "AWS certyfikacja — kluczowe dla naszego stacku", "Doświadczenie mentorskie — ważne dla rozwoju zespołu"], "gaps": ["Brak doświadczenia z Kubernetes (nice-to-have)"]},
+            {"match_score": 72, "fit_score": 90, "recommendation": "consider", "reasoning": "Bardzo dobre dopasowanie kulturowe i silne umiejętności frontendowe. Brak doświadczenia z Next.js może wymagać onboardingu, ale kandydatka szybko się uczy.", "strengths_match": ["React + TypeScript na poziomie advanced", "Silne wyczucie UX — cenne w naszym produkcie", "Znajomość angielskiego na C1"], "gaps": ["Next.js tylko na poziomie intermediate", "Krótki staż w poprzedniej firmie wymaga wyjaśnienia"]},
+        ]
+
+        for i, (profile, job_id) in enumerate(created_profiles[:len(match_data)]):
+            md = match_data[i]
+            match = CandidateJobMatch(
+                application_id=profile.application_id,
+                candidate_profile_id=profile.id,
+                job_id=job_id,
+                match_score=md["match_score"],
+                fit_score=md["fit_score"],
+                recommendation=md["recommendation"],
+                reasoning=md["reasoning"],
+                strengths_match=md["strengths_match"],
+                gaps=md["gaps"],
+                llm_model="claude-sonnet-4-6",
+                token_usage={"input_tokens": 900, "output_tokens": 400, "total_tokens": 1300},
+            )
+            self.db.add(match)
+
+        # Seed API usage logs
+        company = self.companies[0] if self.companies else None
+        if company:
+            operations = [
+                ("cv_parsing", "claude-haiku-4-5-20251001", 1200, 800, 0.0042),
+                ("cv_parsing", "claude-haiku-4-5-20251001", 1350, 750, 0.0041),
+                ("job_matching", "claude-sonnet-4-6", 900, 400, 0.0087),
+                ("cv_parsing", "claude-haiku-4-5-20251001", 1100, 820, 0.0040),
+                ("job_matching", "claude-sonnet-4-6", 850, 380, 0.0083),
+            ]
+            for operation, model, inp, out, cost in operations:
+                log = ApiUsageLog(
+                    company_id=company.id,
+                    operation=operation,
+                    llm_model=model,
+                    input_tokens=inp,
+                    output_tokens=out,
+                    cost_usd=cost,
+                )
+                self.db.add(log)
+
+        await self.db.flush()
+        print(f"   Created {len(created_profiles)} candidate profiles, {len(match_data)} job matches, 5 API usage logs.")
 
     async def _get_first_field(self, job_id: uuid.UUID):
         """Get first form field for a job's template."""

@@ -85,6 +85,7 @@ class ApplicationService(BaseService[ApplicationRepository]):
         ignore_duplicate_warning: bool,
         background_tasks: BackgroundTasks,
         frontend_url: str,
+        language: str = "en",
     ) -> ApplicationSubmitResult:
         from app.modules.jobs.models import Job
 
@@ -129,7 +130,7 @@ class ApplicationService(BaseService[ApplicationRepository]):
 
         parse_job: CVParseJob | None = None
         if cv_url:
-            parse_job = await self.repository.create_cv_parse_job(application.id, cv_url)
+            parse_job = await self.repository.create_cv_parse_job(application.id, cv_url, language=language)
             background_tasks.add_task(run_cv_parse_job, parse_job.id)
 
         if duplicate_check.has_duplicates:
@@ -225,14 +226,14 @@ class ApplicationService(BaseService[ApplicationRepository]):
         return CVParseJobRead.model_validate(parse_job)
 
     async def retry_cv_parse(
-        self, application_id: uuid.UUID, background_tasks: BackgroundTasks
+        self, application_id: uuid.UUID, background_tasks: BackgroundTasks, language: str = "en"
     ) -> CVParseJobRead:
         application = await self.repository.get_by_id(application_id)
         if not application:
             raise NotFoundError("Application not found.")
         if not application.cv_url:
             raise UnprocessableError("Application does not have a CV to parse.")
-        parse_job = await self.repository.create_cv_parse_job(application_id, application.cv_url)
+        parse_job = await self.repository.create_cv_parse_job(application_id, application.cv_url, language=language)
         background_tasks.add_task(run_cv_parse_job, parse_job.id)
         return CVParseJobRead.model_validate(parse_job)
 

@@ -68,6 +68,17 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:3000"
 
     # -------------------------------------------------------------------------
+    # LLM Integration
+    # -------------------------------------------------------------------------
+    anthropic_api_key: str = ""
+    llm_cv_model: str = "claude-haiku-4-5-20251001"
+    llm_match_model: str = "claude-sonnet-4-6"
+
+    @property
+    def llm_enabled(self) -> bool:
+        return bool(self.anthropic_api_key)
+
+    # -------------------------------------------------------------------------
     # Derived helpers
     # -------------------------------------------------------------------------
     @property

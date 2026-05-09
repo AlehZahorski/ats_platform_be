@@ -3,8 +3,8 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Text
-from sqlalchemy.dialects.postgresql import JSON, UUID
+from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, Text
+from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import BaseModel
@@ -135,15 +135,26 @@ class CVParseJob(BaseModel):
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # LLM metadata
+    llm_model: Mapped[str | None] = mapped_column(Text)
+    token_usage: Mapped[dict | None] = mapped_column(JSON)
+    language: Mapped[str | None] = mapped_column(Text)
+
     application: Mapped["Application"] = relationship(back_populates="cv_parse_jobs")
 
 
 class CandidateProfile(BaseModel):
     __tablename__ = "candidate_profiles"
 
+    __table_args__ = (
+        Index("ix_candidate_profiles_technical_skills", "technical_skills", postgresql_using="gin"),
+        Index("ix_candidate_profiles_languages", "languages", postgresql_using="gin"),
+    )
+
     application_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("applications.id", ondelete="CASCADE"), nullable=False, unique=True, index=True
     )
+    # v1 fields (regex parser) — kept for backwards compatibility
     headline: Mapped[str | None] = mapped_column(Text)
     summary: Mapped[str | None] = mapped_column(Text)
     skills: Mapped[list[dict]] = mapped_column(JSON, nullable=False, default=list)
@@ -153,4 +164,74 @@ class CandidateProfile(BaseModel):
     parsing_error: Mapped[str | None] = mapped_column(Text)
     last_parsed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # v2 fields (LLM enrichment)
+    parser_version: Mapped[str] = mapped_column(Text, nullable=False, default="v1-regex", index=True)
+    personal_summary: Mapped[str | None] = mapped_column(Text)
+    executive_summary: Mapped[str | None] = mapped_column(Text)
+    location: Mapped[str | None] = mapped_column(Text)
+    linkedin_url: Mapped[str | None] = mapped_column(Text)
+    github_url: Mapped[str | None] = mapped_column(Text)
+    technical_skills: Mapped[list[dict] | None] = mapped_column(JSONB)
+    soft_skills: Mapped[list[dict] | None] = mapped_column(JSON)
+    languages: Mapped[list[dict] | None] = mapped_column(JSONB)
+    certifications: Mapped[list[dict] | None] = mapped_column(JSON)
+    hobbies: Mapped[list[str] | None] = mapped_column(JSON)
+    volunteering: Mapped[list[str] | None] = mapped_column(JSON)
+    total_experience_years: Mapped[float | None] = mapped_column(Float)
+    seniority_estimate: Mapped[str | None] = mapped_column(Text, index=True)
+    strengths: Mapped[list[str] | None] = mapped_column(JSON)
+    red_flags: Mapped[list[str] | None] = mapped_column(JSON)
+    personality_signals: Mapped[dict | None] = mapped_column(JSON)
+    culture_fit_notes: Mapped[str | None] = mapped_column(Text)
+
     application: Mapped["Application"] = relationship(back_populates="candidate_profile")
+    job_matches: Mapped[list["CandidateJobMatch"]] = relationship(
+        back_populates="candidate_profile",
+        cascade="all, delete-orphan",
+        order_by="desc(CandidateJobMatch.created_at)",
+    )
+
+
+class CandidateJobMatch(BaseModel):
+    __tablename__ = "candidate_job_matches"
+
+    application_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("applications.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    candidate_profile_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("candidate_profiles.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    job_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    match_score: Mapped[int | None] = mapped_column(Integer, index=True)
+    fit_score: Mapped[int | None] = mapped_column(Integer, index=True)
+    reasoning: Mapped[str | None] = mapped_column(Text)
+    strengths_match: Mapped[list[str] | None] = mapped_column(JSON)
+    gaps: Mapped[list[str] | None] = mapped_column(JSON)
+    recommendation: Mapped[str | None] = mapped_column(Text)
+    llm_model: Mapped[str | None] = mapped_column(Text)
+    token_usage: Mapped[dict | None] = mapped_column(JSON)
+
+    candidate_profile: Mapped["CandidateProfile"] = relationship(back_populates="job_matches")
+    application: Mapped["Application"] = relationship()
+    job: Mapped["Job"] = relationship()  # noqa: F821
+
+
+class ApiUsageLog(BaseModel):
+    __tablename__ = "api_usage_logs"
+
+    __table_args__ = (
+        Index("ix_api_usage_logs_company_created", "company_id", "created_at"),
+    )
+
+    company_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False
+    )
+    operation: Mapped[str] = mapped_column(Text, nullable=False)
+    llm_model: Mapped[str] = mapped_column(Text, nullable=False)
+    input_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    cost_usd: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+
+    company: Mapped["Company"] = relationship()  # noqa: F821

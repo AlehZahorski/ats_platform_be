@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import ForeignKey, Integer, JSON, Text
+from sqlalchemy import ForeignKey, Integer, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -22,10 +22,10 @@ class Job(BaseModel):
     status: Mapped[str] = mapped_column(Text, nullable=False, default="draft")
     role_summary: Mapped[str | None] = mapped_column(Text)
     role_purpose: Mapped[str | None] = mapped_column(Text)
-    responsibilities: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
-    must_haves: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
-    nice_to_haves: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
-    tech_stack: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    responsibilities: Mapped[str | None] = mapped_column(Text)
+    must_haves: Mapped[str | None] = mapped_column(Text)
+    nice_to_haves: Mapped[str | None] = mapped_column(Text)
+    tech_stack: Mapped[str | None] = mapped_column(Text)
     domain_context: Mapped[str | None] = mapped_column(Text)
     seniority: Mapped[str | None] = mapped_column(Text)
     experience_min_years: Mapped[int | None] = mapped_column(Integer)
@@ -36,8 +36,8 @@ class Job(BaseModel):
     team_context: Mapped[str | None] = mapped_column(Text)
     reporting_to: Mapped[str | None] = mapped_column(Text)
     value_proposition: Mapped[str | None] = mapped_column(Text)
-    benefits: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
-    hiring_process: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    benefits: Mapped[str | None] = mapped_column(Text)
+    hiring_process: Mapped[str | None] = mapped_column(Text)
     salary_min: Mapped[int | None] = mapped_column(Integer)
     salary_max: Mapped[int | None] = mapped_column(Integer)
     salary_currency: Mapped[str | None] = mapped_column(Text)

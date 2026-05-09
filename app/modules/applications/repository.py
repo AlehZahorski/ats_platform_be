@@ -11,10 +11,12 @@ from app.core.base_repository import BaseRepository
 from app.core.enums.applications import CVParseStatus, ParsingStatus
 from app.core.security import generate_public_token
 from app.modules.applications.models import (
+    ApiUsageLog,
     Application,
     ApplicationAnswer,
     ApplicationDuplicateLink,
     CVParseJob,
+    CandidateJobMatch,
     CandidateProfile,
     CandidateScore,
 )
@@ -174,8 +176,8 @@ class ApplicationRepository(BaseRepository[Application]):
             ))
         await self.db.flush()
 
-    async def create_cv_parse_job(self, application_id: uuid.UUID, cv_url: str | None) -> CVParseJob:
-        job = CVParseJob(application_id=application_id, cv_url=cv_url, status=CVParseStatus.queued)
+    async def create_cv_parse_job(self, application_id: uuid.UUID, cv_url: str | None, language: str = "en") -> CVParseJob:
+        job = CVParseJob(application_id=application_id, cv_url=cv_url, status=CVParseStatus.queued, language=language)
         return await self.save(job)
 
     async def get_cv_parse_job(self, parse_job_id: uuid.UUID) -> CVParseJob | None:
@@ -213,36 +215,121 @@ class ApplicationRepository(BaseRepository[Application]):
         parsing_status: ParsingStatus,
         parsing_error: str | None = None,
         last_parsed_at: datetime | None = None,
+        parser_version: str = "v1-regex",
+        # LLM enrichment fields (all optional)
+        personal_summary: str | None = None,
+        executive_summary: str | None = None,
+        location: str | None = None,
+        linkedin_url: str | None = None,
+        github_url: str | None = None,
+        technical_skills: list[dict] | None = None,
+        soft_skills: list[dict] | None = None,
+        languages: list[dict] | None = None,
+        certifications: list[dict] | None = None,
+        hobbies: list[str] | None = None,
+        volunteering: list[str] | None = None,
+        total_experience_years: float | None = None,
+        seniority_estimate: str | None = None,
+        strengths: list[str] | None = None,
+        red_flags: list[str] | None = None,
+        personality_signals: dict | None = None,
+        culture_fit_notes: str | None = None,
     ) -> CandidateProfile:
         result = await self.db.execute(
             select(CandidateProfile).where(CandidateProfile.application_id == application_id)
         )
         profile = result.scalar_one_or_none()
+
+        fields = dict(
+            headline=headline,
+            summary=summary,
+            skills=skills,
+            experience=experience,
+            education=education,
+            parsing_status=parsing_status,
+            parsing_error=parsing_error,
+            last_parsed_at=last_parsed_at,
+            parser_version=parser_version,
+            personal_summary=personal_summary,
+            executive_summary=executive_summary,
+            location=location,
+            linkedin_url=linkedin_url,
+            github_url=github_url,
+            technical_skills=technical_skills,
+            soft_skills=soft_skills,
+            languages=languages,
+            certifications=certifications,
+            hobbies=hobbies,
+            volunteering=volunteering,
+            total_experience_years=total_experience_years,
+            seniority_estimate=seniority_estimate,
+            strengths=strengths,
+            red_flags=red_flags,
+            personality_signals=personality_signals,
+            culture_fit_notes=culture_fit_notes,
+        )
+
         if profile:
-            profile.headline = headline
-            profile.summary = summary
-            profile.skills = skills
-            profile.experience = experience
-            profile.education = education
-            profile.parsing_status = parsing_status
-            profile.parsing_error = parsing_error
-            profile.last_parsed_at = last_parsed_at
+            for key, value in fields.items():
+                setattr(profile, key, value)
         else:
-            profile = CandidateProfile(
-                application_id=application_id,
-                headline=headline,
-                summary=summary,
-                skills=skills,
-                experience=experience,
-                education=education,
-                parsing_status=parsing_status,
-                parsing_error=parsing_error,
-                last_parsed_at=last_parsed_at,
-            )
+            profile = CandidateProfile(application_id=application_id, **fields)
             self.db.add(profile)
+
         await self.db.flush()
         await self.db.refresh(profile)
         return profile
+
+    async def save_job_match(
+        self,
+        application_id: uuid.UUID,
+        candidate_profile_id: uuid.UUID,
+        job_id: uuid.UUID,
+        match_result: dict,
+    ) -> CandidateJobMatch:
+        match = CandidateJobMatch(
+            application_id=application_id,
+            candidate_profile_id=candidate_profile_id,
+            job_id=job_id,
+            match_score=match_result.get("match_score"),
+            fit_score=match_result.get("fit_score"),
+            reasoning=match_result.get("reasoning"),
+            strengths_match=match_result.get("strengths_match"),
+            gaps=match_result.get("gaps"),
+            recommendation=match_result.get("recommendation"),
+            llm_model=match_result.get("_meta", {}).get("model"),
+            token_usage=match_result.get("_meta", {}).get("token_usage"),
+        )
+        self.db.add(match)
+        await self.db.flush()
+        await self.db.refresh(match)
+        return match
+
+    async def get_job_matches(self, application_id: uuid.UUID) -> list[CandidateJobMatch]:
+        result = await self.db.execute(
+            select(CandidateJobMatch)
+            .where(CandidateJobMatch.application_id == application_id)
+            .order_by(CandidateJobMatch.created_at.desc())
+        )
+        return list(result.scalars().all())
+
+    async def save_api_usage_log(
+        self,
+        company_id: uuid.UUID,
+        operation: str,
+        meta: dict,
+    ) -> None:
+        token_usage = meta.get("token_usage", {})
+        log = ApiUsageLog(
+            company_id=company_id,
+            operation=operation,
+            llm_model=meta.get("model", ""),
+            input_tokens=token_usage.get("input_tokens", 0),
+            output_tokens=token_usage.get("output_tokens", 0),
+            cost_usd=meta.get("cost_usd", 0.0),
+        )
+        self.db.add(log)
+        await self.db.flush()
 
     async def _load(self, application_id: uuid.UUID) -> Application | None:
         result = await self.db.execute(

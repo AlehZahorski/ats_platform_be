@@ -13,6 +13,7 @@ from pypdf import PdfReader
 from app.core.database import AsyncSessionLocal
 from app.core.enums.applications import CVParseStatus, ParsingStatus
 from app.modules.applications.repository import ApplicationRepository
+from app.services.llm_cv_parser import enrich_cv_with_claude, match_candidate_to_job
 from app.services.cv_keywords import (
     DEGREE_WORDS,
     EDUCATION_WORDS,
@@ -191,7 +192,7 @@ class CVProfileParser:
     # ── Section collection ────────────────────────────────────────────────────
 
     def _collect_sections(self, lines: list[str]) -> dict[str, list[str]]:
-        sections: dict[str, list[str]] = {"skills": [], "experience": [], "education": []}
+        sections: dict[str, list[str]] = {key: [] for key in SECTION_ALIASES}
         current: str | None = None
         for line in lines:
             matched = self._match_section(line)
@@ -356,27 +357,76 @@ class CVParsingService:
                 parse_job.status = CVParseStatus.parsing
                 await db.commit()
 
+                # Step 1: regex parser extracts structured facts
                 normalized = self._parser.parse(raw_text)
                 parse_job.raw_result = {
                     "text_length": len(raw_text),
                     "sections_detected": list(SECTION_ALIASES.keys()),
                 }
-                parse_job.normalized_result = normalized
-                parse_job.status = CVParseStatus.review_required
+
+                # Step 2: LLM enriches the regex output (fallback: empty dict → v1-regex data)
+                enriched = enrich_cv_with_claude(normalized, raw_text, language=parse_job.language or "en")
+                llm_meta = enriched.pop("_meta", {})
+                parser_version = "v2-llm" if enriched else "v1-regex"
+
+                if llm_meta:
+                    parse_job.llm_model = llm_meta.get("model")
+                    parse_job.token_usage = llm_meta.get("token_usage")
+
+                parse_job.normalized_result = {**normalized, **enriched}
+                parse_job.parser_version = parser_version
+                parse_job.status = CVParseStatus.completed
                 parse_job.completed_at = datetime.now(UTC)
 
-                await repo.upsert_candidate_profile(
+                profile = await repo.upsert_candidate_profile(
                     parse_job.application_id,
                     headline=normalized.get("headline"),
                     summary=normalized.get("summary"),
                     skills=normalized.get("skills", []),
                     experience=normalized.get("experience", []),
                     education=normalized.get("education", []),
-                    parsing_status=ParsingStatus.review_required,
+                    parsing_status=ParsingStatus.completed,
                     parsing_error=None,
                     last_parsed_at=parse_job.completed_at,
+                    parser_version=parser_version,
+                    personal_summary=enriched.get("personal_summary") or None,
+                    executive_summary=enriched.get("executive_summary") or None,
+                    location=enriched.get("location") or None,
+                    linkedin_url=enriched.get("linkedin_url") or None,
+                    github_url=enriched.get("github_url") or None,
+                    technical_skills=enriched.get("technical_skills"),
+                    soft_skills=enriched.get("soft_skills"),
+                    languages=enriched.get("languages"),
+                    certifications=enriched.get("certifications"),
+                    hobbies=enriched.get("hobbies"),
+                    volunteering=enriched.get("volunteering"),
+                    total_experience_years=enriched.get("total_experience_years"),
+                    seniority_estimate=enriched.get("seniority_estimate") or None,
+                    strengths=enriched.get("strengths"),
+                    red_flags=enriched.get("red_flags"),
+                    personality_signals=enriched.get("personality_signals"),
+                    culture_fit_notes=enriched.get("culture_fit_notes") or None,
                 )
                 await db.commit()
+
+                # Step 3: log API usage cost per company
+                if llm_meta:
+                    application = parse_job.application
+                    if application:
+                        from app.modules.jobs.models import Job
+                        job_result = await db.get(Job, application.job_id)
+                        if job_result:
+                            await repo.save_api_usage_log(
+                                company_id=job_result.company_id,
+                                operation="cv_parsing",
+                                meta=llm_meta,
+                            )
+                            await db.commit()
+
+                # Step 4: automatic job matching
+                if enriched and profile:
+                    await self._run_matching(repo, db, parse_job, profile)
+
             except Exception as exc:
                 await db.rollback()
                 logger.error("CV parsing failed for job %s: %s", parse_job_id, exc)
@@ -395,6 +445,63 @@ class CVParsingService:
                     last_parsed_at=parse_job.completed_at,
                 )
                 await db.commit()
+
+    async def _run_matching(self, repo, db, parse_job, profile) -> None:
+        """Run automatic LLM matching after successful CV enrichment."""
+        from app.modules.jobs.models import Job
+        application = parse_job.application
+        if not application:
+            return
+
+        job = await db.get(Job, application.job_id)
+        if not job:
+            return
+
+        job_data = {
+            "title": job.title,
+            "seniority": job.seniority,
+            "department": job.department,
+            "must_haves": job.must_haves,
+            "tech_stack": job.tech_stack,
+            "nice_to_haves": job.nice_to_haves,
+            "role_summary": job.role_summary,
+            "team_context": job.team_context,
+            "experience_min_years": job.experience_min_years,
+            "experience_max_years": job.experience_max_years,
+        }
+        profile_data = {
+            "seniority_estimate": profile.seniority_estimate,
+            "total_experience_years": profile.total_experience_years,
+            "technical_skills": profile.technical_skills or [],
+            "soft_skills": profile.soft_skills or [],
+            "languages": profile.languages or [],
+            "hobbies": profile.hobbies or [],
+            "strengths": profile.strengths or [],
+            "red_flags": profile.red_flags or [],
+            "personality_signals": profile.personality_signals or {},
+            "culture_fit_notes": profile.culture_fit_notes,
+            "executive_summary": profile.executive_summary,
+        }
+
+        match_result = match_candidate_to_job(profile_data, job_data, language=parse_job.language or "en")
+        if not match_result:
+            return
+
+        match_meta = match_result.pop("_meta", {})
+        await repo.save_job_match(
+            application_id=application.id,
+            candidate_profile_id=profile.id,
+            job_id=job.id,
+            match_result=match_result,
+        )
+
+        if match_meta:
+            await repo.save_api_usage_log(
+                company_id=job.company_id,
+                operation="job_matching",
+                meta=match_meta,
+            )
+        await db.commit()
 
 
 # ---------------------------------------------------------------------------

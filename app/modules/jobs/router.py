@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -13,8 +13,9 @@ from app.core.exceptions import NotFoundError
 from app.modules.forms.schemas import FormTemplateRead
 from app.modules.jobs.models import Job, JobFormTemplate
 from app.modules.jobs.repository import JobRepository
-from app.modules.jobs.schemas import AssignTemplateRequest, JobCreate, JobList, JobRead, JobUpdate
+from app.modules.jobs.schemas import AssignTemplateRequest, JobCreate, JobList, JobOfferAnalysisRead, JobRead, JobSuggestRead, JobUpdate
 from app.modules.jobs.service import JobService
+from app.core.i18n import detect_language
 
 router = APIRouter()
 
@@ -191,6 +192,34 @@ async def assign_template(
     await service.repository.assign_template(job_id, data.template_id)
     updated = await service.repository.get_by_id_and_company(job_id, company.id)
     return JobService.serialize(updated)
+
+
+@router.post("/{job_id}/analyze", response_model=JobOfferAnalysisRead)
+async def analyze_job(
+    request: Request,
+    job_id: uuid.UUID,
+    company: CurrentCompany,
+    _user: CurrentUser,
+    service: JobService = Depends(_get_service),
+) -> JobOfferAnalysisRead:
+    job = await service.repository.get_by_id_and_company(job_id, company.id)
+    if not job:
+        raise NotFoundError("Job not found.")
+    return await service.analyze(job, language=detect_language(request))
+
+
+@router.post("/{job_id}/suggest", response_model=JobSuggestRead)
+async def suggest_job(
+    request: Request,
+    job_id: uuid.UUID,
+    company: CurrentCompany,
+    _user: CurrentUser,
+    service: JobService = Depends(_get_service),
+) -> JobSuggestRead:
+    job = await service.repository.get_by_id_and_company(job_id, company.id)
+    if not job:
+        raise NotFoundError("Job not found.")
+    return await service.suggest(job, language=detect_language(request))
 
 
 @router.delete("/{job_id}", status_code=204)

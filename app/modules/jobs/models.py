@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
-from sqlalchemy import ForeignKey, Integer, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, JSON, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -43,6 +44,16 @@ class Job(BaseModel):
     salary_currency: Mapped[str | None] = mapped_column(Text)
     salary_period: Mapped[str | None] = mapped_column(Text)
     contract_type: Mapped[str | None] = mapped_column(Text)
+
+    # analysis
+    analysis_score: Mapped[int | None] = mapped_column(Integer)
+    analysis_market_position: Mapped[str | None] = mapped_column(Text)
+    analysis_summary: Mapped[str | None] = mapped_column(Text)
+    analysis_strengths: Mapped[list | None] = mapped_column(JSON)
+    analysis_improvements: Mapped[list | None] = mapped_column(JSON)
+    analysis_candidate_impact: Mapped[str | None] = mapped_column(Text)
+    analysis_urgency_message: Mapped[str | None] = mapped_column(Text)
+    analysis_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # relationships
     company: Mapped["Company"] = relationship(back_populates="jobs")  # noqa: F821

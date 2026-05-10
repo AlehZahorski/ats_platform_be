@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from app.core.enums.jobs import ContractType, JobStatus, Seniority, SalaryPeriod, WorkMode
 
@@ -116,6 +116,19 @@ class JobRead(BaseModel):
     template_id: uuid.UUID | None = None
     publish_ready: bool = False
     publish_issues: list[str] = []
+    analysis_score: int | None = None
+    analysis_market_position: str | None = None
+    analysis_summary: str | None = None
+    analysis_strengths: list[str] = []
+    analysis_improvements: list[str] = []
+
+    @field_validator("analysis_strengths", "analysis_improvements", mode="before")
+    @classmethod
+    def none_to_empty_list(cls, v: object) -> object:
+        return v if v is not None else []
+    analysis_candidate_impact: str | None = None
+    analysis_urgency_message: str | None = None
+    analysis_at: datetime | None = None
 
 
 class JobList(BaseModel):

@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     # -------------------------------------------------------------------------
     # Application
     # -------------------------------------------------------------------------
-    app_name: str = "TalentMatch"
+    app_name: str = "wakanta.pl"
     app_env: Literal["development", "staging", "production"] = "development"
     debug: bool = False
     secret_key: str
@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     smtp_port: int = 587
     smtp_user: str = ""
     smtp_password: str = ""
-    smtp_from_name: str = "TalentMatch"
+    smtp_from_name: str = "wakanta.pl"
     smtp_from_email: str = "no-reply@example.com"
     smtp_tls: bool = True
 

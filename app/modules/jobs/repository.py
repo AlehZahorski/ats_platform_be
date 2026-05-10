@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
@@ -8,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.core.base_repository import BaseRepository
 from app.core.enums.jobs import JobStatus
 from app.modules.jobs.models import Job, JobFormTemplate
-from app.modules.jobs.schemas import JobCreate, JobUpdate
+from app.modules.jobs.schemas import JobCreate, JobOfferAnalysisRead, JobUpdate
 
 
 class JobRepository(BaseRepository[Job]):
@@ -63,6 +64,17 @@ class JobRepository(BaseRepository[Job]):
 
     async def assign_template(self, job_id: uuid.UUID, template_id: uuid.UUID | None) -> None:
         await self._update_template(job_id, template_id)
+
+    async def save_analysis(self, job: Job, analysis: JobOfferAnalysisRead) -> None:
+        job.analysis_score = analysis.attractiveness_score
+        job.analysis_market_position = analysis.market_position
+        job.analysis_summary = analysis.summary
+        job.analysis_strengths = analysis.strengths
+        job.analysis_improvements = analysis.improvements
+        job.analysis_candidate_impact = analysis.candidate_impact
+        job.analysis_urgency_message = analysis.urgency_message
+        job.analysis_at = datetime.now(UTC)
+        await self.db.flush()
 
     # ------------------------------------------------------------------
     # Private helpers

@@ -50,7 +50,7 @@ class JobService(BaseService[JobRepository]):
             return
         issues = self._compute_publish_issues(type("JobState", (), payload)())
         if issues:
-            raise UnprocessableError(f"Job is not ready to publish: {'; '.join(issues)}")
+            raise UnprocessableError({"message": "Job is not ready to publish", "issues": issues})
 
     @classmethod
     def _compute_publish_issues(cls, job) -> list[str]:
@@ -143,7 +143,7 @@ class JobService(BaseService[JobRepository]):
         if not result:
             raise UnprocessableError("Job analysis failed — please try again.")
 
-        return JobOfferAnalysisRead(
+        analysis = JobOfferAnalysisRead(
             attractiveness_score=int(result.get("attractiveness_score", 0)),
             market_position=result.get("market_position", "at_market"),
             summary=result.get("summary", ""),
@@ -152,6 +152,8 @@ class JobService(BaseService[JobRepository]):
             candidate_impact=result.get("candidate_impact", ""),
             urgency_message=result.get("urgency_message", ""),
         )
+        await self.repository.save_analysis(job, analysis)
+        return analysis
 
     async def suggest(self, job, language: str = "en") -> "JobSuggestRead":
         result = suggest_job_description({

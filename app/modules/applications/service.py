@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.base_service import BaseService
 from app.core.enums.applications import BulkActionType, CVParseStatus, ParsingStatus
 from app.core.exceptions import DuplicateDetectedError, NotFoundError, UnprocessableError
+from app.core.i18n import t
 from app.modules.application_events.models import ApplicationEvent
 from app.modules.applications.duplicate_service import (
     DuplicateCheckService,
@@ -94,7 +95,7 @@ class ApplicationService(BaseService[ApplicationRepository]):
         )
         job = result.scalar_one_or_none()
         if not job:
-            raise NotFoundError("Job not found or not accepting applications.")
+            raise NotFoundError(t("jobs.not_accepting"))
 
         duplicate_check = await self.duplicate_svc.check(
             company_id=job.company_id,
@@ -162,7 +163,7 @@ class ApplicationService(BaseService[ApplicationRepository]):
         )
         job = result.scalar_one_or_none()
         if not job:
-            raise NotFoundError("Job not found or not accepting applications.")
+            raise NotFoundError(t("jobs.not_accepting"))
 
         return await self.duplicate_svc.check(
             company_id=job.company_id,
@@ -176,7 +177,7 @@ class ApplicationService(BaseService[ApplicationRepository]):
     async def track_application(self, token: str) -> ApplicationTrackingRead:
         application = await self.repository.get_by_token(token)
         if not application:
-            raise NotFoundError("Application not found.")
+            raise NotFoundError(t("applications.not_found"))
         result = ApplicationTrackingRead.model_validate(application)
         if application.job:
             result.job = TrackingJobRead.model_validate(application.job)
@@ -213,7 +214,7 @@ class ApplicationService(BaseService[ApplicationRepository]):
     async def get_application_detail(self, application_id: uuid.UUID) -> ApplicationRead:
         application = await self.repository.get_by_id(application_id)
         if not application:
-            raise NotFoundError("Application not found.")
+            raise NotFoundError(t("applications.not_found"))
         return self._build_application_read(application)
 
     # ------------------------------------------------------------------
@@ -230,9 +231,9 @@ class ApplicationService(BaseService[ApplicationRepository]):
     ) -> CVParseJobRead:
         application = await self.repository.get_by_id(application_id)
         if not application:
-            raise NotFoundError("Application not found.")
+            raise NotFoundError(t("applications.not_found"))
         if not application.cv_url:
-            raise UnprocessableError("Application does not have a CV to parse.")
+            raise UnprocessableError(t("applications.no_cv"))
         parse_job = await self.repository.create_cv_parse_job(application_id, application.cv_url, language=language)
         background_tasks.add_task(run_cv_parse_job, parse_job.id)
         return CVParseJobRead.model_validate(parse_job)
@@ -242,7 +243,7 @@ class ApplicationService(BaseService[ApplicationRepository]):
     ) -> ApplicationRead:
         application = await self.repository.get_by_id(application_id)
         if not application:
-            raise NotFoundError("Application not found.")
+            raise NotFoundError(t("applications.not_found"))
 
         application.first_name = data.first_name
         application.last_name = data.last_name
@@ -280,7 +281,7 @@ class ApplicationService(BaseService[ApplicationRepository]):
     ) -> ScoreRead:
         application = await self.repository.get_by_id(application_id)
         if not application:
-            raise NotFoundError("Application not found.")
+            raise NotFoundError(t("applications.not_found"))
         score = await self.repository.upsert_score(application_id, user_id, data)
         return ScoreRead.model_validate(score)
 

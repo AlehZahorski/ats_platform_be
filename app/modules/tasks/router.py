@@ -25,7 +25,7 @@ async def create_task(
     user: CurrentUser,
     service: TaskService = Depends(_get_service),
 ) -> TaskRead:
-    task = await service.create(company.id, user.id, data)
+    task = await service.create(company.id, user, data)
     return TaskRead.model_validate(task)
 
 
@@ -52,10 +52,10 @@ async def update_task(
     task_id: uuid.UUID,
     data: TaskUpdate,
     company: CurrentCompany,
-    _user: CurrentUser,
+    user: CurrentUser,
     service: TaskService = Depends(_get_service),
 ) -> TaskRead:
-    task = await service.update(task_id, company.id, data)
+    task = await service.update(task_id, company.id, data, actor=user)
     return TaskRead.model_validate(task)
 
 

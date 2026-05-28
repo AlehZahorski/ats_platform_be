@@ -8,6 +8,7 @@ from app.core.base_service import BaseService
 from app.core.enums.reviews import ReviewStatus
 from app.core.enums.users import UserRole
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError, UnprocessableError
+from app.core.i18n import t
 from app.modules.reviews.models import ReviewResponse, ScorecardTemplate
 from app.modules.reviews.repository import ReviewsRepository
 from app.modules.reviews.schemas import (
@@ -20,15 +21,16 @@ from app.modules.reviews.schemas import (
 from app.modules.users.models import User
 
 
-DEFAULT_TEMPLATE = ScorecardTemplateCreate(
-    name="Default Hiring Manager Scorecard",
-    description="Standard scorecard for hiring manager feedback",
-    criteria=[
-        {"label": "Role Fit", "description": "How well the candidate matches the role", "order_index": 0, "max_score": 5},
-        {"label": "Technical Strength", "description": "Relevant skills and experience", "order_index": 1, "max_score": 5},
-        {"label": "Team Collaboration", "description": "Communication and collaboration potential", "order_index": 2, "max_score": 5},
-    ],
-)
+def _default_template() -> ScorecardTemplateCreate:
+    return ScorecardTemplateCreate(
+        name="Default Hiring Manager Scorecard",
+        description=t("reviews.default_scorecard_description"),
+        criteria=[
+            {"label": t("reviews.criterion.role_fit.label"), "description": t("reviews.criterion.role_fit.description"), "order_index": 0, "max_score": 5},
+            {"label": t("reviews.criterion.technical_strength.label"), "description": t("reviews.criterion.technical_strength.description"), "order_index": 1, "max_score": 5},
+            {"label": t("reviews.criterion.team_collaboration.label"), "description": t("reviews.criterion.team_collaboration.description"), "order_index": 2, "max_score": 5},
+        ],
+    )
 
 
 class ReviewsService(BaseService[ReviewsRepository]):
@@ -37,14 +39,14 @@ class ReviewsService(BaseService[ReviewsRepository]):
         templates = await self.repository.list_templates(company_id)
         if templates:
             return templates
-        await self.repository.create_template(company_id, DEFAULT_TEMPLATE)
+        await self.repository.create_template(company_id, _default_template())
         return await self.repository.list_templates(company_id)
 
     async def create_template(
         self, company_id: uuid.UUID, data: ScorecardTemplateCreate
     ) -> ScorecardTemplate:
         if not data.criteria:
-            raise UnprocessableError("Scorecard template requires at least one criterion.")
+            raise UnprocessableError(t("reviews.template_needs_criterion"))
         return await self.repository.create_template(company_id, data)
 
     async def create_assignment(
@@ -59,12 +61,12 @@ class ReviewsService(BaseService[ReviewsRepository]):
         reviewer = await self._get_reviewer(data.reviewer_id, company_id)
         template = await self.repository.get_template(data.template_id, company_id)
         if not template:
-            raise NotFoundError("Scorecard template not found.")
+            raise NotFoundError(t("reviews.template_not_found"))
         existing = await self.repository.get_assignment_for_application_reviewer(
             application_id, reviewer.id
         )
         if existing:
-            raise ConflictError("This reviewer is already assigned to the candidate.")
+            raise ConflictError(t("reviews.reviewer_assigned"))
         return await self.repository.create_assignment(application_id, assigned_by, data)
 
     async def list_assignments(
@@ -83,26 +85,26 @@ class ReviewsService(BaseService[ReviewsRepository]):
     ) -> ReviewAssignmentRead:
         assignment = await self.repository.get_assignment(assignment_id)
         if not assignment:
-            raise NotFoundError("Review assignment not found.")
+            raise NotFoundError(t("reviews.assignment_not_found"))
         await self._ensure_application_in_company(assignment.application_id, company_id)
         if assignment.reviewer_id != current_user_id:
-            raise ForbiddenError("Only the assigned reviewer can submit this scorecard.")
+            raise ForbiddenError(t("reviews.wrong_reviewer"))
 
         criteria_ids = {criterion.id: criterion for criterion in assignment.template.criteria}
         if len(data.responses) != len(criteria_ids):
-            raise UnprocessableError("Every scorecard criterion must be reviewed.")
+            raise UnprocessableError(t("reviews.incomplete"))
 
         seen: set[uuid.UUID] = set()
         payload: list[dict[str, object]] = []
         for response in data.responses:
             criterion = criteria_ids.get(response.criterion_id)
             if not criterion:
-                raise UnprocessableError("Invalid scorecard criterion.")
+                raise UnprocessableError(t("reviews.invalid_criterion"))
             if response.criterion_id in seen:
-                raise UnprocessableError("Duplicate scorecard criterion response.")
+                raise UnprocessableError(t("reviews.duplicate_criterion"))
             if response.score > criterion.max_score:
                 raise UnprocessableError(
-                    f"Score for '{criterion.label}' cannot exceed {criterion.max_score}."
+                    t("reviews.score_exceeds_max", label=criterion.label, max_score=criterion.max_score)
                 )
             seen.add(response.criterion_id)
             payload.append(response.model_dump())
@@ -150,7 +152,7 @@ class ReviewsService(BaseService[ReviewsRepository]):
             .where(Application.id == application_id, Job.company_id == company_id)
         )
         if not result.scalar_one_or_none():
-            raise NotFoundError("Application not found.")
+            raise NotFoundError(t("reviews.application_not_found"))
 
     async def _get_reviewer(self, reviewer_id: uuid.UUID, company_id: uuid.UUID) -> User:
         db = self.repository.db
@@ -163,5 +165,5 @@ class ReviewsService(BaseService[ReviewsRepository]):
         )
         reviewer = result.scalar_one_or_none()
         if not reviewer:
-            raise NotFoundError("Hiring manager not found.")
+            raise NotFoundError(t("reviews.hiring_manager_not_found"))
         return reviewer

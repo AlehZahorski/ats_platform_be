@@ -7,12 +7,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import CurrentUser
 from app.core.exceptions import UnauthorizedError
+from app.core.i18n import t
 from app.core.security import get_google_auth_url
 from app.modules.auth.schemas import LoginRequest, MessageResponse, SignupCompanyRequest
 from app.modules.auth.service import AuthService
 from app.modules.companies.repository import CompanyRepository
-from app.modules.users.repository import UserRepository
-from app.modules.users.schemas import UserRead
+from app.modules.users.repository import InvitationRepository, UserRepository
+from app.modules.users.schemas import (
+    AcceptInvitationRequest,
+    InvitationPreview,
+    UserRead,
+)
+from app.modules.users.service import InvitationService
 
 router = APIRouter()
 
@@ -49,7 +55,7 @@ async def refresh(
     service: AuthService = Depends(_get_service),
 ) -> MessageResponse:
     if not refresh_token:
-        raise UnauthorizedError("No refresh token provided.")
+        raise UnauthorizedError(t("auth.no_refresh_token"))
     result = await service.refresh(refresh_token, response)
     return MessageResponse(**result)
 
@@ -84,3 +90,38 @@ async def google_callback(
 ) -> MessageResponse:
     result = await service.google_callback(code, response)
     return MessageResponse(**result)
+
+
+# ---------------------------------------------------------------------------
+# Invitation flow — public (no auth)
+# ---------------------------------------------------------------------------
+def _invitation_service(db: AsyncSession = Depends(get_db)) -> InvitationService:
+    return InvitationService(
+        InvitationRepository(db),
+        UserRepository(db),
+        CompanyRepository(db),
+    )
+
+
+@router.get("/invitation/{token}", response_model=InvitationPreview)
+async def preview_invitation(
+    token: str,
+    service: InvitationService = Depends(_invitation_service),
+) -> InvitationPreview:
+    invitation, company_name = await service.preview(token)
+    return InvitationPreview(
+        email=invitation.email,
+        role=invitation.role,
+        company_name=company_name,
+        expires_at=invitation.expires_at,
+    )
+
+
+@router.post("/accept-invitation", response_model=UserRead)
+async def accept_invitation(
+    data: AcceptInvitationRequest,
+    response: Response,
+    service: InvitationService = Depends(_invitation_service),
+) -> UserRead:
+    user = await service.accept(raw_token=data.token, password=data.password, response=response)
+    return UserRead.model_validate(user)

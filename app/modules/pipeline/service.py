@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.base_service import BaseService
 from app.core.exceptions import ConflictError, NotFoundError, UnprocessableError
+from app.core.i18n import t
 from app.modules.audit.service import AuditService
 from app.modules.pipeline.models import ApplicationStageHistory, PipelineStage
 from app.modules.pipeline.repository import PipelineRepository
@@ -36,32 +37,32 @@ class PipelineService(BaseService[PipelineRepository]):
     async def create_stage(self, name: str) -> PipelineStage:
         name = name.strip()
         if not name:
-            raise UnprocessableError("Stage name is required.")
+            raise UnprocessableError(t("pipeline.stage_name_required"))
         return await self.repository.create_stage(name)
 
     async def rename_stage(self, stage_id: uuid.UUID, name: str) -> PipelineStage:
         stage = await self.repository.get_by_id(stage_id)
         if not stage:
-            raise NotFoundError("Stage not found.")
+            raise NotFoundError(t("pipeline.stage_not_found"))
         name = name.strip()
         if not name:
-            raise UnprocessableError("Stage name is required.")
+            raise UnprocessableError(t("pipeline.stage_name_required"))
         return await self.repository.update_stage_name(stage, name)
 
     async def reorder_stages(self, stage_orders: list[tuple[uuid.UUID, int]]) -> list[PipelineStage]:
         existing_ids = {stage.id for stage in await self.repository.list_stages()}
         requested_ids = {stage_id for stage_id, _ in stage_orders}
         if existing_ids != requested_ids:
-            raise UnprocessableError("All stages must be included in reorder request.")
+            raise UnprocessableError(t("pipeline.reorder_incomplete"))
         return await self.repository.reorder_stages(stage_orders)
 
     async def delete_stage(self, stage_id: uuid.UUID) -> None:
         stage = await self.repository.get_by_id(stage_id)
         if not stage:
-            raise NotFoundError("Stage not found.")
+            raise NotFoundError(t("pipeline.stage_not_found"))
         applications_count, history_count = await self.repository.stage_usage_counts(stage_id)
         if applications_count > 0 or history_count > 0:
-            raise ConflictError("Stage cannot be deleted because it is already used by candidates or stage history.")
+            raise ConflictError(t("pipeline.stage_in_use"))
         await self.repository.delete(stage)
 
     async def update_application_stage(
@@ -82,19 +83,17 @@ class PipelineService(BaseService[PipelineRepository]):
         )
         application = result.scalar_one_or_none()
         if not application:
-            raise NotFoundError("Application not found.")
+            raise NotFoundError(t("pipeline.application_not_found"))
 
         stage = await self.repository.get_by_id(stage_id)
         if not stage:
-            raise NotFoundError("Stage not found.")
+            raise NotFoundError(t("pipeline.stage_not_found"))
 
         interview = None
         if stage.name.strip().lower() == "interview":
             interview = await InterviewRepository(self.db).get_stage_ready_interview(application_id)
             if not interview:
-                raise UnprocessableError(
-                    "Interview stage requires a scheduled interview with a meeting link."
-                )
+                raise UnprocessableError(t("pipeline.interview_needs_link"))
 
         application.stage_id = stage.id
         await self.db.flush()

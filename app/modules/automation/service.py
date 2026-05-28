@@ -7,6 +7,7 @@ from fastapi import BackgroundTasks
 
 from app.core.base_service import BaseService
 from app.core.exceptions import NotFoundError
+from app.core.i18n import t
 from app.modules.application_events.models import ApplicationEvent
 from app.modules.audit.models import AuditLog
 from app.modules.automation.models import AutomationRule
@@ -29,7 +30,7 @@ class AutomationService(BaseService[AutomationRepository]):
     async def get(self, rule_id: uuid.UUID, company_id: uuid.UUID) -> AutomationRule:
         rule = await self.repository.get_by_id_and_company(rule_id, company_id)
         if not rule:
-            raise NotFoundError("Automation rule not found.")
+            raise NotFoundError(t("automation.rule_not_found"))
         return rule
 
     async def update(

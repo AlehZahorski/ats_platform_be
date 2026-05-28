@@ -11,6 +11,7 @@ from xml.etree import ElementTree
 from pypdf import PdfReader
 
 from app.core.database import AsyncSessionLocal
+from app.core.i18n import detect_text_language, t
 from app.core.enums.applications import CVParseStatus, ParsingStatus
 from app.modules.applications.repository import ApplicationRepository
 from app.services.llm_cv_parser import enrich_cv_with_claude, match_candidate_to_job
@@ -44,8 +45,8 @@ class CVTextExtractor:
         if suffix == ".docx":
             return self._from_docx(file_path)
         if suffix == ".doc":
-            raise ValueError("DOC files are not supported. Please upload PDF or DOCX.")
-        raise ValueError("Unsupported CV file type.")
+            raise ValueError(t("cv.doc_not_supported"))
+        raise ValueError(t("cv.unsupported_type"))
 
     @staticmethod
     def _from_pdf(path: Path) -> str:
@@ -53,7 +54,7 @@ class CVTextExtractor:
         text = "\n".join(page.extract_text() or "" for page in reader.pages)
         normalized = _normalize_text(_sanitize(text))
         if not normalized:
-            raise ValueError("Could not extract readable text from the PDF.")
+            raise ValueError(t("cv.pdf_unreadable"))
         return normalized
 
     @staticmethod
@@ -69,7 +70,7 @@ class CVTextExtractor:
                 paragraphs.append("".join(runs))
         normalized = _normalize_text(_sanitize("\n".join(paragraphs)))
         if not normalized:
-            raise ValueError("Could not extract readable text from the DOCX.")
+            raise ValueError(t("cv.docx_unreadable"))
         return normalized
 
 
@@ -365,7 +366,13 @@ class CVParsingService:
                 }
 
                 # Step 2: LLM enriches the regex output (fallback: empty dict → v1-regex data)
-                enriched = enrich_cv_with_claude(normalized, raw_text, language=parse_job.language or "en")
+                # Detect the CV's actual language from the raw text — a Polish CV
+                # should produce a Polish enrichment regardless of recruiter's UI.
+                cv_lang = detect_text_language(
+                    (raw_text or "")[:2000],
+                    fallback=parse_job.language or "en",
+                )
+                enriched = enrich_cv_with_claude(normalized, raw_text, language=cv_lang)
                 llm_meta = enriched.pop("_meta", {})
                 parser_version = "v2-llm" if enriched else "v1-regex"
 
@@ -483,7 +490,24 @@ class CVParsingService:
             "executive_summary": profile.executive_summary,
         }
 
-        match_result = match_candidate_to_job(profile_data, job_data, language=parse_job.language or "en")
+        # The match analysis is for the recruiter — use the job offer's
+        # language (PL offer → PL reasoning), fallback to the parse job's
+        # locale.
+        match_sample = " ".join(
+            filter(
+                None,
+                (
+                    job.title,
+                    job.role_summary,
+                    job.role_purpose,
+                    job.must_haves,
+                    job.team_context,
+                    job.value_proposition,
+                ),
+            )
+        )
+        match_lang = detect_text_language(match_sample, fallback=parse_job.language or "en")
+        match_result = match_candidate_to_job(profile_data, job_data, language=match_lang)
         if not match_result:
             return
 

@@ -19,6 +19,7 @@ from app.core.config import settings
 from app.core.database import engine, Base, AsyncSessionLocal
 from app.core.enums import CVParseStatus
 from app.core.exceptions import DomainException
+from app.core.i18n import detect_language, set_language, t
 from app.modules.applications.models import CVParseJob
 
 # ---------------------------------------------------------------------------
@@ -38,7 +39,7 @@ async def lifespan(app: FastAPI):
             .where(CVParseJob.status.in_([CVParseStatus.extracting, CVParseStatus.parsing]))
             .values(
                 status=CVParseStatus.failed,
-                error_message="Server restarted — kliknij Retry aby przetworzyć ponownie.",
+                error_message=t("server.restart_retry"),
                 completed_at=datetime.now(UTC),
             )
         )
@@ -60,6 +61,14 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json" if not settings.is_production else None,
         lifespan=lifespan,
     )
+
+    # -----------------------------------------------------------------------
+    # Language — set per-request language contextvar from Accept-Language / cookie / ?lang=
+    # -----------------------------------------------------------------------
+    @app.middleware("http")
+    async def language_middleware(request: Request, call_next):
+        set_language(detect_language(request))
+        return await call_next(request)
 
     # -----------------------------------------------------------------------
     # CORS — must be added BEFORE other middleware so it runs on errors too
@@ -125,7 +134,7 @@ def create_app() -> FastAPI:
         logger.exception("Unhandled exception on %s %s", request.method, request.url)
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"detail": "An unexpected error occurred."},
+            content={"detail": t("errors.unexpected")},
         )
 
     return app

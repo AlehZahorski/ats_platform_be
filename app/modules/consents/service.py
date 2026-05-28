@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from app.core.base_service import BaseService
 from app.core.exceptions import NotFoundError
+from app.core.i18n import t
 from app.modules.consents.models import ApplicationConsent, Consent
 from app.modules.consents.repository import ConsentRepository
 from app.modules.consents.schemas import (
@@ -38,7 +39,7 @@ class ConsentService(BaseService[ConsentRepository]):
     async def get(self, consent_id: uuid.UUID, company_id: uuid.UUID) -> Consent:
         consent = await self.repository.get_by_id_and_company(consent_id, company_id)
         if not consent:
-            raise NotFoundError("Consent not found.")
+            raise NotFoundError(t("consents.not_found"))
         return consent
 
     async def update(
@@ -80,7 +81,7 @@ class ConsentService(BaseService[ConsentRepository]):
         )
         app = result.scalar_one_or_none()
         if not app:
-            raise NotFoundError("Application not found.")
+            raise NotFoundError(t("consents.application_not_found"))
         app.data_retention_until = data.data_retention_until
         await db.flush()
         return app
@@ -103,7 +104,7 @@ class ConsentService(BaseService[ConsentRepository]):
         )
         app = result.scalar_one_or_none()
         if not app:
-            raise NotFoundError("Application not found.")
+            raise NotFoundError(t("consents.application_not_found"))
 
         app.first_name = "Anonymized"
         app.last_name = "User"
@@ -124,7 +125,7 @@ class ConsentService(BaseService[ConsentRepository]):
         return AnonymizeResult(
             application_id=application_id,
             anonymized=True,
-            message="Candidate data has been anonymized successfully.",
+            message=t("consents.anonymized"),
         )
 
     # ── GDPR: hard delete ─────────────────────────────────────────────────────
@@ -144,7 +145,7 @@ class ConsentService(BaseService[ConsentRepository]):
         )
         app = result.scalar_one_or_none()
         if not app:
-            raise NotFoundError("Application not found.")
+            raise NotFoundError(t("consents.application_not_found"))
 
         await db.delete(app)
         await db.flush()

@@ -5,6 +5,7 @@ import uuid
 from app.core.base_service import BaseService
 from app.core.enums.interviews import InterviewStatus
 from app.core.exceptions import NotFoundError, UnprocessableError
+from app.core.i18n import t
 from app.modules.application_events.models import ApplicationEvent
 from app.modules.audit.service import AuditService
 from app.modules.interviews.models import Interview
@@ -47,7 +48,7 @@ class InterviewService(BaseService[InterviewRepository]):
     async def get(self, interview_id: uuid.UUID) -> Interview:
         interview = await self.repository.get_by_id(interview_id)
         if not interview:
-            raise NotFoundError("Interview not found.")
+            raise NotFoundError(t("interviews.not_found"))
         return interview
 
     async def list_by_application(self, application_id: uuid.UUID) -> list[Interview]:
@@ -74,4 +75,4 @@ class InterviewService(BaseService[InterviewRepository]):
     @staticmethod
     def _validate_meeting_url(meeting_url: str | None, status: InterviewStatus | None) -> None:
         if status != InterviewStatus.cancelled and not meeting_url:
-            raise UnprocessableError("Interview scheduling requires a meeting link.")
+            raise UnprocessableError(t("interviews.needs_link"))

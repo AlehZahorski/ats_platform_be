@@ -33,6 +33,7 @@ from app.modules.applications.models import (
     CandidateScore,
     CVParseJob,
 )
+from app.modules.applications.duplicate_service import normalize_email, normalize_phone
 from app.modules.audit.models import AuditLog
 from app.modules.companies.models import Company
 from app.modules.forms.models import FormField, FormTemplate
@@ -41,6 +42,17 @@ from app.modules.notes.models import Note
 from app.modules.pipeline.models import ApplicationStageHistory, PipelineStage
 from app.modules.tags.models import ApplicationTag, Tag
 from app.modules.users.models import User
+
+# Side-effect imports — register all remaining models with SQLAlchemy so
+# relationships (e.g. Job → JobAnalysis) can be resolved during mapper init.
+import app.modules.jobs.analysis_models           # noqa: F401
+import app.modules.email_templates.models         # noqa: F401
+import app.modules.automation.models              # noqa: F401
+import app.modules.interviews.models              # noqa: F401
+import app.modules.tasks.models                   # noqa: F401
+import app.modules.consents.models                # noqa: F401
+import app.modules.application_events.models      # noqa: F401
+import app.modules.reviews.models                 # noqa: F401
 
 # ═════════════════════════════════════════════════════════════════════════════
 # Seed data definitions
@@ -56,16 +68,16 @@ PIPELINE_STAGES = [
 ]
 
 COMPANIES = [
-    {"name": "Acme Technologies"},
-    {"name": "NovaSoft"},
+    {"name": "Wakanta"},
 ]
 
 USERS = [
     # (company_index, email, password, role)
-    (0, "owner@acme.com",     "Password123!", "owner"),
-    (0, "recruiter@acme.com", "Password123!", "recruiter"),
-    (0, "manager@acme.com",   "Password123!", "manager"),
-    (1, "owner@novasoft.com", "Password123!", "owner"),
+    (0, "owner@wakanta.pl",      "Password123!", "owner"),
+    (0, "recruiter@wakanta.pl",  "Password123!", "recruiter"),
+    (0, "recruiter2@wakanta.pl", "Password123!", "recruiter"),
+    (0, "manager@wakanta.pl",    "Password123!", "manager"),
+    (0, "manager2@wakanta.pl",   "Password123!", "manager"),
 ]
 
 JOBS = [
@@ -80,17 +92,12 @@ JOBS = [
      "Create intuitive user experiences for our SaaS products."),
     (0, "DevOps Engineer",            "Infrastructure","Remote",          "closed",
      "Manage our cloud infrastructure on AWS with Terraform and Kubernetes."),
-    (1, "Full Stack Developer",       "Engineering",  "Gdansk, Poland",   "open",
-     "Work across the entire stack — Django backend and Vue.js frontend."),
-    (1, "Data Analyst",               "Analytics",    "Remote",           "open",
-     "Turn raw data into actionable insights using Python and SQL."),
 ]
 
 TAGS = [
     # (company_index, name)
     (0, "python"),    (0, "react"),     (0, "senior"),
     (0, "remote"),    (0, "recommended"),(0, "fast-learner"),
-    (1, "django"),    (1, "vue"),        (1, "data"),
 ]
 
 CANDIDATES = [
@@ -289,7 +296,7 @@ class Seeder:
                 department=dept,
                 location=location,
                 status=status,
-                description=desc,
+                role_summary=desc,
             )
             self.db.add(job)
             await self.db.flush()
@@ -344,7 +351,9 @@ class Seeder:
                 first_name=first,
                 last_name=last,
                 email=email,
+                normalized_email=normalize_email(email),
                 phone=phone,
+                normalized_phone=normalize_phone(phone),
                 stage_id=stage.id if stage else None,
                 public_token=generate_public_token(),
                 created_at=datetime.now(UTC) - timedelta(days=30 - i * 2),
@@ -527,7 +536,7 @@ class Seeder:
 
         # Seed job matches for v2-llm profiles
         match_data = [
-            {"match_score": 87, "fit_score": 82, "recommendation": "hire", "reasoning": "Kandydat spełnia wszystkie wymagania techniczne i wykazuje silne dopasowanie kulturowe. Doświadczenie w architekturze mikrousług jest dokładnie tym czego szukamy.", "strengths_match": ["6+ lat Python — spełnia senior requirement", "AWS certyfikacja — kluczowe dla naszego stacku", "Doświadczenie mentorskie — ważne dla rozwoju zespołu"], "gaps": ["Brak doświadczenia z Kubernetes (nice-to-have)"]},
+            {"match_score": 87, "fit_score": 82, "recommendation": "top_candidate", "reasoning": "Kandydat spełnia wszystkie wymagania techniczne i wykazuje silne dopasowanie kulturowe. Doświadczenie w architekturze mikrousług jest dokładnie tym czego szukamy.", "strengths_match": ["6+ lat Python — spełnia senior requirement", "AWS certyfikacja — kluczowe dla naszego stacku", "Doświadczenie mentorskie — ważne dla rozwoju zespołu"], "gaps": ["Brak doświadczenia z Kubernetes (nice-to-have)"]},
             {"match_score": 72, "fit_score": 90, "recommendation": "consider", "reasoning": "Bardzo dobre dopasowanie kulturowe i silne umiejętności frontendowe. Brak doświadczenia z Next.js może wymagać onboardingu, ale kandydatka szybko się uczy.", "strengths_match": ["React + TypeScript na poziomie advanced", "Silne wyczucie UX — cenne w naszym produkcie", "Znajomość angielskiego na C1"], "gaps": ["Next.js tylko na poziomie intermediate", "Krótki staż w poprzedniej firmie wymaga wyjaśnienia"]},
         ]
 

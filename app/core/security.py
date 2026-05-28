@@ -35,16 +35,31 @@ def create_access_token(
     subject: str,
     extra_claims: dict[str, Any] | None = None,
 ) -> str:
-    """Create a short-lived access token (default 15 min)."""
-    expire = _now() + timedelta(minutes=settings.access_token_expire_minutes)
+    """
+    Create an access token.
+
+    - In production: lifetime = settings.access_token_expire_minutes (30 min).
+    - In dev/staging: token is non-expiring (no `exp` claim is set), so local
+      work isn't constantly interrupted by re-login. The cookie is also set
+      with a multi-year max_age in those envs (see _set_auth_cookies).
+    """
     payload: dict[str, Any] = {
         "sub": subject,
-        "exp": expire,
         "iat": _now(),
         "type": "access",
         **(extra_claims or {}),
     }
+    if settings.is_production:
+        payload["exp"] = _now() + timedelta(minutes=settings.access_token_expire_minutes)
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+
+
+def access_token_cookie_max_age() -> int:
+    """Cookie max-age in seconds, mirroring create_access_token() lifetime."""
+    if settings.is_production:
+        return settings.access_token_expire_minutes * 60
+    # Non-prod: ~10 years, effectively non-expiring for local/dev/test.
+    return 60 * 60 * 24 * 365 * 10
 
 
 def create_refresh_token() -> tuple[str, str]:

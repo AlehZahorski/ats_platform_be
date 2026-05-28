@@ -11,6 +11,7 @@ from fastapi import BackgroundTasks
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from app.core.config import settings
+from app.core.i18n import t
 
 _TEMPLATE_DIR = Path(__file__).parent.parent.parent / "templates" / "email"
 
@@ -78,7 +79,33 @@ class MailService:
             "verification.html",
             {"verification_url": verification_url, "app_name": settings.app_name},
         )
-        self._enqueue(background_tasks, to_email, "Verify your email address", html)
+        self._enqueue(background_tasks, to_email, t("email.subject.verify"), html)
+
+    def send_invitation_email(
+        self,
+        background_tasks: BackgroundTasks,
+        to_email: str,
+        invitation_url: str,
+        invited_by_email: str,
+        company_name: str,
+        role: str,
+    ) -> None:
+        html = self._render(
+            "invitation.html",
+            {
+                "invitation_url": invitation_url,
+                "invited_by_email": invited_by_email,
+                "company_name": company_name,
+                "role": role,
+                "app_name": settings.app_name,
+            },
+        )
+        self._enqueue(
+            background_tasks,
+            to_email,
+            t("email.subject.invitation", company_name=company_name),
+            html,
+        )
 
     def send_password_reset(
         self,
@@ -90,7 +117,7 @@ class MailService:
             "password_reset.html",
             {"reset_url": reset_url, "app_name": settings.app_name},
         )
-        self._enqueue(background_tasks, to_email, "Reset your password", html)
+        self._enqueue(background_tasks, to_email, t("email.subject.reset_password"), html)
 
     def send_application_confirmation(
         self,
@@ -112,7 +139,7 @@ class MailService:
         self._enqueue(
             background_tasks,
             to_email,
-            f"Your application for {job_title} has been received",
+            t("email.subject.application_rx", job_title=job_title),
             html,
         )
 
@@ -138,7 +165,7 @@ class MailService:
         self._enqueue(
             background_tasks,
             to_email,
-            f"Update on your application for {job_title}",
+            t("email.subject.status_update", job_title=job_title),
             html,
         )
 
@@ -171,7 +198,7 @@ class MailService:
         self._enqueue(
             background_tasks,
             to_email,
-            f"Interview details for your application to {job_title}",
+            t("email.subject.interview", job_title=job_title),
             html,
         )
 

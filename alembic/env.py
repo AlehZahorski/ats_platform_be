@@ -21,6 +21,7 @@ from app.core.database import Base  # noqa: F401
 import app.modules.users.models           # noqa: F401
 import app.modules.companies.models       # noqa: F401
 import app.modules.jobs.models            # noqa: F401
+import app.modules.jobs.analysis_models   # noqa: F401
 import app.modules.forms.models           # noqa: F401
 import app.modules.applications.models    # noqa: F401
 import app.modules.pipeline.models        # noqa: F401
@@ -33,9 +34,13 @@ import app.modules.email_templates.models   # noqa: F401
 import app.modules.automation.models        # noqa: F401
 import app.modules.interviews.models        # noqa: F401
 import app.modules.tasks.models             # noqa: F401
+import app.modules.organizer.models         # noqa: F401
+import app.modules.candidates.models        # noqa: F401
 import app.modules.consents.models          # noqa: F401
 import app.modules.application_events.models  # noqa: F401
 import app.modules.reviews.models           # noqa: F401
+import app.modules.articles.models          # noqa: F401
+import app.modules.admins.models            # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)

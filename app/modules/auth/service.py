@@ -9,7 +9,9 @@ from app.core.base_service import BaseService
 from app.core.config import settings
 from app.core.enums.users import UserRole
 from app.core.exceptions import ConflictError, ForbiddenError, UnauthorizedError, UnprocessableError
+from app.core.i18n import t
 from app.core.security import (
+    access_token_cookie_max_age,
     create_access_token,
     create_refresh_token,
     exchange_google_code,
@@ -40,7 +42,7 @@ class AuthService(BaseService[UserRepository]):
         response: Response,
     ) -> dict:
         if await self.repository.get_by_email(data.email):
-            raise ConflictError("Email already registered.")
+            raise ConflictError(t("auth.email_already_registered"))
 
         company = await self.company_repo.create(CompanyCreate(name=data.company_name))
         user = await self.repository.create(
@@ -59,9 +61,9 @@ class AuthService(BaseService[UserRepository]):
             pass
 
         msg = (
-            "Company created."
+            t("auth.company_created")
             if settings.app_env == "development"
-            else "Company created. Please verify your email address."
+            else t("auth.company_created_verify")
         )
         return {"message": msg}
 
@@ -71,9 +73,9 @@ class AuthService(BaseService[UserRepository]):
     async def login(self, data: LoginRequest, response: Response) -> dict:
         user = await self.repository.get_by_email(data.email)
         if not user or not verify_password(data.password, user.password_hash):
-            raise UnauthorizedError("Invalid email or password.")
+            raise UnauthorizedError(t("auth.invalid_credentials"))
         if not user.is_verified:
-            raise ForbiddenError("Email not verified.")
+            raise ForbiddenError(t("auth.email_not_verified"))
 
         access_token = create_access_token(
             subject=str(user.id),
@@ -84,7 +86,7 @@ class AuthService(BaseService[UserRepository]):
         await self.repository.save_refresh_token(user.id, token_hash, expires_at)
 
         self._set_auth_cookies(response, access_token, raw_refresh)
-        return {"message": "Logged in successfully."}
+        return {"message": t("auth.logged_in")}
 
     # ------------------------------------------------------------------
     # Refresh
@@ -92,11 +94,11 @@ class AuthService(BaseService[UserRepository]):
     async def refresh(self, raw_token: str, response: Response) -> dict:
         stored = await self.repository.get_refresh_token(hash_token(raw_token))
         if not stored:
-            raise UnauthorizedError("Invalid or expired refresh token.")
+            raise UnauthorizedError(t("auth.invalid_refresh_token"))
 
         user = await self.repository.get_by_id(stored.user_id)
         if not user:
-            raise UnauthorizedError("User not found.")
+            raise UnauthorizedError(t("auth.user_not_found"))
 
         await self.repository.revoke_refresh_token(stored)
         raw_new, new_hash = create_refresh_token()
@@ -108,7 +110,7 @@ class AuthService(BaseService[UserRepository]):
             extra_claims={"company_id": str(user.company_id), "role": user.role},
         )
         self._set_auth_cookies(response, access_token, raw_new)
-        return {"message": "Token refreshed."}
+        return {"message": t("auth.token_refreshed")}
 
     # ------------------------------------------------------------------
     # Logout
@@ -119,7 +121,7 @@ class AuthService(BaseService[UserRepository]):
             if stored:
                 await self.repository.revoke_refresh_token(stored)
         self._clear_auth_cookies(response)
-        return {"message": "Logged out."}
+        return {"message": t("auth.logged_out")}
 
     # ------------------------------------------------------------------
     # Google OAuth
@@ -128,7 +130,7 @@ class AuthService(BaseService[UserRepository]):
         google_user = await exchange_google_code(code)
         email = google_user.get("email")
         if not email:
-            raise UnprocessableError("Could not retrieve email from Google.")
+            raise UnprocessableError(t("auth.google_email_missing"))
 
         user = await self.repository.get_by_email(email)
         if not user:
@@ -151,7 +153,7 @@ class AuthService(BaseService[UserRepository]):
         expires_at = datetime.now(UTC) + timedelta(days=settings.refresh_token_expire_days)
         await self.repository.save_refresh_token(user.id, token_hash, expires_at)
         self._set_auth_cookies(response, access_token, raw_refresh)
-        return {"message": "Logged in with Google."}
+        return {"message": t("auth.logged_in_google")}
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -162,7 +164,7 @@ class AuthService(BaseService[UserRepository]):
         response.set_cookie(
             "access_token", access_token,
             httponly=True, secure=secure, samesite="lax",
-            max_age=settings.access_token_expire_minutes * 60,
+            max_age=access_token_cookie_max_age(),
         )
         response.set_cookie(
             "refresh_token", refresh_token,

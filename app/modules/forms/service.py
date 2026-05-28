@@ -4,6 +4,7 @@ import uuid
 
 from app.core.base_service import BaseService
 from app.core.exceptions import NotFoundError
+from app.core.i18n import t
 from app.modules.forms.models import FormField, FormTemplate
 from app.modules.forms.repository import FormRepository
 from app.modules.forms.schemas import FormFieldCreate, FormTemplateCreate, FormTemplateUpdate
@@ -17,7 +18,7 @@ class FormService(BaseService[FormRepository]):
     async def get_template(self, template_id: uuid.UUID, company_id: uuid.UUID) -> FormTemplate:
         template = await self.repository.get_by_id_and_company(template_id, company_id)
         if not template:
-            raise NotFoundError("Template not found.")
+            raise NotFoundError(t("forms.template_not_found"))
         return template
 
     async def list_templates(self, company_id: uuid.UUID) -> list[FormTemplate]:
@@ -41,5 +42,5 @@ class FormService(BaseService[FormRepository]):
         await self.get_template(template_id, company_id)
         field = await self.repository.get_field_by_id(field_id)
         if not field:
-            raise NotFoundError("Field not found.")
+            raise NotFoundError(t("forms.field_not_found"))
         await self.repository.delete(field)

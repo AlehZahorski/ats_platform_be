@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.i18n import t
 from app.core.security import decode_access_token
 
 # ---------------------------------------------------------------------------
@@ -26,7 +27,7 @@ async def get_current_user(
 
     credentials_exc = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail=t("auth.credentials_invalid"),
         headers={"WWW-Authenticate": "Bearer"},
     )
 
@@ -52,7 +53,13 @@ async def get_current_user(
     if not user.is_verified:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Email address not verified",
+            detail=t("auth.email_not_verified_dep"),
+        )
+
+    if not getattr(user, "is_active", True):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=t("auth.account_deactivated"),
         )
 
     return user
@@ -75,7 +82,7 @@ async def get_current_company(
     if company is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Company not found",
+            detail=t("auth.company_not_found"),
         )
 
     return company
@@ -91,7 +98,7 @@ def require_roles(*roles: str):
         if current_user.role not in roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Role '{current_user.role}' is not permitted for this action",
+                detail=t("auth.role_not_permitted", role=current_user.role),
             )
         return current_user
     return _check
@@ -103,3 +110,4 @@ def require_roles(*roles: str):
 CurrentUser = Annotated[Any, Depends(get_current_user)]
 CurrentCompany = Annotated[Any, Depends(get_current_company)]
 RecruiterOrOwner = Annotated[Any, Depends(require_roles("owner", "recruiter"))]
+OwnerOnly = Annotated[Any, Depends(require_roles("owner"))]

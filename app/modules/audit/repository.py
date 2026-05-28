@@ -3,9 +3,15 @@ from __future__ import annotations
 import uuid
 
 from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 
 from app.core.base_repository import BaseRepository
 from app.modules.audit.models import AuditLog
+# Force-import the related models so SQLAlchemy can resolve the string-FK
+# relationships declared on AuditLog the moment this repository is loaded —
+# avoids "could not find class 'User'" under some import orders.
+from app.modules.companies.models import Company  # noqa: F401
+from app.modules.users.models import User  # noqa: F401
 
 
 class AuditRepository(BaseRepository[AuditLog]):
@@ -31,7 +37,18 @@ class AuditRepository(BaseRepository[AuditLog]):
         )
         total = count_result.scalar_one()
 
+        # audit_database P1/F-37: list view in the admin UI renders the actor
+        # email per row. Without eager-loading we issued one `SELECT user`
+        # per audit row. AuditLog now declares `user` / `company` relations
+        # (see models.py) so selectinload avoids the N+1.
         result = await self.db.execute(
-            query.order_by(AuditLog.created_at.desc()).offset(skip).limit(limit)
+            query
+            .options(
+                selectinload(AuditLog.user),
+                selectinload(AuditLog.company),
+            )
+            .order_by(AuditLog.created_at.desc())
+            .offset(skip)
+            .limit(limit)
         )
         return list(result.scalars().all()), total

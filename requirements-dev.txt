@@ -1,0 +1,8 @@
+# Dev / test-only dependencies. Loaded on top of requirements.txt.
+# Split out by audit_dependencies F-19 so production images do not ship a
+# test runner or an in-memory SQLite driver.
+
+# Tests
+pytest==8.3.5
+pytest-asyncio==0.26.0
+aiosqlite==0.20.0      # async SQLite for unit tests

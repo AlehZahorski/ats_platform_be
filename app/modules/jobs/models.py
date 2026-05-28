@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -12,6 +12,21 @@ from app.models.base import BaseModel
 
 class Job(BaseModel):
     __tablename__ = "jobs"
+    __table_args__ = (
+        # audit_database P1/F-34: enforce the status enum at the DB layer.
+        CheckConstraint(
+            "status IN ('draft','open','closed')",
+            name="ck_jobs_status",
+        ),
+        # audit_database P2: GIN on the required_qualifications JSONB so the
+        # category filter (`?| array['forklift_udt']`) hits an index instead
+        # of doing a sequential scan.
+        Index(
+            "ix_jobs_required_qualifications_gin",
+            "required_qualifications",
+            postgresql_using="gin",
+        ),
+    )
 
     company_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True

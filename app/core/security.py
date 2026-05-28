@@ -4,24 +4,44 @@ import hashlib
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import bcrypt
 import httpx
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 
 from app.core.config import settings
 
 # ---------------------------------------------------------------------------
 # Password hashing
 # ---------------------------------------------------------------------------
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# F-03 (audit_dependencies): migrated off passlib. passlib has been
+# effectively unmaintained since 2020-10 and the bcrypt-4.x adapter logged
+# `(trapped) error reading bcrypt version` on every startup. Native bcrypt is
+# a much smaller surface, has a stable maintainer, and ships its own
+# Rust-backed implementation. Hash format ($2b$…) is identical to what
+# passlib emitted, so existing rows in the `users` table verify without a
+# migration. bcrypt limits inputs to 72 bytes (a documented trade-off) —
+# anything longer is truncated by the library, same as before.
+
+# Reasonable cost factor. 12 ~= 250 ms on a modern CPU — slow enough to make
+# brute force expensive, fast enough not to harm UX. Configurable later via
+# settings if benchmarks demand it.
+_BCRYPT_ROUNDS = 12
 
 
 def hash_password(plain: str) -> str:
-    return _pwd_context.hash(plain)
+    salt = bcrypt.gensalt(rounds=_BCRYPT_ROUNDS)
+    return bcrypt.hashpw(plain.encode("utf-8"), salt).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return _pwd_context.verify(plain, hashed)
+    # checkpw is constant-time and accepts any $2a/$2b/$2y hash, so we stay
+    # compatible with rows that passlib wrote before the migration.
+    try:
+        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except ValueError:
+        # Malformed hash in DB (e.g. legacy plaintext from before the auth
+        # rewrite) — treat as "no match" rather than crashing the login.
+        return False
 
 
 # ---------------------------------------------------------------------------

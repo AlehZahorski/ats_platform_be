@@ -56,6 +56,7 @@
 
   "applications.not_found": "Application not found.",
   "applications.no_cv": "Application does not have a CV to parse.",
+  "applications.answers_invalid_json": "Application answers payload is malformed.",
 
   "pipeline.stage_name_required": "Stage name is required.",
   "pipeline.stage_not_found": "Stage not found.",

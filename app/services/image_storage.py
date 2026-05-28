@@ -34,6 +34,10 @@ class ImageStorageService:
         self._upload_dir.mkdir(parents=True, exist_ok=True)
         self._subdir = subdir
 
+    # F-H4 (audit_api): stream uploads in 64 KiB chunks so an attacker can't
+    # exhaust RAM with a multi-GB body. Mirrors FileStorageService.save_cv.
+    _CHUNK_SIZE = 64 * 1024
+
     async def save(self, file: UploadFile) -> str:
         self._validate(file)
 
@@ -43,11 +47,25 @@ class ImageStorageService:
         filename = f"{uuid.uuid4()}{suffix}"
         dest = self._upload_dir / filename
 
-        contents = await file.read()
-        if len(contents) > _MAX_IMAGE_BYTES:
-            raise UnprocessableError("Obraz nie może być większy niż 2 MB.")
+        size = 0
+        try:
+            with dest.open("wb") as out:
+                while True:
+                    chunk = await file.read(self._CHUNK_SIZE)
+                    if not chunk:
+                        break
+                    size += len(chunk)
+                    if size > _MAX_IMAGE_BYTES:
+                        out.close()
+                        dest.unlink(missing_ok=True)
+                        raise UnprocessableError("Obraz nie może być większy niż 2 MB.")
+                    out.write(chunk)
+        except UnprocessableError:
+            raise
+        except Exception:
+            dest.unlink(missing_ok=True)
+            raise
 
-        dest.write_bytes(contents)
         # Return the URL the FE will use — matches StaticFiles mount in main.py.
         return f"/uploads/{self._subdir}/{filename}"
 
@@ -65,9 +83,14 @@ class ImageStorageService:
             path.unlink(missing_ok=True)
 
     def _validate(self, file: UploadFile) -> None:
+        # F-M11 (audit_api): require BOTH MIME and extension to pass. The
+        # previous ``OR`` accepted, for example, ``Content-Type: image/png``
+        # paired with ``.svg`` extension — and SVG can carry inline JS. The
+        # ``AND`` keeps SVG out via either side. Note the type allowlist does
+        # not include ``image/svg+xml`` either (F-M13 verified).
         content_type = (file.content_type or "").lower()
         extension = Path(file.filename or "").suffix.lower()
-        if content_type not in _ALLOWED_IMAGE_TYPES and extension not in _ALLOWED_IMAGE_EXTENSIONS:
+        if content_type not in _ALLOWED_IMAGE_TYPES or extension not in _ALLOWED_IMAGE_EXTENSIONS:
             raise UnprocessableError("Dozwolone formaty obrazów: PNG, JPG, WEBP.")
 
 

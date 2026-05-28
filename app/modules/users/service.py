@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import logging
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
+
+logger = logging.getLogger(__name__)
 
 from fastapi import BackgroundTasks, Response
 
@@ -281,8 +284,10 @@ class InvitationService(BaseService[InvitationRepository]):
                 role=role.value,
             )
         except Exception:
-            # Email delivery failure should not roll back the invitation — owner can resend.
-            pass
+            # H4 (audit_backend_code): keep the "don't roll back, owner can
+            # resend" semantics but stop hiding the error from ops — was
+            # making SMTP outages invisible until users complained.
+            logger.exception("Failed to enqueue invitation email for %s", email)
 
 
 # ---------------------------------------------------------------------------

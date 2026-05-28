@@ -23,6 +23,12 @@ class FileStorageService:
         self._upload_dir = Path(settings.cv_upload_dir)
         self._upload_dir.mkdir(parents=True, exist_ok=True)
 
+    # F-H4 (audit_api): stream in 64 KiB chunks so a malicious uploader can't
+    # exhaust RAM with a 10 GB body — we stop reading and raise as soon as we
+    # cross ``max_upload_size_bytes``. The partial file is removed before we
+    # surface the error so disk is not polluted either.
+    _CHUNK_SIZE = 64 * 1024
+
     async def save_cv(self, file: UploadFile) -> str:
         """Validate and persist an uploaded CV file. Returns the stored file path."""
         self._validate(file)
@@ -30,14 +36,30 @@ class FileStorageService:
         suffix = Path(file.filename or "").suffix.lower() or ".pdf"
         filename = f"{uuid.uuid4()}{suffix}"
         dest = self._upload_dir / filename
+        max_bytes = settings.max_upload_size_bytes
 
-        contents = await file.read()
-        if len(contents) > settings.max_upload_size_bytes:
-            raise UnprocessableError(
-                f"File exceeds maximum size of {settings.max_upload_size_mb} MB."
-            )
+        size = 0
+        try:
+            with dest.open("wb") as out:
+                while True:
+                    chunk = await file.read(self._CHUNK_SIZE)
+                    if not chunk:
+                        break
+                    size += len(chunk)
+                    if size > max_bytes:
+                        # Drop the partial file before raising to keep disk clean.
+                        out.close()
+                        dest.unlink(missing_ok=True)
+                        raise UnprocessableError(
+                            f"File exceeds maximum size of {settings.max_upload_size_mb} MB."
+                        )
+                    out.write(chunk)
+        except UnprocessableError:
+            raise
+        except Exception:
+            dest.unlink(missing_ok=True)
+            raise
 
-        dest.write_bytes(contents)
         return str(Path(settings.cv_upload_dir) / filename)
 
     def delete_cv(self, cv_url: str) -> None:
@@ -47,9 +69,13 @@ class FileStorageService:
             path.unlink(missing_ok=True)
 
     def _validate(self, file: UploadFile) -> None:
-        content_type = file.content_type or ""
+        # F-M11 (audit_api): require BOTH MIME and extension to be on the
+        # allowlist. The previous ``OR`` accepted ``Content-Type: application/pdf``
+        # with a ``.exe`` extension (or vice-versa). Demanding both raises the
+        # bar without breaking legitimate uploads from Word/Acrobat.
+        content_type = (file.content_type or "").lower()
         extension = Path(file.filename or "").suffix.lower()
-        if content_type not in _ALLOWED_TYPES and extension not in _ALLOWED_EXTENSIONS:
+        if content_type not in _ALLOWED_TYPES or extension not in _ALLOWED_EXTENSIONS:
             raise UnprocessableError("Only PDF and DOCX files are accepted.")
 
 

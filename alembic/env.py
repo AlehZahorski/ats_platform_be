@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import asyncio
+import importlib
+import logging
+import pkgutil
 from logging.config import fileConfig
 
 from alembic import context
@@ -9,38 +12,28 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+import app.modules  # noqa: F401 — package needed for walk_packages
 from app.core.config import settings
 from app.core.database import Base  # noqa: F401
 
 # ---------------------------------------------------------------------------
-# Import ALL models — v1 + v2
-# Alembic autogenerate detects new/changed tables from these imports
+# L6 (audit_backend_code): auto-discover every `models.py` under app.modules
+# instead of maintaining the import list by hand. Missing a new module used
+# to silently produce "no changes" autogenerate runs; now adding a module is
+# enough — env.py picks it up. Extra modules with sibling files like
+# `analysis_models.py` are discovered via the `_extra_model_modules` suffix
+# list.
 # ---------------------------------------------------------------------------
+_alembic_log = logging.getLogger("alembic.env")
+_extra_model_module_suffixes = ("models", "analysis_models")
 
-# v1 models
-import app.modules.users.models           # noqa: F401
-import app.modules.companies.models       # noqa: F401
-import app.modules.jobs.models            # noqa: F401
-import app.modules.jobs.analysis_models   # noqa: F401
-import app.modules.forms.models           # noqa: F401
-import app.modules.applications.models    # noqa: F401
-import app.modules.pipeline.models        # noqa: F401
-import app.modules.notes.models           # noqa: F401
-import app.modules.tags.models            # noqa: F401
-import app.modules.audit.models           # noqa: F401
-
-# v2 models — new modules
-import app.modules.email_templates.models   # noqa: F401
-import app.modules.automation.models        # noqa: F401
-import app.modules.interviews.models        # noqa: F401
-import app.modules.tasks.models             # noqa: F401
-import app.modules.organizer.models         # noqa: F401
-import app.modules.candidates.models        # noqa: F401
-import app.modules.consents.models          # noqa: F401
-import app.modules.application_events.models  # noqa: F401
-import app.modules.reviews.models           # noqa: F401
-import app.modules.articles.models          # noqa: F401
-import app.modules.admins.models            # noqa: F401
+for module_info in pkgutil.walk_packages(app.modules.__path__, prefix="app.modules."):
+    short_name = module_info.name.rsplit(".", 1)[-1]
+    if short_name in _extra_model_module_suffixes:
+        try:
+            importlib.import_module(module_info.name)
+        except Exception as exc:  # noqa: BLE001 — env.py must never crash on optional modules
+            _alembic_log.warning("Alembic skipped %s: %s", module_info.name, exc)
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import logging
 import secrets
 from datetime import UTC, datetime, timedelta
+
+logger = logging.getLogger(__name__)
 
 from fastapi import BackgroundTasks, Response
 
@@ -58,7 +61,10 @@ class AuthService(BaseService[UserRepository]):
             verification_url = f"{settings.frontend_url}/verify-email?token={token}&user_id={user.id}"
             mail_service.send_verification_email(background_tasks, user.email, verification_url)
         except Exception:
-            pass
+            # H4 (audit_backend_code): swallow the email failure so signup still
+            # succeeds (user can request a re-send), but at least log it — the
+            # silent `pass` made bounce/SMTP-down incidents invisible in prod.
+            logger.exception("Failed to enqueue verification email for %s", user.email)
 
         msg = (
             t("auth.company_created")

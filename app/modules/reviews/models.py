@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Text, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -45,13 +45,22 @@ class ReviewAssignment(BaseModel):
     __tablename__ = "review_assignments"
     __table_args__ = (
         UniqueConstraint("application_id", "reviewer_id", name="uq_review_assignments_application_reviewer"),
+        # audit_database P1/F-34: status enum locked at DB layer.
+        CheckConstraint(
+            "status IN ('pending','submitted','revoked')",
+            name="ck_review_assignments_status",
+        ),
     )
 
     application_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("applications.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    reviewer_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    # audit_database P1/F-35: was ON DELETE CASCADE which deleted entire
+    # reviews when a reviewer left the company → loss of audit trail. Now
+    # SET NULL — the assignment row stays, the reviewer column becomes NULL,
+    # and the recruiter can re-assign or mark `status='revoked'` manually.
+    reviewer_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
     assigned_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
@@ -65,7 +74,7 @@ class ReviewAssignment(BaseModel):
     overall_comment: Mapped[str | None] = mapped_column(Text)
     recommendation: Mapped[str | None] = mapped_column(Text)
 
-    reviewer: Mapped["User"] = relationship(foreign_keys=[reviewer_id])  # noqa: F821
+    reviewer: Mapped["User | None"] = relationship(foreign_keys=[reviewer_id])  # noqa: F821
     assigner: Mapped["User | None"] = relationship(foreign_keys=[assigned_by])  # noqa: F821
     template: Mapped["ScorecardTemplate"] = relationship()
     responses: Mapped[list["ReviewResponse"]] = relationship(

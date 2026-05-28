@@ -86,11 +86,22 @@ class ApplicationRepository(BaseRepository[Application]):
     ) -> tuple[list[Application], int]:
         from app.modules.jobs.models import Job
 
+        # audit_database P1/F-37: previously only `stage` was eager-loaded —
+        # the list view in the UI renders job.title, tag chips, score badges
+        # and counts notes/scores, all of which triggered a per-row SELECT
+        # (N+1). We add `job`, `tag_links`, `scores`, and the candidate_profile
+        # 1:1 so a 50-item page does ≤6 queries instead of 50+.
         query = (
             select(Application)
             .join(Job, Application.job_id == Job.id)
             .where(Job.company_id == company_id)
-            .options(selectinload(Application.stage))
+            .options(
+                selectinload(Application.stage),
+                selectinload(Application.job),
+                selectinload(Application.tag_links),
+                selectinload(Application.scores),
+                selectinload(Application.candidate_profile),
+            )
         )
         if job_id:
             query = query.where(Application.job_id == job_id)

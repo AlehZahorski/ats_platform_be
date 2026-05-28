@@ -1,5 +1,5 @@
 import uuid
-from typing import Annotated, Any, Optional
+from typing import TYPE_CHECKING, Annotated, Optional
 
 from fastapi import Cookie, Depends, HTTPException, status
 from jose import JWTError
@@ -9,6 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.i18n import t
 from app.core.security import decode_access_token
+
+# L5 (audit_backend_code): type the dependency returns properly so every
+# route handler gets working autocompletion and pyright/mypy checks. The
+# imports are deferred to TYPE_CHECKING so we keep the runtime side free of
+# the existing circular-import hazard (the models import this module).
+if TYPE_CHECKING:
+    from app.modules.companies.models import Company
+    from app.modules.users.models import User
 
 # ---------------------------------------------------------------------------
 # Type aliases
@@ -22,7 +30,7 @@ DbSession = Annotated[AsyncSession, Depends(get_db)]
 async def get_current_user(
     db: DbSession,
     access_token: Optional[str] = Cookie(default=None),
-) -> Any:
+) -> "User":
     from app.modules.users.models import User
 
     credentials_exc = HTTPException(
@@ -34,16 +42,20 @@ async def get_current_user(
     if not access_token:
         raise credentials_exc
 
+    # M3 (audit_backend_code): also catch ValueError so a malformed `sub`
+    # claim (e.g. not a UUID) returns 401 instead of bubbling up to the
+    # global 500 handler.
     try:
         payload = decode_access_token(access_token)
         user_id: str = payload.get("sub", "")
         if not user_id:
             raise credentials_exc
-    except JWTError:
+        user_uuid = uuid.UUID(user_id)
+    except (JWTError, ValueError):
         raise credentials_exc
 
     result = await db.execute(
-        select(User).where(User.id == uuid.UUID(user_id))
+        select(User).where(User.id == user_uuid)
     )
     user = result.scalar_one_or_none()
 
@@ -68,10 +80,14 @@ async def get_current_user(
 # ---------------------------------------------------------------------------
 # Current company dependency
 # ---------------------------------------------------------------------------
+# H3 (audit_backend_code): `db` no longer has a falsy default. The previous
+# `DbSession = None` only worked because FastAPI's Depends-resolver fills it
+# in regardless — any direct call would have NPE'd on the first
+# `db.execute`. Order: non-default param first.
 async def get_current_company(
-    current_user: Any = Depends(get_current_user),
-    db: DbSession = None,
-) -> Any:
+    db: DbSession,
+    current_user: "User" = Depends(get_current_user),
+) -> "Company":
     from app.modules.companies.models import Company
 
     result = await db.execute(
@@ -93,8 +109,8 @@ async def get_current_company(
 # ---------------------------------------------------------------------------
 def require_roles(*roles: str):
     async def _check(
-        current_user: Any = Depends(get_current_user),
-    ) -> Any:
+        current_user: "User" = Depends(get_current_user),
+    ) -> "User":
         if current_user.role not in roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -107,7 +123,10 @@ def require_roles(*roles: str):
 # ---------------------------------------------------------------------------
 # Annotated shorthand types for router injection
 # ---------------------------------------------------------------------------
-CurrentUser = Annotated[Any, Depends(get_current_user)]
-CurrentCompany = Annotated[Any, Depends(get_current_company)]
-RecruiterOrOwner = Annotated[Any, Depends(require_roles("owner", "recruiter"))]
-OwnerOnly = Annotated[Any, Depends(require_roles("owner"))]
+# L5 (audit_backend_code): strings so the forward refs resolve lazily and we
+# don't break the import order while still giving IDE / type-checker the
+# correct model type.
+CurrentUser = Annotated["User", Depends(get_current_user)]
+CurrentCompany = Annotated["Company", Depends(get_current_company)]
+RecruiterOrOwner = Annotated["User", Depends(require_roles("owner", "recruiter"))]
+OwnerOnly = Annotated["User", Depends(require_roles("owner"))]

@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import CurrentUser
 from app.core.exceptions import UnauthorizedError
+from app.core.rate_limit import rate_limit
 from app.core.i18n import t
 from app.core.security import get_google_auth_url
 from app.modules.auth.schemas import LoginRequest, MessageResponse, SignupCompanyRequest
@@ -103,11 +104,21 @@ def _invitation_service(db: AsyncSession = Depends(get_db)) -> InvitationService
     )
 
 
-@router.get("/invitation/{token}", response_model=InvitationPreview)
+# F-M6 / F-M8 (audit_api): per-IP rate-limit to slow brute-force of invitation
+# tokens + ``Cache-Control: no-store`` so the (sensitive) preview payload
+# never lands in a shared proxy cache.
+@router.get(
+    "/invitation/{token}",
+    response_model=InvitationPreview,
+    dependencies=[Depends(rate_limit("10/minute"))],
+)
 async def preview_invitation(
     token: str,
+    response: Response,
     service: InvitationService = Depends(_invitation_service),
 ) -> InvitationPreview:
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Pragma"] = "no-cache"
     invitation, company_name = await service.preview(token)
     return InvitationPreview(
         email=invitation.email,

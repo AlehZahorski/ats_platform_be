@@ -1,140 +1,127 @@
-# TalentMatch - Backend API
+# wakanta.pl — Backend (FastAPI)
 
-## Jak uruchomić projekt
-
-Wykonaj poniższe kroki w podanej kolejności. Każdy krok wymaga osobnego terminala (backend i frontend działają równolegle).
+> **Primary path for setting the project up is the root `README.md`.**
+> The `docker compose up --build` workflow there boots Postgres, runs
+> Alembic migrations on container start and serves both the API and the
+> frontend. Use that unless you have a specific reason not to.
+>
+> This file documents the **secondary path** — running the FastAPI
+> service directly on your host (no Docker for the API), which is the
+> faster inner loop when you are iterating on Python code.
 
 ---
 
-### Krok 1 — Aktywuj wirtualne środowisko
+## Without Docker (host venv + Postgres in Docker)
+
+### 1. Postgres
+
+The simplest option is to run **only** Postgres in Docker:
 
 ```bash
-# Windows
-venv\Scripts\activate
-
-# macOS / Linux
-source venv/bin/activate
+docker compose up -d db
 ```
 
-> Jeśli venv nie istnieje, utwórz go najpierw: `python -m venv venv`, a następnie zainstaluj zależności: `pip install -r requirements.txt`
-
----
-
-### Krok 2 — Uruchom bazę danych (Docker)
+(`db` is the service name in the root `docker-compose.yml`.) If you
+prefer a plain container:
 
 ```bash
-docker run --name ats_db \
+docker run --name ats_db -d \
   -e POSTGRES_PASSWORD=password \
   -e POSTGRES_DB=ats_db \
   -p 5432:5432 \
-  -d postgres:16
+  postgres:16
 ```
 
-Jeśli kontener już istnieje (kolejne uruchomienia):
+### 2. Python environment
 
 ```bash
-docker start ats_db
+cd backend
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# macOS / Linux:
+source venv/bin/activate
+
+pip install -r requirements.txt
+# Local / CI also need the test runner:
+pip install -r requirements-dev.txt
 ```
 
-Sprawdź czy baza działa:
-
-```bash
-docker ps
-```
-
-> **Pierwsze uruchomienie** — po starcie bazy wykonaj migracje:
-> ```bash
-> alembic upgrade head
-> ```
-
----
-
-### Krok 3 — Uruchom backend (terminal 1)
-
-Upewnij się, że venv jest aktywny, a następnie:
-
-```bash
-uvicorn app.main:app --reload
-```
-
-Backend dostępny pod: **http://localhost:8000**
-Swagger (dokumentacja API): **http://localhost:8000/docs**
-
----
-
-### Krok 4 — Uruchom frontend (terminal 2)
-
-```bash
-cd ../frontend
-npm run dev -- --turbo
-```
-
-Aplikacja dostępna pod: **http://localhost:3000**
-
----
-
-### Domyślne konta (po seed)
-
-Opcjonalnie załaduj dane testowe:
-
-```bash
-python seeds/seed.py
-```
-
-| Email | Hasło | Rola |
-|---|---|---|
-| owner@acme.com | Password123! | owner |
-| recruiter@acme.com | Password123! | recruiter |
-| manager@acme.com | Password123! | manager |
-| owner@novasoft.com | Password123! | owner |
-
----
-
-## Konfiguracja środowiska
-
-Plik `.env` powinien znajdować się w katalogu `backend/`. Skopiuj przykład jeśli nie masz:
+### 3. Config
 
 ```bash
 cp .env.example .env
 ```
 
-Minimalna konfiguracja działająca lokalnie jest już ustawiona w `.env.example` — nie wymaga zmian do developmentu.
+`.env.example` is preconfigured for the local Postgres above. The only
+secret you have to generate is `JWT_SECRET` — see the root README.
 
----
-
-## Migracje bazy danych
+### 4. Migrations + seed
 
 ```bash
-# Zastosuj wszystkie migracje
 alembic upgrade head
-
-# Nowa migracja po zmianie modeli
-alembic revision --autogenerate -m "opis zmiany"
-
-# Cofnij ostatnią migrację
-alembic downgrade -1
+python seeds/realistic_seed.py
 ```
 
----
-
-## Tech Stack
-
-| Warstwa | Technologia |
-|---|---|
-| Framework | FastAPI |
-| Język | Python 3.12 |
-| Baza danych | PostgreSQL |
-| ORM | SQLAlchemy 2.0 (async) |
-| Migracje | Alembic |
-| Auth | JWT (access + refresh tokens) + Google OAuth |
-| Email | SMTP + Jinja2 |
-| Rate limiting | slowapi |
-
----
-
-## Testy
+### 5. Run the API
 
 ```bash
-pytest
+uvicorn app.main:app --reload
+```
+
+- API:  http://localhost:8000
+- Docs: http://localhost:8000/docs
+
+Demo accounts come from the seed and match the table in the root
+`README.md` (password `demo1234`).
+
+---
+
+## Migrations cheat-sheet
+
+```bash
+alembic upgrade head                                    # apply all
+alembic revision --autogenerate -m "what changed"       # create one
+alembic downgrade -1                                    # roll back one
+alembic history                                         # show graph
+```
+
+Models live under `app/modules/<feature>/models.py`. `alembic/env.py`
+auto-discovers them via `pkgutil.walk_packages` so adding a new module
+does not require editing the env file.
+
+## Tests
+
+```bash
+pytest -q
 pytest --cov=app --cov-report=html
 ```
+
+The test suite currently runs against **SQLite in-memory** — see
+`audit/audit_backend_code_2026_05_28_DONE.md` finding C1 for the
+testcontainers migration plan. Some JSONB / Postgres-only paths are
+therefore exercised only against a real DB.
+
+## Tech stack
+
+| Layer        | Choice                                            |
+| ------------ | ------------------------------------------------- |
+| Framework    | FastAPI 0.116                                     |
+| Language     | Python 3.12                                       |
+| Database     | PostgreSQL 16                                     |
+| ORM          | SQLAlchemy 2.0 (async)                            |
+| Migrations   | Alembic                                           |
+| Auth         | JWT (access + refresh cookies) + Google OAuth     |
+| Password hash| native `bcrypt` (rounds=12)                       |
+| Email        | SMTP + Jinja2                                     |
+| Rate limit   | `slowapi` (per-user when authenticated, per-IP otherwise) |
+| LLM          | Anthropic SDK (async, prompt-cache, retries)      |
+
+## Further reading
+
+- `../README.md` — primary onboarding + Docker compose flow
+- `../CONTRIBUTING.md` — branches, commits, PR checklist
+- `../docs/operations.md` — runbook (deploy, rollback, common incidents)
+- `../audit/` — completed audits and their `_DONE` implementation status
+- `app/modules/<feature>/` — every module ships `router + service +
+  repository + schemas + models`

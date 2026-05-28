@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, Request, Response, UploadFile
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import CurrentCompany, CurrentUser
 from app.core.exceptions import DuplicateDetectedError
+from app.core.rate_limit import rate_limit
 from app.modules.applications.duplicate_service import DuplicateCheckService
 from app.modules.applications.repository import ApplicationRepository
 from app.modules.applications.schemas import (
@@ -17,7 +18,10 @@ from app.modules.applications.schemas import (
     ApplicationTrackingRead,
     BulkAction,
     BulkResult,
-    CVParseConfirmPayload,
+    # L1/M5 (audit_backend_code): CVParseConfirmPayload removed from this
+    # import — the corresponding endpoint was never wired. The service method
+    # `confirm_cv_parse` still exists for a planned "review-required" flow;
+    # the schema stays available in `applications.schemas`.
     CVParseJobRead,
     CandidateJobMatchRead,
     DuplicateCheckRequest,
@@ -113,7 +117,18 @@ async def set_ai_profiling_consent(
     await service.set_ai_profiling_consent(token, granted=granted)
 
 
-@router.post("/duplicate-check", response_model=DuplicateCheckResponse)
+# F-C1 (audit_api): mitigate email enumeration. This endpoint is public by
+# design (the apply flow asks the candidate "you may already have applied to
+# this job"), so we cannot fully lock it behind auth without breaking the UX.
+# Instead we cap it to 5 requests per minute per IP — mass enumeration of
+# emails becomes impractical (5 × 60 × 24 = 7200/day max per IP). A follow-up
+# task should also redact the response payload to only `has_duplicates: bool`
+# + `public_token`, removing email/phone/candidate_name (DuplicateCheckMatch).
+@router.post(
+    "/duplicate-check",
+    response_model=DuplicateCheckResponse,
+    dependencies=[Depends(rate_limit("5/minute"))],
+)
 async def duplicate_check(
     data: DuplicateCheckRequest,
     service: ApplicationService = Depends(_get_service),
@@ -124,11 +139,21 @@ async def duplicate_check(
 # ──────────────────────────────────────────────
 # Public: candidate tracks own application
 # ──────────────────────────────────────────────
-@router.get("/track/{token}", response_model=ApplicationTrackingRead)
+# F-M6 / F-M8 (audit_api): per-IP rate-limit (10/min) to slow enumeration of
+# tracking tokens, plus ``Cache-Control: no-store`` so shared proxies / CDNs
+# never cache a per-candidate response keyed by a secret URL.
+@router.get(
+    "/track/{token}",
+    response_model=ApplicationTrackingRead,
+    dependencies=[Depends(rate_limit("10/minute"))],
+)
 async def track_application(
     token: str,
+    response: Response,
     service: ApplicationService = Depends(_get_service),
 ) -> ApplicationTrackingRead:
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Pragma"] = "no-cache"
     return await service.track_application(token)
 
 

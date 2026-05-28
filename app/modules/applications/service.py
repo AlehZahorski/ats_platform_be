@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from dataclasses import dataclass, field
+
+logger = logging.getLogger(__name__)
 
 from fastapi import BackgroundTasks, UploadFile
 from sqlalchemy import func, select
@@ -434,6 +437,14 @@ class ApplicationService(BaseService[ApplicationRepository]):
                 updated += 1
 
             except Exception:
+                # H4 (audit_backend_code): bulk_action used to swallow per-item
+                # errors silently — when 50/200 items failed nothing surfaced
+                # to ops. Counter still increments so the API result is
+                # accurate; logger gives ops the trace.
+                logger.exception(
+                    "bulk_action item failed: action=%s app_id=%s",
+                    data.action, app_id,
+                )
                 failed += 1
                 continue
 
@@ -469,14 +480,25 @@ class ApplicationService(BaseService[ApplicationRepository]):
 
     @staticmethod
     def _parse_answers(raw: str | None) -> list[AnswerInput]:
+        # M6 (audit_backend_code): previously this returned `[]` on ANY error,
+        # silently dropping the candidate's answers. Now we surface a 422 with
+        # a meaningful error so the FE can flag the broken submission instead
+        # of accepting a half-empty application as valid.
         if not raw:
             return []
         try:
             parsed = json.loads(raw)
+        except (json.JSONDecodeError, TypeError) as exc:
+            logger.warning("answers payload is not valid JSON: %s", exc)
+            raise UnprocessableError(t("applications.answers_invalid_json"))
+        if not isinstance(parsed, list):
+            raise UnprocessableError(t("applications.answers_invalid_json"))
+        try:
             return [
                 AnswerInput(field_id=a["field_id"], value=a["value"])
                 for a in parsed
                 if a.get("field_id") and a.get("value") not in (None, "")
             ]
-        except Exception:
-            return []
+        except (KeyError, AttributeError, TypeError) as exc:
+            logger.warning("answers payload has invalid shape: %s", exc)
+            raise UnprocessableError(t("applications.answers_invalid_json"))

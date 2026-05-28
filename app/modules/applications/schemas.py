@@ -120,6 +120,10 @@ class ApplicationList(BaseModel):
 
 
 class ScoreCreate(BaseModel):
+    # M7 (audit_backend_code) verification: `application_id` is intentionally
+    # NOT a body field — the value comes from the URL path only, so there is
+    # no URL/body mismatch to validate. Do not add it here without changing
+    # `POST /applications/{application_id}/score`.
     communication: int = Field(ge=1, le=5)
     technical: int = Field(ge=1, le=5)
     culture_fit: int = Field(ge=1, le=5)

@@ -56,6 +56,7 @@
 
   "applications.not_found": "Aplikacja nie została znaleziona.",
   "applications.no_cv": "Aplikacja nie zawiera CV do przetworzenia.",
+  "applications.answers_invalid_json": "Nieprawidłowy format odpowiedzi w aplikacji.",
 
   "pipeline.stage_name_required": "Nazwa etapu jest wymagana.",
   "pipeline.stage_not_found": "Etap nie został znaleziony.",

@@ -66,6 +66,35 @@ class Settings(BaseSettings):
     # Frontend
     # -------------------------------------------------------------------------
     frontend_url: str = "http://localhost:3000"
+    # F-H3 / F-M10 (audit_api): extra origins to allow through CORS, comma-
+    # separated. Use for staging / preview deploys. Example:
+    # ``CORS_EXTRA_ORIGINS=https://staging.wakanta.pl,https://pr-42.wakanta.pl``.
+    cors_extra_origins: str = ""
+
+    @property
+    def allowed_cors_origins(self) -> list[str]:
+        """Final list of origins allowed by the CORS middleware.
+
+        Localhost variants only in non-production environments to avoid
+        accidentally accepting them from a prod deploy.
+        """
+        origins: list[str] = []
+        if self.app_env != "production":
+            origins.extend(["http://localhost:3000", "http://127.0.0.1:3000"])
+        if self.frontend_url:
+            origins.append(self.frontend_url)
+        for extra in self.cors_extra_origins.split(","):
+            extra = extra.strip()
+            if extra:
+                origins.append(extra)
+        # Dedupe while preserving order.
+        seen: set[str] = set()
+        unique: list[str] = []
+        for origin in origins:
+            if origin not in seen:
+                seen.add(origin)
+                unique.append(origin)
+        return unique
 
     # -------------------------------------------------------------------------
     # LLM Integration

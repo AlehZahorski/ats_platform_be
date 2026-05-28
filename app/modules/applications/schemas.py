@@ -289,5 +289,9 @@ class CandidateJobMatchRead(BaseModel):
     strengths_match: list[str] | None = None
     gaps: list[str] | None = None
     recommendation: str | None
+    # F-08 (audit_ai_ethics): completed | llm_disabled | llm_failed | pending.
+    # The UI uses this to distinguish "AI ran" from "AI never produced a result"
+    # so failures don't silently look like a "not_a_match".
+    match_status: str = "completed"
     llm_model: str | None = None
     created_at: datetime

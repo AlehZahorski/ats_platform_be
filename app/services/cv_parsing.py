@@ -481,6 +481,7 @@ class CVParsingService:
                                 company_id=job_result.company_id,
                                 operation="cv_parsing",
                                 meta=llm_meta,
+                                application_id=application.id,
                             )
                             await db.commit()
 
@@ -602,7 +603,23 @@ class CVParsingService:
             language=match_lang,
             correlation_id=correlation_id,
         )
+
+        # F-08 (audit_ai_ethics): persist a row even when the LLM did not run,
+        # so the recruiter UI can tell "AI disabled / failed" from "AI ran
+        # and decided not_a_match". `match_res is None` covers: settings flag
+        # off, circuit breaker open, irrecoverable Anthropic error.
         if match_res is None:
+            from app.core.config import settings as _settings
+            failure_status = "llm_disabled" if not _settings.llm_enabled else "llm_failed"
+            await repo.save_job_match(
+                application_id=application.id,
+                candidate_profile_id=profile.id,
+                job_id=job.id,
+                match_result={},
+                match_key=match_key,
+                match_status=failure_status,
+            )
+            await db.commit()
             return
 
         match_data = match_res.data
@@ -614,6 +631,7 @@ class CVParsingService:
             job_id=job.id,
             match_result={**match_data, "_meta": match_meta},
             match_key=match_key,
+            match_status="completed",
         )
 
         if match_meta:
@@ -621,6 +639,7 @@ class CVParsingService:
                 company_id=job.company_id,
                 operation="job_matching",
                 meta=match_meta,
+                application_id=application.id,
             )
         await db.commit()
 

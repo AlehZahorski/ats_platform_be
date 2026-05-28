@@ -74,6 +74,12 @@ async def call_with_retry(**kwargs: Any) -> Any:
     client = get_async_client()
     attempts = max(1, settings.llm_max_retries + 1)
 
+    # F-19 (audit_ai_ethics): determinism. Identical CV → identical score.
+    # Anthropic default is 1.0 — kept candidates getting different scores
+    # on retry, which broke equal-treatment guarantees and made audits
+    # impossible to reproduce. Callers can still override via kwargs.
+    kwargs.setdefault("temperature", 0.0)
+
     try:
         async for attempt in AsyncRetrying(
             retry=retry_if_exception(_is_retriable),

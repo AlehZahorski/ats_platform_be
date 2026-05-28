@@ -290,6 +290,7 @@ class ApplicationRepository(BaseRepository[Application]):
         match_result: dict,
         *,
         match_key: str | None = None,
+        match_status: str = "completed",
     ) -> CandidateJobMatch:
         match = CandidateJobMatch(
             application_id=application_id,
@@ -304,6 +305,7 @@ class ApplicationRepository(BaseRepository[Application]):
             llm_model=match_result.get("_meta", {}).get("model"),
             token_usage=match_result.get("_meta", {}).get("token_usage"),
             match_key=match_key,
+            match_status=match_status,
         )
         self.db.add(match)
         await self.db.flush()
@@ -331,12 +333,18 @@ class ApplicationRepository(BaseRepository[Application]):
         company_id: uuid.UUID,
         operation: str,
         meta: dict,
+        *,
+        application_id: uuid.UUID | None = None,
     ) -> None:
         """Persist one LLM call's accounting data.
 
         F-20/F-22: ``meta`` now carries ``prompt_name``, ``prompt_version`` and
         ``correlation_id`` so the per-company dashboard can break down spend by
         prompt template version and a row can be traced back to its request.
+
+        F-04 (audit_ai_ethics): ``application_id`` ties the call to the data
+        subject (EU AI Act art. 12, RODO art. 30), and ``meta`` now also carries
+        ``anthropic_request_id`` so we can correlate with Anthropic's logs.
         """
         token_usage = meta.get("token_usage", {})
         log = ApiUsageLog(
@@ -349,6 +357,8 @@ class ApplicationRepository(BaseRepository[Application]):
             prompt_name=meta.get("prompt_name"),
             prompt_version=meta.get("prompt_version"),
             correlation_id=meta.get("correlation_id"),
+            application_id=application_id,
+            anthropic_request_id=meta.get("anthropic_request_id"),
         )
         self.db.add(log)
         await self.db.flush()

@@ -177,6 +177,10 @@ class BaseLLMService:
             "prompt_name": self.PROMPT_NAME,
             "prompt_version": prompt_hash,
             "correlation_id": cid,
+            # F-04 (audit_ai_ethics): capture Anthropic's response id so the
+            # api_usage_logs row can be cross-referenced with their side for
+            # incident response and data-subject access requests.
+            "anthropic_request_id": getattr(response, "id", None),
             "token_usage": {
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,

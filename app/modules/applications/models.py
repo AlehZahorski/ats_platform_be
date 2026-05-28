@@ -224,6 +224,12 @@ class CandidateJobMatch(BaseModel):
     # F-09: idempotency key — sha256(candidate_profile_id|job_id|profile_signature).
     # A second match call with the same key short-circuits (no Anthropic call).
     match_key: Mapped[str | None] = mapped_column(Text, index=True)
+    # F-08 (audit_ai_ethics): pending|completed|llm_disabled|llm_failed.
+    # Lets the UI distinguish "AI silently disabled" from "AI ran and rejected
+    # the candidate" — those must NOT look the same to the recruiter.
+    match_status: Mapped[str] = mapped_column(
+        Text, nullable=False, default="completed", server_default="completed", index=True
+    )
 
     candidate_profile: Mapped["CandidateProfile"] = relationship(back_populates="job_matches")
     application: Mapped["Application"] = relationship()
@@ -253,5 +259,16 @@ class ApiUsageLog(BaseModel):
     # F-22: request-scoped UUID so a log entry can be traced back to a single
     # background job / API request.
     correlation_id: Mapped[str | None] = mapped_column(Text)
+    # F-04 (audit_ai_ethics): application that triggered this call — needed
+    # for AI Act art. 12 audit trail and RODO art. 30 RoPA.
+    application_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("applications.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    # F-04: Anthropic's response.id — lets us correlate with their side
+    # in case of incident-response or data-subject access requests.
+    anthropic_request_id: Mapped[str | None] = mapped_column(Text)
 
     company: Mapped["Company"] = relationship()  # noqa: F821

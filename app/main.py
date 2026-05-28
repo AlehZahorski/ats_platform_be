@@ -6,13 +6,13 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-from slowapi.util import get_remote_address
 from sqlalchemy import update
 
 from app.api.router import api_router
+from app.core.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 from app.core.config import settings
@@ -21,11 +21,6 @@ from app.core.enums import CVParseStatus
 from app.core.exceptions import DomainException
 from app.core.i18n import detect_language, set_language, t
 from app.modules.applications.models import CVParseJob
-
-# ---------------------------------------------------------------------------
-# Rate limiter
-# ---------------------------------------------------------------------------
-limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 
 
 # ---------------------------------------------------------------------------
@@ -115,6 +110,16 @@ def create_app() -> FastAPI:
     @app.get("/health", tags=["Health"], include_in_schema=False)
     async def health() -> dict:
         return {"status": "ok", "env": settings.app_env}
+
+    # F-10: dedicated LLM-health probe. Reports the breaker state (no live
+    # ping to Anthropic — that would itself be a paid call).
+    @app.get("/health/llm", tags=["Health"], include_in_schema=False)
+    async def llm_health() -> dict:
+        from app.services.llm.circuit import default_breaker
+        return {
+            "llm_enabled": settings.llm_enabled,
+            "breaker_open": default_breaker.is_open(),
+        }
 
     # -----------------------------------------------------------------------
     # Domain exception handler — converts DomainException subclasses to JSON

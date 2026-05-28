@@ -87,6 +87,7 @@ class ApplicationService(BaseService[ApplicationRepository]):
         background_tasks: BackgroundTasks,
         frontend_url: str,
         language: str = "en",
+        ai_profiling_consent: bool = False,
     ) -> ApplicationSubmitResult:
         from app.modules.jobs.models import Job
 
@@ -128,6 +129,14 @@ class ApplicationService(BaseService[ApplicationRepository]):
             normalized_email=normalize_email(email),
             normalized_phone=normalize_phone(phone),
         )
+
+        # F-02: persist the AI-profiling decision before kicking off the CV
+        # parse — `cv_parsing.run` reads this flag to decide on PII redaction
+        # and whether to call the matcher.
+        if ai_profiling_consent:
+            from datetime import UTC, datetime as _dt
+            application.ai_profiling_consented_at = _dt.now(UTC)
+            await self.db.flush()
 
         parse_job: CVParseJob | None = None
         if cv_url:
@@ -182,6 +191,21 @@ class ApplicationService(BaseService[ApplicationRepository]):
         if application.job:
             result.job = TrackingJobRead.model_validate(application.job)
         return result
+
+    async def set_ai_profiling_consent(self, token: str, *, granted: bool) -> None:
+        """F-02: candidate-driven opt-in / opt-out for AI profiling.
+
+        Identity is the tracking token — same surface as ``GET /track/{token}``.
+        Setting ``granted=False`` does NOT remove past LLM-generated rows
+        (Anthropic side is out of our control), but it stops all future
+        matcher / enrichment calls for this application.
+        """
+        from datetime import UTC, datetime as _dt
+        application = await self.repository.get_by_token(token)
+        if not application:
+            raise NotFoundError(t("applications.not_found"))
+        application.ai_profiling_consented_at = _dt.now(UTC) if granted else None
+        await self.db.commit()
 
     # ------------------------------------------------------------------
     # HR: list applications

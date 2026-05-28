@@ -58,6 +58,12 @@ async def apply(
     answers: Optional[str] = Form(None),
     cv_file: Optional[UploadFile] = File(None),
     ignore_duplicate_warning: bool = Form(False),
+    # F-02 / audit_ai F-02 + audit_ai_ethics: explicit consent for AI profiling.
+    # Default False — when the candidate did not tick the box, the backend
+    # redacts PII (email, phone) before sending the CV to Anthropic and skips
+    # the candidate↔job match call entirely. Recruiter still sees the regex
+    # parse + the redacted enrichment.
+    ai_profiling_consent: bool = Form(False),
     service: ApplicationService = Depends(_get_service),
 ) -> ApplicationRead:
     try:
@@ -73,6 +79,7 @@ async def apply(
             background_tasks=background_tasks,
             frontend_url=settings.frontend_url,
             language=detect_language(request),
+            ai_profiling_consent=ai_profiling_consent,
         )
     except DuplicateDetectedError as exc:
         return JSONResponse(
@@ -85,6 +92,25 @@ async def apply(
             },
         )
     return ApplicationRead.model_validate(submit_result.application)
+
+
+# ──────────────────────────────────────────────
+# Public: candidate updates AI-profiling consent (F-02)
+# ──────────────────────────────────────────────
+@router.post("/track/{token}/ai-consent", status_code=204)
+async def set_ai_profiling_consent(
+    token: str,
+    granted: bool = Form(...),
+    service: ApplicationService = Depends(_get_service),
+) -> None:
+    """Allow the candidate to grant or revoke AI-profiling consent.
+
+    Authenticated only by knowledge of their tracking ``token`` — same surface
+    as ``GET /track/{token}``. Revoking does NOT delete past LLM results
+    (those are out of our control in Anthropic's history), but it stops all
+    future LLM calls for this application.
+    """
+    await service.set_ai_profiling_consent(token, granted=granted)
 
 
 @router.post("/duplicate-check", response_model=DuplicateCheckResponse)

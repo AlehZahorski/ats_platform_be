@@ -46,6 +46,7 @@
   "jobs.not_ready_for_analysis": "Oferta pracy nie jest kompletna — uzupełnij brakujące pola przed analizą.",
   "jobs.analysis_failed": "Analiza oferty pracy nie powiodła się — spróbuj ponownie.",
   "jobs.suggest_failed": "Sugestia AI nie powiodła się — spróbuj ponownie.",
+  "llm.daily_budget_exceeded": "Dzienny limit AI został wykorzystany. Spróbuj jutro lub skontaktuj się z administratorem.",
   "jobs.suggest_already_used": "Podpowiedzi AI zostały już wygenerowane dla tej oferty.",
   "jobs.risk_assessment_failed": "Ocena ryzyka nie powiodła się — spróbuj ponownie.",
   "jobs.not_found": "Oferta pracy nie została znaleziona.",

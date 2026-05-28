@@ -46,6 +46,7 @@
   "jobs.not_ready_for_analysis": "Job offer is incomplete — fill missing fields before running analysis.",
   "jobs.analysis_failed": "Job analysis failed — please try again.",
   "jobs.suggest_failed": "AI suggestion failed — please try again.",
+  "llm.daily_budget_exceeded": "Your daily AI budget has been reached. Try again tomorrow or contact your administrator.",
   "jobs.suggest_already_used": "AI starters have already been generated for this offer.",
   "jobs.risk_assessment_failed": "Risk assessment failed — please try again.",
   "jobs.not_found": "Job not found.",

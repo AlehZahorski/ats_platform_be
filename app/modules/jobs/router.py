@@ -21,6 +21,7 @@ from app.core.dependencies import CurrentCompany, CurrentUser
 from app.core.enums.jobs import JobStatus
 from app.core.exceptions import NotFoundError
 from app.core.i18n import detect_language, t
+from app.core.rate_limit import rate_limit
 from app.modules.forms.schemas import FormTemplateRead
 from app.modules.jobs.models import Job, JobFormTemplate, MitigationAction, RiskItem
 from app.modules.jobs.repository import JobRepository
@@ -322,11 +323,15 @@ async def delete_job(
     return Response(status_code=204)
 
 
-@router.post("/parse", response_model=JobParseResult)
+@router.post(
+    "/parse",
+    response_model=JobParseResult,
+    dependencies=[Depends(rate_limit("10/minute"))],  # F-05
+)
 async def parse_existing_offer(
     data: JobParseRequest,
     request: Request,
-    _company: CurrentCompany,
+    company: CurrentCompany,
     _user: CurrentUser,
     service: JobService = Depends(_get_service),
 ) -> JobParseResult:
@@ -335,7 +340,11 @@ async def parse_existing_offer(
     This is NOT generation — it parses what's there. Used by the
     "Wklej istniejące ogłoszenie" import flow in the wizard.
     """
-    extracted = await service.parse_text(data.text, language=detect_language(request))
+    extracted = await service.parse_text(
+        data.text,
+        company_id=company.id,
+        language=detect_language(request),
+    )
     return JobParseResult(**{k: v for k, v in extracted.items() if k in JobParseResult.model_fields})
 
 
@@ -355,7 +364,11 @@ async def clone_job(
 # LLM endpoints
 # ───────────────────────────────────────────────────────────────────────────
 
-@router.post("/{job_id}/analyze", response_model=JobOfferAnalysisRead)
+@router.post(
+    "/{job_id}/analyze",
+    response_model=JobOfferAnalysisRead,
+    dependencies=[Depends(rate_limit("10/minute"))],  # F-05
+)
 async def analyze_job(
     request: Request,
     job_id: uuid.UUID,
@@ -367,7 +380,11 @@ async def analyze_job(
     return await service.analyze(job, language=detect_language(request))
 
 
-@router.post("/{job_id}/risk-analysis", response_model=JobRiskAssessmentRead)
+@router.post(
+    "/{job_id}/risk-analysis",
+    response_model=JobRiskAssessmentRead,
+    dependencies=[Depends(rate_limit("10/minute"))],  # F-05
+)
 async def assess_risk(
     request: Request,
     job_id: uuid.UUID,
@@ -379,7 +396,12 @@ async def assess_risk(
     return await service.assess_risk(job, language=detect_language(request))
 
 
-@router.post("/{job_id}/suggest", response_model=JobSuggestRead)
+@router.post(
+    "/{job_id}/suggest",
+    response_model=JobSuggestRead,
+    # F-05: tighter — already gated by suggest_used_at
+    dependencies=[Depends(rate_limit("5/minute"))],
+)
 async def suggest_job(
     request: Request,
     job_id: uuid.UUID,

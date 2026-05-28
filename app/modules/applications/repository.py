@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -233,6 +233,7 @@ class ApplicationRepository(BaseRepository[Application]):
         strengths: list[str] | None = None,
         red_flags: list[str] | None = None,
         personality_signals: dict | None = None,
+        evidence_quotes: list[dict] | None = None,
         culture_fit_notes: str | None = None,
     ) -> CandidateProfile:
         result = await self.db.execute(
@@ -266,6 +267,7 @@ class ApplicationRepository(BaseRepository[Application]):
             strengths=strengths,
             red_flags=red_flags,
             personality_signals=personality_signals,
+            evidence_quotes=evidence_quotes,
             culture_fit_notes=culture_fit_notes,
         )
 
@@ -286,6 +288,8 @@ class ApplicationRepository(BaseRepository[Application]):
         candidate_profile_id: uuid.UUID,
         job_id: uuid.UUID,
         match_result: dict,
+        *,
+        match_key: str | None = None,
     ) -> CandidateJobMatch:
         match = CandidateJobMatch(
             application_id=application_id,
@@ -299,11 +303,20 @@ class ApplicationRepository(BaseRepository[Application]):
             recommendation=match_result.get("recommendation"),
             llm_model=match_result.get("_meta", {}).get("model"),
             token_usage=match_result.get("_meta", {}).get("token_usage"),
+            match_key=match_key,
         )
         self.db.add(match)
         await self.db.flush()
         await self.db.refresh(match)
         return match
+
+    async def get_job_match_by_key(self, match_key: str) -> CandidateJobMatch | None:
+        """F-09: idempotency lookup — returns the existing match for this
+        candidate/job/profile snapshot, or None if we should call Claude."""
+        result = await self.db.execute(
+            select(CandidateJobMatch).where(CandidateJobMatch.match_key == match_key)
+        )
+        return result.scalar_one_or_none()
 
     async def get_job_matches(self, application_id: uuid.UUID) -> list[CandidateJobMatch]:
         result = await self.db.execute(
@@ -319,6 +332,12 @@ class ApplicationRepository(BaseRepository[Application]):
         operation: str,
         meta: dict,
     ) -> None:
+        """Persist one LLM call's accounting data.
+
+        F-20/F-22: ``meta`` now carries ``prompt_name``, ``prompt_version`` and
+        ``correlation_id`` so the per-company dashboard can break down spend by
+        prompt template version and a row can be traced back to its request.
+        """
         token_usage = meta.get("token_usage", {})
         log = ApiUsageLog(
             company_id=company_id,
@@ -326,10 +345,64 @@ class ApplicationRepository(BaseRepository[Application]):
             llm_model=meta.get("model", ""),
             input_tokens=token_usage.get("input_tokens", 0),
             output_tokens=token_usage.get("output_tokens", 0),
-            cost_usd=meta.get("cost_usd", 0.0),
+            cost_usd=meta.get("cost_usd") or 0.0,
+            prompt_name=meta.get("prompt_name"),
+            prompt_version=meta.get("prompt_version"),
+            correlation_id=meta.get("correlation_id"),
         )
         self.db.add(log)
         await self.db.flush()
+
+    async def sum_llm_cost_last_24h(self, company_id: uuid.UUID) -> float:
+        """F-05: rolling 24h cost used by the daily-budget guard."""
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+        result = await self.db.execute(
+            select(func.coalesce(func.sum(ApiUsageLog.cost_usd), 0.0)).where(
+                ApiUsageLog.company_id == company_id,
+                ApiUsageLog.created_at >= cutoff,
+            )
+        )
+        return float(result.scalar_one() or 0.0)
+
+    async def llm_usage_summary(
+        self,
+        company_id: uuid.UUID,
+        *,
+        days: int = 30,
+    ) -> list[dict]:
+        """F-17: per-day, per-model, per-prompt aggregation for the dashboard."""
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        day = func.date_trunc("day", ApiUsageLog.created_at)
+        stmt = (
+            select(
+                day.label("day"),
+                ApiUsageLog.llm_model,
+                ApiUsageLog.prompt_name,
+                func.count(ApiUsageLog.id).label("calls"),
+                func.sum(ApiUsageLog.input_tokens).label("input_tokens"),
+                func.sum(ApiUsageLog.output_tokens).label("output_tokens"),
+                func.sum(ApiUsageLog.cost_usd).label("cost_usd"),
+            )
+            .where(
+                ApiUsageLog.company_id == company_id,
+                ApiUsageLog.created_at >= cutoff,
+            )
+            .group_by(day, ApiUsageLog.llm_model, ApiUsageLog.prompt_name)
+            .order_by(day.desc())
+        )
+        result = await self.db.execute(stmt)
+        return [
+            {
+                "day": row.day,
+                "model": row.llm_model,
+                "prompt_name": row.prompt_name,
+                "calls": int(row.calls or 0),
+                "input_tokens": int(row.input_tokens or 0),
+                "output_tokens": int(row.output_tokens or 0),
+                "cost_usd": float(row.cost_usd or 0.0),
+            }
+            for row in result.all()
+        ]
 
     async def _load(self, application_id: uuid.UUID) -> Application | None:
         result = await self.db.execute(

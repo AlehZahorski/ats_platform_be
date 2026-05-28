@@ -35,6 +35,11 @@ class Application(BaseModel):
     data_retention_until: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), index=True
     )
+    # F-02: explicit consent for AI profiling. NULL = no consent → the backend
+    # redacts PII (email, phone) before sending the CV to Anthropic.
+    ai_profiling_consented_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # relationships
     job: Mapped["Job"] = relationship(back_populates="applications")  # noqa: F821
@@ -181,7 +186,11 @@ class CandidateProfile(BaseModel):
     seniority_estimate: Mapped[str | None] = mapped_column(Text, index=True)
     strengths: Mapped[list[str] | None] = mapped_column(JSON)
     red_flags: Mapped[list[str] | None] = mapped_column(JSON)
+    # F-16: legacy column. Kept readable for one release for the existing UI;
+    # new writes go to `evidence_quotes` instead. Dropped in a follow-up
+    # migration after the frontend has switched.
     personality_signals: Mapped[dict | None] = mapped_column(JSON)
+    evidence_quotes: Mapped[list[dict] | None] = mapped_column(JSONB)
     culture_fit_notes: Mapped[str | None] = mapped_column(Text)
 
     application: Mapped["Application"] = relationship(back_populates="candidate_profile")
@@ -212,6 +221,9 @@ class CandidateJobMatch(BaseModel):
     recommendation: Mapped[str | None] = mapped_column(Text)
     llm_model: Mapped[str | None] = mapped_column(Text)
     token_usage: Mapped[dict | None] = mapped_column(JSON)
+    # F-09: idempotency key — sha256(candidate_profile_id|job_id|profile_signature).
+    # A second match call with the same key short-circuits (no Anthropic call).
+    match_key: Mapped[str | None] = mapped_column(Text, index=True)
 
     candidate_profile: Mapped["CandidateProfile"] = relationship(back_populates="job_matches")
     application: Mapped["Application"] = relationship()
@@ -233,5 +245,13 @@ class ApiUsageLog(BaseModel):
     input_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     output_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     cost_usd: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    # F-20: which prompt produced the call (filename, no .txt) and its content
+    # hash. Used by the LLM-usage dashboard to group by template version when
+    # we tune prompts.
+    prompt_name: Mapped[str | None] = mapped_column(Text)
+    prompt_version: Mapped[str | None] = mapped_column(Text)
+    # F-22: request-scoped UUID so a log entry can be traced back to a single
+    # background job / API request.
+    correlation_id: Mapped[str | None] = mapped_column(Text)
 
     company: Mapped["Company"] = relationship()  # noqa: F821

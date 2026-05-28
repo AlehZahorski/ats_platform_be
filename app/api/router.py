@@ -24,6 +24,7 @@ from app.modules.candidates.router import router as candidates_router
 from app.modules.reports.router import router as reports_router
 from app.modules.consents.router import router as gdpr_router
 from app.modules.reviews.router import router as reviews_router
+from app.modules.llm_usage.router import router as llm_usage_router
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -51,3 +52,4 @@ api_router.include_router(candidates_router,        prefix="/candidates",      t
 api_router.include_router(reports_router,           prefix="/reports",         tags=["Reports"])
 api_router.include_router(gdpr_router,              prefix="/gdpr",            tags=["GDPR"])
 api_router.include_router(reviews_router,           prefix="/reviews",         tags=["Reviews"])
+api_router.include_router(llm_usage_router,         prefix="/llm-usage",       tags=["LLM Usage"])

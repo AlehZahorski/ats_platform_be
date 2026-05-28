@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import re
 import unicodedata
+import uuid
 import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
@@ -10,11 +13,12 @@ from xml.etree import ElementTree
 
 from pypdf import PdfReader
 
+from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.core.i18n import detect_text_language, t
 from app.core.enums.applications import CVParseStatus, ParsingStatus
 from app.modules.applications.repository import ApplicationRepository
-from app.services.llm_cv_parser import enrich_cv_with_claude, match_candidate_to_job
+from app.services.llm import CVEnricher, JobMatcher
 from app.services.cv_keywords import (
     DEGREE_WORDS,
     EDUCATION_WORDS,
@@ -55,13 +59,29 @@ class CVTextExtractor:
         normalized = _normalize_text(_sanitize(text))
         if not normalized:
             raise ValueError(t("cv.pdf_unreadable"))
+        # F-15: cap raw text we keep around. 200k chars covers PhD-length
+        # CVs with publications; anything longer is noise and would only
+        # blow up later truncation steps.
+        if len(normalized) > settings.llm_cv_extract_char_limit:
+            logger.warning(
+                "PDF CV truncated to %d chars (was %d)",
+                settings.llm_cv_extract_char_limit,
+                len(normalized),
+            )
+            normalized = normalized[: settings.llm_cv_extract_char_limit]
         return normalized
 
     @staticmethod
     def _from_docx(path: Path) -> str:
+        # SECURITY: defusedxml protects against XXE / billion-laughs in user uploads.
+        try:
+            from defusedxml.ElementTree import fromstring as _safe_fromstring  # type: ignore
+        except ImportError:  # pragma: no cover — defusedxml is in requirements
+            _safe_fromstring = ElementTree.fromstring  # type: ignore[assignment]
+
         with zipfile.ZipFile(path) as archive:
             xml = archive.read("word/document.xml")
-        root = ElementTree.fromstring(xml)
+        root = _safe_fromstring(xml)
         ns = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
         paragraphs = []
         for paragraph in root.findall(".//w:p", ns):
@@ -71,6 +91,13 @@ class CVTextExtractor:
         normalized = _normalize_text(_sanitize("\n".join(paragraphs)))
         if not normalized:
             raise ValueError(t("cv.docx_unreadable"))
+        if len(normalized) > settings.llm_cv_extract_char_limit:
+            logger.warning(
+                "DOCX CV truncated to %d chars (was %d)",
+                settings.llm_cv_extract_char_limit,
+                len(normalized),
+            )
+            normalized = normalized[: settings.llm_cv_extract_char_limit]
         return normalized
 
 
@@ -339,8 +366,15 @@ class CVParsingService:
     def __init__(self) -> None:
         self._extractor = CVTextExtractor()
         self._parser = CVProfileParser()
+        # F-04: stateless async LLM services, re-used across invocations.
+        self._enricher = CVEnricher()
+        self._matcher = JobMatcher()
 
     async def run(self, parse_job_id: object) -> None:
+        # F-22: one correlation id per parse job — links the parse_job row,
+        # api_usage_logs rows and structured log lines.
+        correlation_id = uuid.uuid4().hex
+
         async with AsyncSessionLocal() as db:
             repo = ApplicationRepository(db)
             parse_job = await repo.get_cv_parse_job(parse_job_id)
@@ -365,15 +399,32 @@ class CVParsingService:
                     "sections_detected": list(SECTION_ALIASES.keys()),
                 }
 
-                # Step 2: LLM enriches the regex output (fallback: empty dict → v1-regex data)
-                # Detect the CV's actual language from the raw text — a Polish CV
-                # should produce a Polish enrichment regardless of recruiter's UI.
+                # Step 2: LLM enriches the regex output.
+                # F-02: redact PII when the candidate has not granted explicit
+                # consent for AI profiling. The recruiter still gets a regex
+                # summary; the LLM call sees [REDACTED_*] placeholders.
+                application = parse_job.application
+                consent_granted = bool(
+                    application and application.ai_profiling_consented_at
+                )
+                redact = (
+                    settings.llm_redact_pii_without_consent
+                    and not consent_granted
+                )
+
                 cv_lang = detect_text_language(
                     (raw_text or "")[:2000],
                     fallback=parse_job.language or "en",
                 )
-                enriched = enrich_cv_with_claude(normalized, raw_text, language=cv_lang)
-                llm_meta = enriched.pop("_meta", {})
+                enrich_res = await self._enricher.enrich(
+                    parsed_data=normalized,
+                    raw_text=raw_text,
+                    language=cv_lang,
+                    redact_pii_enabled=redact,
+                    correlation_id=correlation_id,
+                )
+                enriched: dict = enrich_res.data if enrich_res else {}
+                llm_meta: dict = enrich_res.meta if enrich_res else {}
                 parser_version = "v2-llm" if enriched else "v1-regex"
 
                 if llm_meta:
@@ -411,7 +462,10 @@ class CVParsingService:
                     seniority_estimate=enriched.get("seniority_estimate") or None,
                     strengths=enriched.get("strengths"),
                     red_flags=enriched.get("red_flags"),
-                    personality_signals=enriched.get("personality_signals"),
+                    # F-16: legacy personality_signals not written by the new
+                    # prompt — left None on new rows. Read path stays unchanged.
+                    personality_signals=None,
+                    evidence_quotes=enriched.get("evidence_quotes"),
                     culture_fit_notes=enriched.get("culture_fit_notes") or None,
                 )
                 await db.commit()
@@ -430,13 +484,26 @@ class CVParsingService:
                             )
                             await db.commit()
 
-                # Step 4: automatic job matching
-                if enriched and profile:
-                    await self._run_matching(repo, db, parse_job, profile)
+                # Step 4: automatic job matching (only with AI-profiling consent
+                # AND a successful enrichment).
+                if enriched and profile and consent_granted:
+                    await self._run_matching(
+                        repo, db, parse_job, profile,
+                        correlation_id=correlation_id,
+                    )
+                elif enriched and profile and not consent_granted:
+                    logger.info(
+                        "Skipping automatic job matching — no ai_profiling consent",
+                        extra={"correlation_id": correlation_id},
+                    )
 
             except Exception as exc:
                 await db.rollback()
-                logger.error("CV parsing failed for job %s: %s", parse_job_id, exc)
+                logger.error(
+                    "CV parsing failed for job %s: %s",
+                    parse_job_id, exc,
+                    extra={"correlation_id": correlation_id},
+                )
                 parse_job.status = CVParseStatus.failed
                 parse_job.error_message = str(exc)[:500]
                 parse_job.completed_at = datetime.now(UTC)
@@ -453,8 +520,16 @@ class CVParsingService:
                 )
                 await db.commit()
 
-    async def _run_matching(self, repo, db, parse_job, profile) -> None:
-        """Run automatic LLM matching after successful CV enrichment."""
+    async def _run_matching(
+        self, repo, db, parse_job, profile,
+        *, correlation_id: str,
+    ) -> None:
+        """Run automatic LLM matching after successful CV enrichment.
+
+        F-09: short-circuit when an existing match with the same idempotency
+        key is found — avoids a paid Claude call when the candidate's profile
+        and the job snapshot have not changed.
+        """
         from app.modules.jobs.models import Job
         application = parse_job.application
         if not application:
@@ -485,14 +560,28 @@ class CVParsingService:
             "hobbies": profile.hobbies or [],
             "strengths": profile.strengths or [],
             "red_flags": profile.red_flags or [],
-            "personality_signals": profile.personality_signals or {},
+            # F-16: evidence_quotes carries the recruiter-actionable signal now.
+            "evidence_quotes": profile.evidence_quotes or [],
             "culture_fit_notes": profile.culture_fit_notes,
             "executive_summary": profile.executive_summary,
         }
 
-        # The match analysis is for the recruiter — use the job offer's
-        # language (PL offer → PL reasoning), fallback to the parse job's
-        # locale.
+        # F-09: idempotency. Hash of profile + job snapshot used as a unique
+        # key — a repeat call with the same content is a no-op.
+        match_key = _build_match_key(
+            candidate_profile_id=str(profile.id),
+            job=job,
+            profile_data=profile_data,
+        )
+        existing = await repo.get_job_match_by_key(match_key)
+        if existing is not None:
+            logger.info(
+                "Skipping match — idempotent hit on key %s",
+                match_key[:12],
+                extra={"correlation_id": correlation_id},
+            )
+            return
+
         match_sample = " ".join(
             filter(
                 None,
@@ -507,16 +596,24 @@ class CVParsingService:
             )
         )
         match_lang = detect_text_language(match_sample, fallback=parse_job.language or "en")
-        match_result = match_candidate_to_job(profile_data, job_data, language=match_lang)
-        if not match_result:
+        match_res = await self._matcher.match(
+            candidate_profile=profile_data,
+            job=job_data,
+            language=match_lang,
+            correlation_id=correlation_id,
+        )
+        if match_res is None:
             return
 
-        match_meta = match_result.pop("_meta", {})
+        match_data = match_res.data
+        match_meta = match_res.meta
+
         await repo.save_job_match(
             application_id=application.id,
             candidate_profile_id=profile.id,
             job_id=job.id,
-            match_result=match_result,
+            match_result={**match_data, "_meta": match_meta},
+            match_key=match_key,
         )
 
         if match_meta:
@@ -526,6 +623,51 @@ class CVParsingService:
                 meta=match_meta,
             )
         await db.commit()
+
+
+# ---------------------------------------------------------------------------
+# F-09 — match idempotency
+# ---------------------------------------------------------------------------
+
+
+def _build_match_key(
+    *,
+    candidate_profile_id: str,
+    job,
+    profile_data: dict,
+) -> str:
+    """sha256(profile_id|job_id|job.updated_at|profile_signature).
+
+    profile_signature is a stable JSON of the fields that actually influence
+    the match (skills, seniority, summary). Changing the candidate's name or
+    email does NOT invalidate the cache — bias-by-name protection.
+    """
+    signature = {
+        "seniority": profile_data.get("seniority_estimate"),
+        "years": profile_data.get("total_experience_years"),
+        "tech": sorted(
+            (s.get("name", "") if isinstance(s, dict) else str(s))
+            for s in profile_data.get("technical_skills", []) or []
+        ),
+        "languages": sorted(
+            (s.get("name", "") if isinstance(s, dict) else str(s))
+            for s in profile_data.get("languages", []) or []
+        ),
+        "summary": profile_data.get("executive_summary"),
+    }
+    job_updated = getattr(job, "updated_at", None)
+    job_updated_iso = job_updated.isoformat() if job_updated else ""
+    payload = json.dumps(
+        {
+            "profile_id": candidate_profile_id,
+            "job_id": str(job.id),
+            "job_updated_at": job_updated_iso,
+            "signature": signature,
+        },
+        sort_keys=True,
+        ensure_ascii=False,
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 # ---------------------------------------------------------------------------

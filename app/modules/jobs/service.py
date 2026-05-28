@@ -11,8 +11,10 @@ import uuid
 from typing import Any
 
 from app.core.base_service import BaseService
+from app.core.config import settings
 from app.core.exceptions import UnprocessableError
 from app.core.i18n import detect_text_language, t
+from app.modules.applications.repository import ApplicationRepository
 from app.modules.jobs.models import Job, MitigationAction, RiskItem
 from app.modules.jobs.repository import (
     AnalysisRepository,
@@ -83,18 +85,30 @@ class JobService(BaseService[JobRepository]):
         StatusTransitionValidator.validate(self._merged_state(job, data))
         return await self.repository.update(job, data)
 
-    async def parse_text(self, raw_text: str, language: str = "en") -> dict[str, Any]:
+    async def parse_text(
+        self,
+        raw_text: str,
+        *,
+        company_id: uuid.UUID,
+        language: str = "en",
+    ) -> dict[str, Any]:
         """Extract structured fields from an existing job advertisement text.
 
         Returns whatever the LLM could extract; the frontend then patches
         only the non-empty fields into the editor state. Never raises —
         returns empty dict if LLM is unavailable.
+
+        F-05: enforces the per-company daily LLM budget.
+        F-18: ``_meta`` is consumed by ``save_api_usage_log`` and never reaches
+        the client (response is the validated ``data`` payload only).
         """
+        await self._enforce_daily_budget(company_id)
         parser = JobParser()
-        result = parser.parse(raw_text, language=language)
-        # Strip _meta from response (cost tracking key not exposed to client)
-        result.pop("_meta", None)
-        return result
+        res = await parser.parse(raw_text, language=language)
+        if res is None:
+            return {}
+        await self._record_usage(company_id, operation="job_parse", meta=res.meta)
+        return res.data
 
     async def clone(self, source: Job) -> Job:
         """Duplicate a job offer.
@@ -165,12 +179,14 @@ class JobService(BaseService[JobRepository]):
                 "message": t("jobs.not_ready_for_analysis"),
                 "issues": issues,
             })
+        await self._enforce_daily_budget(job.company_id)
         effective_lang = self._resolve_language(job, language)
-        raw = self._job_analyzer.analyze(
+        res = await self._job_analyzer.analyze(
             self._job_to_dict(job, _ANALYZE_FIELDS),
             language=effective_lang,
         )
-        result = self._llm_or_fail(raw, "jobs.analysis_failed")
+        result = self._llm_data_or_fail(res, "jobs.analysis_failed")
+        await self._record_usage(job.company_id, operation="job_analyze", meta=res.meta)
 
         analysis = JobOfferAnalysisRead(
             attractiveness_score=int(result.get("attractiveness_score", 0)),
@@ -196,12 +212,14 @@ class JobService(BaseService[JobRepository]):
     # ── LLM: risk assessment (persisted → JobRiskAssessment) ─────────────
 
     async def assess_risk(self, job: Job, language: str = "en") -> JobRiskAssessmentRead:
+        await self._enforce_daily_budget(job.company_id)
         effective_lang = self._resolve_language(job, language)
-        raw = self._risk_analyzer.assess(
+        res = await self._risk_analyzer.assess(
             self._job_to_dict(job, _RISK_FIELDS),
             language=effective_lang,
         )
-        result = self._llm_or_fail(raw, "jobs.risk_assessment_failed")
+        result = self._llm_data_or_fail(res, "jobs.risk_assessment_failed")
+        await self._record_usage(job.company_id, operation="job_risk", meta=res.meta)
 
         row = await self.analysis_repo.upsert_risk_assessment(job.id, {
             "score": int(result.get("risk_score", 0)),
@@ -218,15 +236,17 @@ class JobService(BaseService[JobRepository]):
         if job.suggest_used_at is not None:
             raise UnprocessableError(t("jobs.suggest_already_used"))
 
+        await self._enforce_daily_budget(job.company_id)
         # Suggest is special — for empty drafts the offer has no content yet,
         # so the fallback (interface language) wins almost always. That is OK:
         # the user filling a fresh form expects suggestions in their UI lang.
         effective_lang = self._resolve_language(job, language)
-        raw = self._job_suggester.suggest(
+        res = await self._job_suggester.suggest(
             self._job_to_dict(job, _SUGGEST_FIELDS),
             language=effective_lang,
         )
-        result = self._llm_or_fail(raw, "jobs.suggest_failed")
+        result = self._llm_data_or_fail(res, "jobs.suggest_failed")
+        await self._record_usage(job.company_id, operation="job_suggest", meta=res.meta)
 
         # Mark used — even if user discards the output, this was a paid call.
         from datetime import UTC, datetime
@@ -310,9 +330,40 @@ class JobService(BaseService[JobRepository]):
         return result
 
     @staticmethod
-    def _llm_or_fail(result: dict[str, Any], error_key: str) -> dict[str, Any]:
-        """Strip ``_meta`` and ensure the LLM returned a non-empty result."""
-        result.pop("_meta", None)
-        if not result:
+    def _llm_data_or_fail(res, error_key: str) -> dict[str, Any]:
+        """Take an ``LLMResult | None`` and return the validated data dict.
+
+        Raises ``UnprocessableError`` when the LLM call failed entirely — the
+        client gets a localised message and the original cause is in the logs.
+        """
+        if res is None or not res.data:
             raise UnprocessableError(t(error_key))
-        return result
+        return res.data
+
+    # ── Audit helpers (F-05 + F-18 + F-22) ────────────────────────────────
+
+    async def _enforce_daily_budget(self, company_id: uuid.UUID) -> None:
+        """F-05: refuse paid LLM calls when the rolling 24h cost exceeds the
+        configured budget. Frontend translates this into a 429 with a friendly
+        i18n message; recruiter can wait or upgrade the plan.
+        """
+        budget = settings.llm_daily_budget_usd_per_company
+        if budget <= 0:
+            return
+        repo = ApplicationRepository(self.repository.db)
+        spent = await repo.sum_llm_cost_last_24h(company_id)
+        if spent >= budget:
+            raise UnprocessableError(t("llm.daily_budget_exceeded"))
+
+    async def _record_usage(self, company_id: uuid.UUID, *, operation: str, meta: dict) -> None:
+        """F-18: every LLM call's meta is forwarded to api_usage_logs.
+        Never returned to the client.
+        """
+        if not meta:
+            return
+        repo = ApplicationRepository(self.repository.db)
+        await repo.save_api_usage_log(
+            company_id=company_id,
+            operation=operation,
+            meta=meta,
+        )

@@ -74,6 +74,39 @@ class Settings(BaseSettings):
     llm_cv_model: str = "claude-haiku-4-5-20251001"
     llm_match_model: str = "claude-sonnet-4-6"
 
+    # F-07: request timeout (seconds) for every Anthropic call. Default 30s
+    # matches the empirical p99 latency for our prompts; raise only for batch.
+    llm_request_timeout_seconds: float = 30.0
+    # F-07: retry attempts on top of the initial call. Total tries = retries + 1.
+    llm_max_retries: int = 2
+
+    # F-13: limits on raw user-controlled text shipped to Claude. Keep these
+    # tight — longer text rarely improves extraction and always raises cost.
+    llm_cv_raw_text_limit: int = 8000
+    llm_job_raw_text_limit: int = 16000
+    # F-15: hard ceiling on the post-extract CV text we keep in memory
+    # before truncation. Caps a 200-page CV from eating worker RAM.
+    llm_cv_extract_char_limit: int = 200_000
+
+    # F-03: enable ephemeral prompt caching on system prompts. Toggle for
+    # tests / local Haiku trials where the 1024-token minimum is not met.
+    llm_prompt_cache_enabled: bool = True
+
+    # F-02: when a candidate has not granted ai_profiling consent we still
+    # parse the CV (recruiter needs to see it), but PII is redacted before
+    # leaving the EU process. Set to False only for local development.
+    llm_redact_pii_without_consent: bool = True
+
+    # F-05: per-company daily budget in USD. When sum(api_usage_logs.cost_usd)
+    # in the last rolling 24h exceeds this, new LLM endpoints return 429.
+    # Set to 0 to disable (use only in dev).
+    llm_daily_budget_usd_per_company: float = 10.0
+
+    # F-10: circuit breaker tuning (see app.services.llm.circuit).
+    llm_breaker_threshold: int = 5
+    llm_breaker_window_seconds: float = 60.0
+    llm_breaker_cool_down_seconds: float = 60.0
+
     @property
     def llm_enabled(self) -> bool:
         return bool(self.anthropic_api_key)

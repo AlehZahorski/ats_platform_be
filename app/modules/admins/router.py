@@ -12,6 +12,7 @@ from fastapi import APIRouter, Cookie, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.rate_limit import rate_limit
 from app.modules.admins.dependencies import CurrentAdmin
 from app.modules.admins.repository import AdminRepository
 from app.modules.admins.schemas import AdminLoginRequest, AdminRead
@@ -27,7 +28,14 @@ def _auth(db: AsyncSession = Depends(get_db)) -> AdminAuthService:
     return AdminAuthService(AdminRepository(db))
 
 
-@router.post("/login", response_model=AdminRead)
+# audit_security C3: admin login surface is the most sensitive — keep it the
+# tightest. 3/minute lets a legitimate operator recover from a typo but stops
+# any automated stuffing within seconds.
+@router.post(
+    "/login",
+    response_model=AdminRead,
+    dependencies=[Depends(rate_limit("3/minute"))],
+)
 async def login(
     data: AdminLoginRequest,
     response: Response,
@@ -47,7 +55,11 @@ async def logout(
     return Response(status_code=204)
 
 
-@router.post("/refresh", response_model=AdminRead)
+@router.post(
+    "/refresh",
+    response_model=AdminRead,
+    dependencies=[Depends(rate_limit("30/minute"))],
+)
 async def refresh(
     response: Response,
     admin_refresh_token: Optional[str] = Cookie(default=None, alias=ADMIN_REFRESH_COOKIE),

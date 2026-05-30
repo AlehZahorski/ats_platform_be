@@ -400,17 +400,16 @@ class CVParsingService:
                 }
 
                 # Step 2: LLM enriches the regex output.
-                # F-02: redact PII when the candidate has not granted explicit
-                # consent for AI profiling. The recruiter still gets a regex
-                # summary; the LLM call sees [REDACTED_*] placeholders.
+                # F-02: redact contact PII (email / phone) BEFORE any CV text
+                # leaves the EU process for the LLM — unconditionally, whether
+                # or not the candidate granted AI-profiling consent. The LLM
+                # call always sees [REDACTED_*] placeholders for contact data.
+                # Consent gates the *matching* call below, not this redaction.
                 application = parse_job.application
                 consent_granted = bool(
                     application and application.ai_profiling_consented_at
                 )
-                redact = (
-                    settings.llm_redact_pii_without_consent
-                    and not consent_granted
-                )
+                redact = settings.llm_redact_pii
 
                 cv_lang = detect_text_language(
                     (raw_text or "")[:2000],
@@ -435,6 +434,13 @@ class CVParsingService:
                 parse_job.parser_version = parser_version
                 parse_job.status = CVParseStatus.completed
                 parse_job.completed_at = datetime.now(UTC)
+                # audit_rodo_gdpr F-14 (data minimisation, art. 5(1)(c) GDPR):
+                # `raw_text` only exists so the regex parser and the LLM
+                # enricher can both read from it. Once the parse is complete
+                # the structured `normalized_result` is the source of truth
+                # for everything downstream — keeping the full CV text in the
+                # row would be retaining PII we no longer need.
+                parse_job.raw_text = None
 
                 profile = await repo.upsert_candidate_profile(
                     parse_job.application_id,

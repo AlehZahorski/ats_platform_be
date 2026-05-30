@@ -60,9 +60,12 @@ class AdminAuthService:
 
     # ── internals ────────────────────────────────────────────────────
     async def _issue_session(self, admin: Admin, response: Response) -> None:
+        # audit_security H: see candidates/service.py for the rationale —
+        # token_type is the explicit kwarg now.
         access = create_access_token(
             subject=str(admin.id),
-            extra_claims={"type": "admin", "admin_id": str(admin.id)},
+            extra_claims={"admin_id": str(admin.id)},
+            token_type="admin",
         )
         raw_refresh, refresh_hash = create_refresh_token()
         expires_at = datetime.now(UTC) + timedelta(days=settings.refresh_token_expire_days)

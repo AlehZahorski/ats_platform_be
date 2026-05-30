@@ -297,6 +297,25 @@ async def update_job(
     return JobService.serialize(updated)
 
 
+@router.post("/{job_id}/publish", response_model=JobRead)
+async def publish_job(
+    job_id: uuid.UUID,
+    company: CurrentCompany,
+    _user: CurrentUser,
+    service: JobService = Depends(_get_service),
+) -> JobRead:
+    """Explicit publish — strict gate.
+
+    Unlike PATCH (autosave), this never silently demotes the status. If the
+    offer is not ready it raises 422 with the list of missing fields, so the
+    UI can tell the recruiter exactly what to fix instead of falsely
+    reporting success while the job stays a draft.
+    """
+    job = await _get_owned_job(service, job_id, company.id)
+    published = await service.publish(job)
+    return JobService.serialize(published)
+
+
 @router.put("/{job_id}/template", response_model=JobRead)
 async def assign_template(
     job_id: uuid.UUID,

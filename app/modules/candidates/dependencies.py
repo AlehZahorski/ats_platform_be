@@ -32,7 +32,8 @@ async def get_current_candidate(
     if not candidate_access_token:
         raise creds_exc
     try:
-        payload = decode_access_token(candidate_access_token)
+        # audit_security H: lock token type at the JWT-validation step.
+        payload = decode_access_token(candidate_access_token, expected_type="candidate")
         if payload.get("type") != "candidate":
             raise creds_exc
         candidate_id = payload.get("candidate_id") or payload.get("sub")
@@ -58,7 +59,7 @@ async def get_optional_candidate(
     if not candidate_access_token:
         return None
     try:
-        payload = decode_access_token(candidate_access_token)
+        payload = decode_access_token(candidate_access_token, expected_type="candidate")
         if payload.get("type") != "candidate":
             return None
         candidate_id = payload.get("candidate_id") or payload.get("sub")

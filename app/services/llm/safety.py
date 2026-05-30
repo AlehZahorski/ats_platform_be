@@ -96,17 +96,36 @@ _EMAIL_RE = re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.IGNORECASE)
 _PHONE_RE = re.compile(r"(?:\+|00)?\d[\d\s\-()]{7,}\d")
 
 
-def redact_pii(text: str) -> str:
-    """Replace obvious PII (email, phone) with placeholders.
+def redact_pii(text: str, *, names: list[str] | None = None) -> str:
+    """Replace personal data (email, phone, candidate name) with placeholders.
 
-    Used when the candidate has not granted ``ai_profiling`` consent — we still
-    want a usable enrichment from Claude (so the recruiter sees the candidate),
-    but we don't ship raw email/phone to a US processor. Name redaction is
-    deliberately NOT here: removing names breaks executive_summary quality and
-    they're already in `parsed_data`, not the LLM scope.
+    Runs before any CV text leaves our process for the LLM — this is what backs
+    the public /ai-info promise: "przed wysłaniem czegokolwiek do modelu
+    automatycznie redagujemy dane osobowe (PII)", and "analiza opiera się na
+    kompetencjach, a nie na tożsamości".
+
+    Email and phone are matched heuristically. The candidate name is NOT
+    guessed from capitalisation — we redact only the exact tokens the regex
+    parser already extracted (``first_name`` / ``last_name``), so we never
+    accidentally scrub a skill, company or city. Names are kept in our own
+    ``parsed_data`` for the recruiter; they simply never reach the model.
+
+    Args:
+        text: raw CV text controlled by the candidate.
+        names: known name tokens to redact verbatim (e.g. ["Jan", "Kowalski"]).
     """
     if not text:
         return text
     text = _EMAIL_RE.sub("[REDACTED_EMAIL]", text)
     text = _PHONE_RE.sub("[REDACTED_PHONE]", text)
+    for token in names or []:
+        token = (token or "").strip()
+        if len(token) < 2:
+            continue  # skip initials / empty — too short to match safely
+        text = re.sub(
+            rf"\b{re.escape(token)}\b",
+            "[REDACTED_NAME]",
+            text,
+            flags=re.IGNORECASE,
+        )
     return text

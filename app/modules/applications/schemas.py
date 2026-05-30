@@ -84,16 +84,31 @@ class DuplicateCheckRequest(BaseModel):
 
 
 class DuplicateCheckMatch(BaseModel):
+    # audit_rodo_gdpr F-17: this schema is returned by the **public**
+    # `/applications/duplicate-check` endpoint. Previously it exposed the
+    # candidate's full name, full email, full phone and current pipeline
+    # stage to anyone who guessed their email — a textbook GDPR breach and
+    # an account-enumeration goldmine. We now return only:
+    #   - `application_id` + `public_token` so the legitimate candidate can
+    #     resume their tracking page,
+    #   - `job_id` + `job_title` so the UI can say "you already applied to X",
+    #   - `masked_email` (`j***@example.com`) as a hint without exposing PII,
+    #   - `created_at` for the UI sort.
+    # Identifying fields stay optional in the schema for HR-authenticated
+    # callers (the same model is used internally for richer responses).
     application_id: uuid.UUID
     job_id: uuid.UUID
-    candidate_name: str
-    email: str
-    phone: str | None
-    stage_name: str | None = None
-    job_title: str | None = None
     public_token: str
+    job_title: str | None = None
+    masked_email: str | None = None
     created_at: datetime
     match_reasons: list[str] = []
+    # Kept nullable for back-compat with HR-side consumers — public endpoint
+    # leaves all of these as None.
+    candidate_name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    stage_name: str | None = None
 
 
 class DuplicateCheckResponse(BaseModel):
@@ -155,7 +170,11 @@ class ApplicationTrackingRead(BaseModel):
 
 
 class BulkAction(BaseModel):
-    application_ids: list[uuid.UUID]
+    # audit_security M: cap the batch size at the schema layer. Without it a
+    # caller could pass a 100k-UUID list and tie up the worker doing
+    # per-application queries. 200 is well above the largest legitimate
+    # recruiter selection in the UI (page size = 50).
+    application_ids: list[uuid.UUID] = Field(..., min_length=1, max_length=200)
     action: BulkActionType
     payload: dict[str, Any] = {}
 

@@ -25,6 +25,7 @@ from app.modules.reports.router import router as reports_router
 from app.modules.consents.router import router as gdpr_router
 from app.modules.reviews.router import router as reviews_router
 from app.modules.llm_usage.router import router as llm_usage_router
+from app.modules.admins.usage_router import router as admin_usage_router
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -34,6 +35,7 @@ api_router.include_router(companies_public_router,  prefix="/companies",       t
 api_router.include_router(articles_public_router,   prefix="/articles",        tags=["Articles (public)"])
 api_router.include_router(admin_auth_router,        prefix="/admin/auth",      tags=["Admin auth"])
 api_router.include_router(admin_articles_router,    prefix="/admin/articles",  tags=["Admin: Articles"])
+api_router.include_router(admin_usage_router,       prefix="/admin/usage",     tags=["Admin: Usage"])
 api_router.include_router(company_articles_router,  prefix="/company/articles", tags=["Company: Articles"])
 api_router.include_router(users_router,             prefix="/users",           tags=["Users"])
 api_router.include_router(jobs_router,              prefix="/jobs",            tags=["Jobs"])

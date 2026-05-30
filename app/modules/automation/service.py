@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from fastapi import BackgroundTasks
 
@@ -104,6 +107,10 @@ class AutomationService(BaseService[AutomationRepository]):
                     metadata_={"rule_name": rule.name},
                 ))
                 await db.commit()
-            except Exception as e:
+            except Exception:
+                # audit_logging_monitoring F-09: was `print(...)` — bypassed
+                # log levels, no stacktrace, no observability hook.
                 await db.rollback()
-                print(f"[Automation] Rule {rule.id} failed: {e}")
+                logger.exception(
+                    "Automation rule failed", extra={"rule_id": str(rule.id)}
+                )

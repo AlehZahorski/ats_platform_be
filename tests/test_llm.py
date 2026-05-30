@@ -97,6 +97,25 @@ class TestRedaction:
         out = redact_pii("Senior Python engineer with strong backend skills.")
         assert out == "Senior Python engineer with strong backend skills."
 
+    def test_name_tokens_redacted(self):
+        # Backs the /ai-info promise: candidate name never reaches the model.
+        out = redact_pii("Jan Kowalski\nSenior Python Developer", names=["Jan", "Kowalski"])
+        assert "Jan" not in out
+        assert "Kowalski" not in out
+        assert "[REDACTED_NAME]" in out
+        assert "Python" in out  # skills must survive
+
+    def test_name_redaction_case_insensitive(self):
+        out = redact_pii("Worked closely with kowalski on the project", names=["Kowalski"])
+        assert "kowalski" not in out
+        assert "[REDACTED_NAME]" in out
+
+    def test_short_name_token_skipped(self):
+        # A single-letter initial must not nuke every matching letter in the CV.
+        out = redact_pii("A. Nowak, Python developer", names=["A", "Nowak"])
+        assert "Python developer" in out
+        assert "Nowak" not in out
+
 
 # ── F-11 / F-12 pricing -----------------------------------------------------
 

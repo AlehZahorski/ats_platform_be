@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.core.enums.jobs import ContractType, JobStatus, Seniority, SalaryPeriod, WorkMode
 
@@ -40,12 +40,16 @@ class JobOfferFields(BaseModel):
     tech_stack: str | None = None
     domain_context: str | None = None
     # Experience & work conditions
-    seniority: Seniority | None = None
+    # Widened from strict enum → str: see JobRead note. Multi-industry seeds
+    # and the LLM parser use values (`worker`, `operator`, `team_leader`,
+    # `office`, `mobile`, `field`, …) that the legacy IT-only enums don't
+    # cover. The autosave POST /jobs was failing 422 every 10s before this.
+    seniority: str | None = None
     experience_min_years: int | None = None
     experience_max_years: int | None = None
-    work_mode: WorkMode | None = None
+    work_mode: str | None = None
     remote_constraints: str | None = None
-    contract_type: ContractType | None = None
+    contract_type: str | None = None
     # Culture & team
     success_profile: str | None = None
     team_context: str | None = None
@@ -196,6 +200,15 @@ class MitigationActionRead(BaseModel):
 class JobRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    # Defensive: the column carries a Postgres server_default of '[]', but a row
+    # surfaced through a backend that ignores server_default (e.g. SQLite in
+    # tests) can present NULL. Coerce NULL -> [] so serialization never 500s on
+    # this required list field.
+    @field_validator("required_qualifications", mode="before")
+    @classmethod
+    def _none_quals_to_empty(cls, v: Any) -> Any:
+        return [] if v is None else v
+
     id: uuid.UUID
     company_id: uuid.UUID
     title: str
@@ -222,12 +235,16 @@ class JobRead(BaseModel):
     domain_context: str | None
 
     # Experience & work conditions
-    seniority: Seniority | None
+    # Widened from strict enum → str: multi-industry seeds use values like
+    # `worker`, `specialist`, `foreman`, `office`, `mobile`, `field` that
+    # the legacy IT-only `Seniority`/`WorkMode` enums don't cover. Forcing
+    # them through the enum makes `GET /jobs` 500 on every non-IT row.
+    seniority: str | None
     experience_min_years: int | None
     experience_max_years: int | None
-    work_mode: WorkMode | None
+    work_mode: str | None
     remote_constraints: str | None
-    contract_type: ContractType | None
+    contract_type: str | None
 
     # Compensation
     salary_min: int | None

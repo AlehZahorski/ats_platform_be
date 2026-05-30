@@ -36,6 +36,14 @@ class ApplicationRepository(BaseRepository[Application]):
         normalized_email: str,
         normalized_phone: str | None,
     ) -> Application:
+        # audit_rodo_gdpr F-15: every new application now arrives with an
+        # automatic retention deadline. Without it the column was always NULL
+        # and `cleanup_expired` had nothing to act on — meaning we kept PII
+        # indefinitely, which is a direct GDPR breach. The cleanup scheduler
+        # will turn these into anonymised rows once the deadline passes.
+        from datetime import UTC, datetime as _dt, timedelta as _td
+        from app.core.config import settings
+        retention_until = _dt.now(UTC) + _td(days=30 * settings.application_retention_months)
         app = Application(
             job_id=job_id,
             first_name=data.first_name,
@@ -47,6 +55,7 @@ class ApplicationRepository(BaseRepository[Application]):
             cv_url=cv_url,
             stage_id=initial_stage_id,
             public_token=generate_public_token(),
+            data_retention_until=retention_until,
         )
         self.db.add(app)
         await self.db.flush()

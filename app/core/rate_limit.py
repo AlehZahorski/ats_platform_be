@@ -59,6 +59,11 @@ def rate_limit(rate: str) -> Callable:
         from slowapi.errors import RateLimitExceeded
         from limits import parse
 
+        # Honour the global enable flag so tests (and any kill-switch) can
+        # disable limiting in one place — mirrors slowapi's own .limit() guard.
+        if not limiter.enabled:
+            return
+
         item = parse(rate)
         key = _key(request)
         # slowapi internally uses _limiter as a `limits` MovingWindowRateLimiter

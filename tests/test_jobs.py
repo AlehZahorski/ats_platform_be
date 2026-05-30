@@ -85,8 +85,13 @@ async def test_update_job(client: AsyncClient, db_session) -> None:
             "status": "open",
             "role_summary": "Lead the backend platform that powers the product.",
             "role_purpose": "Own core services and improve reliability across the platform.",
-            "responsibilities": ["Build APIs", "Improve reliability"],
-            "must_haves": ["Python", "FastAPI"],
+            "responsibilities": "Build APIs\nImprove reliability",
+            "must_haves": "Python\nFastAPI",
+            "nice_to_haves": "Kubernetes\nTerraform",
+            "tech_stack": "Python\nFastAPI\nPostgreSQL",
+            "seniority": "senior",
+            "team_context": "Joins a 6-person platform team.",
+            "benefits": "Private healthcare\nRemote budget",
             "salary_min": 18000,
             "salary_max": 24000,
             "salary_currency": "PLN",
@@ -95,7 +100,7 @@ async def test_update_job(client: AsyncClient, db_session) -> None:
             "contract_type": "b2b",
             "location": "Warsaw, Poland",
             "value_proposition": "High impact role with strong ownership.",
-            "hiring_process": ["Intro call", "Technical interview", "Decision"],
+            "hiring_process": "Intro call\nTechnical interview\nDecision",
         },
     )
     assert response.status_code == 200
@@ -166,7 +171,10 @@ async def test_cannot_publish_incomplete_job_offer(client: AsyncClient, db_sessi
         "/api/v1/jobs",
         json={"title": "Incomplete Offer", "status": "open"},
     )
-    assert response.status_code == 400
+    # 422 Unprocessable Entity — the request was well-formed but the offer
+    # content fails publish validation (UnprocessableError raised by the
+    # status-transition / publish validators).
+    assert response.status_code == 422
     detail = response.json()["detail"]
     assert detail["message"] == "Job is not ready to publish"
     assert len(detail["issues"]) > 0
@@ -183,10 +191,13 @@ async def test_public_job_contains_structured_offer_content(client: AsyncClient,
             "status": "open",
             "role_summary": "Build the platform behind our product.",
             "role_purpose": "Improve engineering speed and system reliability.",
-            "responsibilities": ["Own platform roadmap", "Improve CI/CD"],
-            "must_haves": ["Python", "Cloud"],
-            "nice_to_haves": ["Kubernetes"],
-            "tech_stack": ["Python", "FastAPI", "PostgreSQL"],
+            "responsibilities": "Own platform roadmap\nImprove CI/CD",
+            "must_haves": "Python\nCloud",
+            "nice_to_haves": "Kubernetes",
+            "tech_stack": "Python\nFastAPI\nPostgreSQL",
+            "seniority": "senior",
+            "team_context": "Small platform team of five engineers.",
+            "benefits": "Private healthcare\nLearning budget",
             "domain_context": "B2B SaaS workflow automation",
             "salary_min": 18000,
             "salary_max": 24000,
@@ -196,7 +207,7 @@ async def test_public_job_contains_structured_offer_content(client: AsyncClient,
             "remote_constraints": "Europe timezones only",
             "contract_type": "b2b",
             "value_proposition": "Meaningful ownership and fast growth.",
-            "hiring_process": ["Intro", "Technical", "Final"],
+            "hiring_process": "Intro\nTechnical\nFinal",
         },
     )
     assert create_resp.status_code == 201
@@ -206,5 +217,17 @@ async def test_public_job_contains_structured_offer_content(client: AsyncClient,
     response = await client.get(f"/api/v1/jobs/public/{job_id}")
     assert response.status_code == 200
     data = response.json()
+    # Offer content is stored as text (newline-separated), not JSON arrays.
     assert data["role_summary"] == "Build the platform behind our product."
-    assert data["tech_stack"] == ["Python", "FastAPI", "PostgreSQL"]
+    assert data["tech_stack"] == "Python\nFastAPI\nPostgreSQL"
+    assert data["responsibilities"] == "Own platform roadmap\nImprove CI/CD"
+    assert data["nice_to_haves"] == "Kubernetes"
+    assert data["salary_min"] == 18000
+    assert data["work_mode"] == "remote"
+    assert data["contract_type"] == "b2b"
+    assert "role_purpose" not in data  # internal-only field must not leak
+    assert "domain_context" in data
+    assert "team_context" in data
+    assert "risk_items" not in data
+    assert "value_proposition" in data
+    assert "id" in data

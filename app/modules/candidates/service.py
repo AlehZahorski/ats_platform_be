@@ -78,9 +78,14 @@ class CandidateAuthService:
 
     # ── internals ──────────────────────────────────────────────────────────
     async def _issue_session(self, candidate: Candidate, response: Response) -> None:
+        # audit_security H: pass token_type explicitly. The old form put
+        # `{"type":"candidate", ...}` in extra_claims, which used to be
+        # overwritten by the recruiter-flavoured "access" default — that bug is
+        # now structurally impossible because token_type takes precedence.
         access = create_access_token(
             subject=str(candidate.id),
-            extra_claims={"type": "candidate", "candidate_id": str(candidate.id)},
+            extra_claims={"candidate_id": str(candidate.id)},
+            token_type="candidate",
         )
         raw_refresh, refresh_hash = create_refresh_token()
         expires_at = datetime.now(UTC) + timedelta(days=settings.refresh_token_expire_days)

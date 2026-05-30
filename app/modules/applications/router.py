@@ -50,7 +50,14 @@ def _get_service(db: AsyncSession = Depends(get_db)) -> ApplicationService:
 # ──────────────────────────────────────────────
 # Public: candidate submits application
 # ──────────────────────────────────────────────
-@router.post("/apply/{job_id}", status_code=201)
+# audit_security C3: rate-limit the public apply endpoint per IP. Without it
+# a single client could flood the LLM pipeline + email notifier; 20/minute is
+# enough for a legitimate flurry (e.g. an agency assistant doing data entry).
+@router.post(
+    "/apply/{job_id}",
+    status_code=201,
+    dependencies=[Depends(rate_limit("20/minute"))],
+)
 async def apply(
     request: Request,
     job_id: uuid.UUID,

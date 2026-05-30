@@ -92,9 +92,25 @@ class ConsentService(BaseService[ConsentRepository]):
         application_id: uuid.UUID,
         company_id: uuid.UUID,
     ) -> AnonymizeResult:
-        from app.modules.applications.models import Application, ApplicationAnswer
+        """audit_rodo_gdpr F-09 (right to be forgotten, art. 17 GDPR):
+        anonymisation now removes **every** copy of the candidate's PII, not
+        just the columns on `applications`. Previously the CV file stayed on
+        disk, `cv_parse_jobs.raw_text` held the full CV text, `candidate_profile`
+        kept the AI-derived headline/summary/LinkedIn/etc., and `candidate_job_matches`
+        kept the LLM's `reasoning` which often contains the candidate's name.
+        The cleanup covers all of those + the physical CV file on disk + the
+        normalized lookup keys so the row can no longer be re-identified."""
+        from app.modules.applications.models import (
+            Application,
+            ApplicationAnswer,
+            CVParseJob,
+            CandidateJobMatch,
+            CandidateProfile,
+        )
+        from app.modules.application_events.models import ApplicationEvent
         from app.modules.jobs.models import Job
         from app.modules.notes.models import Note
+        from app.services.file_storage import file_storage
 
         db = self.repository.db
         result = await db.execute(
@@ -106,20 +122,38 @@ class ConsentService(BaseService[ConsentRepository]):
         if not app:
             raise NotFoundError(t("consents.application_not_found"))
 
+        # 1. Delete the CV file from disk BEFORE we drop the URL on the row.
+        if app.cv_url:
+            try:
+                file_storage.delete_cv(app.cv_url)
+            except Exception:
+                # Best-effort — disk failure here must not block the legal
+                # obligation to anonymize the database row.
+                pass
+
+        # 2. Overwrite the identifying columns on the application itself.
         app.first_name = "Anonymized"
         app.last_name = "User"
         app.email = f"anon_{application_id}@deleted.invalid"
+        # Lookup keys must also be cleared — they reveal the same PII otherwise.
+        app.normalized_email = f"anon_{application_id}"
         app.phone = None
+        app.normalized_phone = None
         app.cv_url = None
 
-        await db.execute(
-            ApplicationAnswer.__table__.delete().where(
-                ApplicationAnswer.application_id == application_id
+        # 3. Drop dependent rows that carry PII or AI-derived inferences.
+        for model, where_col in [
+            (ApplicationAnswer, ApplicationAnswer.application_id),
+            (Note, Note.application_id),
+            (CVParseJob, CVParseJob.application_id),
+            (CandidateProfile, CandidateProfile.application_id),
+            (CandidateJobMatch, CandidateJobMatch.application_id),
+            (ApplicationEvent, ApplicationEvent.application_id),
+        ]:
+            await db.execute(
+                model.__table__.delete().where(where_col == application_id)
             )
-        )
-        await db.execute(
-            Note.__table__.delete().where(Note.application_id == application_id)
-        )
+
         await db.flush()
 
         return AnonymizeResult(

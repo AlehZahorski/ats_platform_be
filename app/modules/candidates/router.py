@@ -5,6 +5,7 @@ from fastapi import APIRouter, Cookie, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.rate_limit import rate_limit
 from app.modules.candidates.dependencies import CurrentCandidate, OptionalCandidate
 from app.modules.candidates.repository import (
     CandidateRepository,
@@ -39,7 +40,13 @@ def _auth_service(db: AsyncSession = Depends(get_db)) -> CandidateAuthService:
 # ─────────────────────────────────────────────────────────────────────
 # Auth
 # ─────────────────────────────────────────────────────────────────────
-@router.post("/signup", response_model=CandidateRead, status_code=201)
+# audit_security C3: same per-IP rate-limit policy as HR auth.
+@router.post(
+    "/signup",
+    response_model=CandidateRead,
+    status_code=201,
+    dependencies=[Depends(rate_limit("5/minute"))],
+)
 async def signup(
     data: CandidateSignupRequest,
     response: Response,
@@ -51,7 +58,11 @@ async def signup(
     return CandidateRead.model_validate(candidate)
 
 
-@router.post("/login", response_model=CandidateRead)
+@router.post(
+    "/login",
+    response_model=CandidateRead,
+    dependencies=[Depends(rate_limit("5/minute"))],
+)
 async def login(
     data: CandidateLoginRequest,
     response: Response,
@@ -71,7 +82,11 @@ async def logout(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.post("/refresh", response_model=CandidateRead)
+@router.post(
+    "/refresh",
+    response_model=CandidateRead,
+    dependencies=[Depends(rate_limit("30/minute"))],
+)
 async def refresh(
     response: Response,
     candidate_refresh_token: Optional[str] = Cookie(default=None, alias=CANDIDATE_REFRESH_COOKIE),

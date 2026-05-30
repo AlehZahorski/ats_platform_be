@@ -76,9 +76,22 @@ class AuthService(BaseService[UserRepository]):
     # ------------------------------------------------------------------
     # Login
     # ------------------------------------------------------------------
+    # audit_security L: pre-computed once at startup — a real bcrypt hash so
+    # `verify_password` against it costs the same as a real check. Used to
+    # equalise response time when the email does not exist.
+    _DUMMY_BCRYPT_HASH = (
+        "$2b$12$c5XSPYwbVbhEahCqUe3lA.ZDjzn3xn93rGmm4eJG1OQTehVDH8H/q"
+    )
+
     async def login(self, data: LoginRequest, response: Response) -> dict:
         user = await self.repository.get_by_email(data.email)
-        if not user or not verify_password(data.password, user.password_hash):
+        if not user:
+            # Run a dummy bcrypt verify so the response time matches the
+            # "user exists, wrong password" path within a few ms — prevents
+            # account enumeration by timing.
+            verify_password(data.password, self._DUMMY_BCRYPT_HASH)
+            raise UnauthorizedError(t("auth.invalid_credentials"))
+        if not verify_password(data.password, user.password_hash):
             raise UnauthorizedError(t("auth.invalid_credentials"))
         if not user.is_verified:
             raise ForbiddenError(t("auth.email_not_verified"))

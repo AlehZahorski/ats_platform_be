@@ -114,9 +114,17 @@ class PublishValidator:
 
     @staticmethod
     def _check_salary(state: Any, reqs: dict[str, str]) -> list[str]:
+        salary_min = _attr(state, "salary_min")
+        salary_max = _attr(state, "salary_max")
+        # Explicitly undisclosed: both bounds null → the offer shows
+        # "wynagrodzenie do uzgodnienia". This is a valid published state
+        # and mirrors the "Widełki nieujawnione" toggle in the wizard, so
+        # we must not block publication on it.
+        if salary_min is None and salary_max is None:
+            return []
         complete = (
-            _attr(state, "salary_min") is not None
-            and _attr(state, "salary_max") is not None
+            salary_min is not None
+            and salary_max is not None
             and _has_text(_attr(state, "salary_currency"))
             and _has_text(_attr(state, "salary_period"))
         )

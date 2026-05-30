@@ -28,7 +28,16 @@ def _get_service(db: AsyncSession = Depends(get_db)) -> AuthService:
     return AuthService(UserRepository(db), CompanyRepository(db))
 
 
-@router.post("/signup-company", response_model=MessageResponse, status_code=201)
+# audit_security C3: per-IP rate limit on the entire auth surface. Credential
+# stuffing, account enumeration and refresh-token brute force are the three
+# things this blocks. Keys default to per-user when authenticated; for the
+# anonymous auth endpoints below the limiter falls back to per-IP.
+@router.post(
+    "/signup-company",
+    response_model=MessageResponse,
+    status_code=201,
+    dependencies=[Depends(rate_limit("5/minute"))],
+)
 async def signup_company(
     data: SignupCompanyRequest,
     background_tasks: BackgroundTasks,
@@ -39,7 +48,11 @@ async def signup_company(
     return MessageResponse(**result)
 
 
-@router.post("/login", response_model=MessageResponse)
+@router.post(
+    "/login",
+    response_model=MessageResponse,
+    dependencies=[Depends(rate_limit("5/minute"))],
+)
 async def login(
     data: LoginRequest,
     response: Response,
@@ -49,7 +62,12 @@ async def login(
     return MessageResponse(**result)
 
 
-@router.post("/refresh", response_model=MessageResponse)
+@router.post(
+    "/refresh",
+    response_model=MessageResponse,
+    # Slightly more permissive — clients refresh on app start and on 401.
+    dependencies=[Depends(rate_limit("30/minute"))],
+)
 async def refresh(
     response: Response,
     refresh_token: Optional[str] = Cookie(default=None),
@@ -82,7 +100,13 @@ async def google_login() -> dict:
     return {"url": get_google_auth_url(state), "state": state}
 
 
-@router.get("/google/callback", response_model=MessageResponse)
+# audit_security C3: OAuth callback is publicly callable and the only barrier
+# against replay/abuse is the (still-incomplete) state validation. Cap it.
+@router.get(
+    "/google/callback",
+    response_model=MessageResponse,
+    dependencies=[Depends(rate_limit("10/minute"))],
+)
 async def google_callback(
     code: str,
     state: str,

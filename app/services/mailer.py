@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import smtplib
 import ssl
 from datetime import datetime
@@ -13,11 +14,22 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from app.core.config import settings
 from app.core.i18n import t
 
+logger = logging.getLogger(__name__)
+
 _TEMPLATE_DIR = Path(__file__).parent.parent.parent / "templates" / "email"
 
 
 def _send_smtp(to_email: str, subject: str, html_body: str) -> None:
-    """Low-level SMTP send — runs in a background thread."""
+    """Low-level SMTP send — runs in a background thread.
+
+    No-op when SMTP is not configured (empty ``smtp_host``). This keeps local
+    dev and the test suite from attempting a real connection to a bogus host,
+    and is the safe default for any environment where mail isn't set up yet.
+    """
+    if not settings.smtp_host:
+        logger.info("SMTP not configured (empty host) — skipping email to %s", to_email)
+        return
+
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = f"{settings.smtp_from_name} <{settings.smtp_from_email}>"

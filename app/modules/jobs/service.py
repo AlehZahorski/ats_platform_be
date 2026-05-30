@@ -12,6 +12,7 @@ from typing import Any
 
 from app.core.base_service import BaseService
 from app.core.config import settings
+from app.core.enums.jobs import JobStatus
 from app.core.exceptions import UnprocessableError
 from app.core.i18n import detect_text_language, t
 from app.modules.applications.repository import ApplicationRepository
@@ -82,8 +83,37 @@ class JobService(BaseService[JobRepository]):
         return await self.repository.create(company_id, data)
 
     async def update(self, job: Job, data: JobUpdate) -> Job:
-        StatusTransitionValidator.validate(self._merged_state(job, data))
+        # PATCH /jobs/{id} is the autosave channel — it MUST never block
+        # the recruiter's typing on publish-readiness. If the wizard tries
+        # to flip status → open but PublishValidator finds missing fields,
+        # we silently demote the status change to draft and persist the
+        # rest. The frontend sees 200 with status=draft and bounces the
+        # "Opublikowana" radio back, giving the user clear visual feedback
+        # without trapping autosave in a 10-second 422 loop.
+        #
+        # Hard publish failures live on a dedicated path (see `publish()`),
+        # which 422s with the issue list so the recruiter can act on them.
+        was_open = str(getattr(job, "status", "")) == JobStatus.open
+        if not was_open:
+            merged = self._merged_state(job, data)
+            target_status = merged.get("status")
+            if str(target_status) == JobStatus.open:
+                issues = PublishValidator.validate(merged)
+                if issues:
+                    # Demote: keep status as-is so autosave succeeds.
+                    data = data.model_copy(update={"status": JobStatus(str(job.status))})
         return await self.repository.update(job, data)
+
+    async def publish(self, job: Job) -> Job:
+        """Explicit publish action — strict gate, 422 on missing fields."""
+        merged = self._merged_state(job, JobUpdate(status=JobStatus.open))
+        issues = PublishValidator.validate(merged)
+        if issues:
+            raise UnprocessableError({
+                "message": t("jobs.not_ready"),
+                "issues": issues,
+            })
+        return await self.repository.update(job, JobUpdate(status=JobStatus.open))
 
     async def parse_text(
         self,

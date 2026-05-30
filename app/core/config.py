@@ -34,6 +34,24 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 30
 
+    # audit_rodo_gdpr F-15 (storage limitation, art. 5(1)(e) GDPR): default
+    # window for keeping a candidate's application before the cleanup job
+    # auto-anonymises it. UODO guidance for PL recruitment data is 12 months
+    # without consent for future recruitments. Per-company override lives in
+    # the `companies` table; this is the global fallback.
+    application_retention_months: int = 12
+
+    # audit_performance B-06 / B-09: DB pool tunables surfaced as env vars so
+    # ops can scale per environment without a code change. Defaults raised
+    # for production-like behaviour; statement_timeout is a guardrail against
+    # a single misbehaving query eating the whole pool.
+    db_pool_size: int = 10
+    db_max_overflow: int = 20
+    db_pool_timeout: int = 30
+    db_pool_recycle: int = 1800
+    db_statement_timeout_ms: int = 15000
+    db_idle_in_transaction_timeout_ms: int = 60000
+
     # -------------------------------------------------------------------------
     # Google OAuth
     # -------------------------------------------------------------------------
@@ -121,10 +139,13 @@ class Settings(BaseSettings):
     # tests / local Haiku trials where the 1024-token minimum is not met.
     llm_prompt_cache_enabled: bool = True
 
-    # F-02: when a candidate has not granted ai_profiling consent we still
-    # parse the CV (recruiter needs to see it), but PII is redacted before
-    # leaving the EU process. Set to False only for local development.
-    llm_redact_pii_without_consent: bool = True
+    # F-02: contact PII (email / phone) is redacted before ANY CV text leaves
+    # the EU process for the LLM — unconditionally, regardless of AI-profiling
+    # consent. This backs the public promise on /ai-info ("przed wysłaniem
+    # czegokolwiek do modelu automatycznie redagujemy dane osobowe").
+    # Consent still gates the *matching* call (see cv_parsing.run), not this.
+    # Set to False only for local development.
+    llm_redact_pii: bool = True
 
     # F-05: per-company daily budget in USD. When sum(api_usage_logs.cost_usd)
     # in the last rolling 24h exceeds this, new LLM endpoints return 429.

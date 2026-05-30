@@ -32,7 +32,11 @@ async def get_current_admin(
     if not admin_access_token:
         raise creds_exc
     try:
-        payload = decode_access_token(admin_access_token)
+        # audit_security H: explicit expected_type so an HR access token
+        # signed with the same secret cannot satisfy this dependency. The
+        # belt-and-suspenders `payload.get("type")` check is now redundant
+        # but kept until a follow-up sprint cleans both call sites.
+        payload = decode_access_token(admin_access_token, expected_type="admin")
         if payload.get("type") != "admin":
             raise creds_exc
         admin_id = payload.get("admin_id") or payload.get("sub")

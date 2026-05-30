@@ -54,23 +54,35 @@ def _now() -> datetime:
 def create_access_token(
     subject: str,
     extra_claims: dict[str, Any] | None = None,
+    *,
+    token_type: str = "access",
+    expires_minutes: int | None = None,
 ) -> str:
     """
     Create an access token.
 
-    - In production: lifetime = settings.access_token_expire_minutes (30 min).
-    - In dev/staging: token is non-expiring (no `exp` claim is set), so local
-      work isn't constantly interrupted by re-login. The cookie is also set
-      with a multi-year max_age in those envs (see _set_auth_cookies).
+    audit_security H (JWT type confusion): `extra_claims` is merged **before**
+    the structural claims (`sub`, `iat`, `type`, `exp`) so callers can't
+    accidentally overwrite them — that bug previously broke candidate and
+    admin auth (their `type` got clobbered by the recruiter-flavoured default).
+    The new `token_type` kwarg makes the intent explicit at the call site.
+
+    audit_security H (always set exp): an `exp` is now set in every environment.
+    Dev tokens get a long but bounded lifetime (cookie max-age is still big in
+    dev — see `access_token_cookie_max_age`) so a leaked dev token can no
+    longer be valid for years.
     """
     payload: dict[str, Any] = {
+        **(extra_claims or {}),
         "sub": subject,
         "iat": _now(),
-        "type": "access",
-        **(extra_claims or {}),
+        "type": token_type,
     }
-    if settings.is_production:
-        payload["exp"] = _now() + timedelta(minutes=settings.access_token_expire_minutes)
+    if expires_minutes is None:
+        expires_minutes = (
+            settings.access_token_expire_minutes if settings.is_production else 60 * 24
+        )
+    payload["exp"] = _now() + timedelta(minutes=expires_minutes)
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
@@ -98,19 +110,25 @@ def hash_token(raw: str) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
-def decode_access_token(token: str) -> dict[str, Any]:
+def decode_access_token(token: str, *, expected_type: str = "access") -> dict[str, Any]:
     """
     Decode and validate a JWT access token.
 
+    audit_security H: callers must pass `expected_type` to validate against the
+    identity they expect (`access` for HR, `candidate`, `admin`). The previous
+    implementation hard-coded `access`, which is why candidate and admin
+    tokens — created with `extra_claims={"type":"candidate"|"admin"}` — would
+    fail validation on the only available `decode_access_token` helper.
+
     Raises:
-        JWTError: if the token is invalid or expired.
+        JWTError: if the token is invalid, expired, or the type does not match.
     """
     payload = jwt.decode(
         token,
         settings.jwt_secret,
         algorithms=[settings.jwt_algorithm],
     )
-    if payload.get("type") != "access":
+    if payload.get("type") != expected_type:
         raise JWTError("Token type mismatch")
     return payload
 

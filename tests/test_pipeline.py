@@ -87,8 +87,13 @@ async def test_cannot_move_candidate_to_interview_without_meeting_link(client, d
         json={"stage_id": str(interview_stage.id), "notify_candidate": True},
     )
 
-    assert response.status_code == 400
-    assert response.json()["detail"] == "Interview stage requires a scheduled interview with a meeting link"
+    # 422 Unprocessable Entity — business-rule precondition (interview stage
+    # needs a scheduled interview with a meeting link) → UnprocessableError.
+    assert response.status_code == 422
+    assert (
+        response.json()["detail"]
+        == "Interview stage requires a scheduled interview with a meeting link."
+    )
 
 
 @pytest.mark.asyncio

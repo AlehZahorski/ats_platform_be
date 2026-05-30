@@ -21,6 +21,21 @@ def normalize_phone(value: str | None) -> str | None:
     return digits or None
 
 
+def _mask_email(value: str | None) -> str | None:
+    """audit_rodo_gdpr F-17: return ``j***@example.com`` from ``john@example.com``.
+
+    Keeps the first character + the domain so the candidate recognises their
+    own account but an attacker enumerating emails learns nothing new — they
+    already supplied the email in the request.
+    """
+    if not value or "@" not in value:
+        return None
+    local, _, domain = value.partition("@")
+    if not local:
+        return f"***@{domain}"
+    return f"{local[0]}***@{domain}"
+
+
 class DuplicateCheckService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
@@ -51,16 +66,19 @@ class DuplicateCheckService:
             if not reasons:
                 continue
 
+            # audit_rodo_gdpr F-17: this service powers the **public**
+            # endpoint. Build a redacted match — only the URL token + a
+            # masked email — so an attacker enumerating emails learns
+            # nothing they did not already supply. HR-side callers that
+            # legitimately need the full PII should query the application
+            # repository directly with their company_id.
             matches.append(
                 DuplicateCheckMatch(
                     application_id=application.id,
                     job_id=application.job_id,
-                    candidate_name=f"{application.first_name} {application.last_name}",
-                    email=application.email,
-                    phone=application.phone,
-                    stage_name=application.stage.name if application.stage else None,
-                    job_title=application.job.title if application.job else None,
                     public_token=application.public_token,
+                    job_title=application.job.title if application.job else None,
+                    masked_email=_mask_email(application.email),
                     created_at=application.created_at,
                     match_reasons=reasons,
                 )

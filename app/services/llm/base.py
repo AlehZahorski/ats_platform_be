@@ -23,6 +23,7 @@ where ``message_blocks`` is a list of ``(tag, untrusted_text)`` pairs. The
 helper does the wrapping, sanitising and assembling so the subclass only
 worries about *what* to send, not *how* to ship it safely.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -65,6 +66,7 @@ class LLMResult(BaseModel):
     serialize ``data`` to whatever shape callers expect; ``meta`` is logged
     to ``api_usage_logs`` and stripped before responses leave the API.
     """
+
     data: dict[str, Any]
     meta: dict[str, Any]
 

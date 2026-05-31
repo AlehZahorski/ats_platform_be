@@ -4,9 +4,8 @@ All endpoints live under /api/v1/admin/auth and set/clear the
 `admin_access_token` + `admin_refresh_token` cookies. No cross-mixing
 with /candidates/auth — different identity, different cookies.
 """
-from __future__ import annotations
 
-from typing import Optional
+from __future__ import annotations
 
 from fastapi import APIRouter, Cookie, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -48,7 +47,7 @@ async def login(
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(
     response: Response,
-    admin_refresh_token: Optional[str] = Cookie(default=None, alias=ADMIN_REFRESH_COOKIE),
+    admin_refresh_token: str | None = Cookie(default=None, alias=ADMIN_REFRESH_COOKIE),
     service: AdminAuthService = Depends(_auth),
 ) -> Response:
     await service.logout(refresh_token=admin_refresh_token, response=response)
@@ -62,11 +61,12 @@ async def logout(
 )
 async def refresh(
     response: Response,
-    admin_refresh_token: Optional[str] = Cookie(default=None, alias=ADMIN_REFRESH_COOKIE),
+    admin_refresh_token: str | None = Cookie(default=None, alias=ADMIN_REFRESH_COOKIE),
     service: AdminAuthService = Depends(_auth),
 ) -> AdminRead:
     # Refresh requires the cookie — if absent, force a fresh login.
     from app.core.exceptions import UnauthorizedError
+
     if not admin_refresh_token:
         raise UnauthorizedError("Sesja wygasła, zaloguj się ponownie")
     admin = await service.refresh(refresh_token=admin_refresh_token, response=response)

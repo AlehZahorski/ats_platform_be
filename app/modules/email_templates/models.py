@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Text, func
+from sqlalchemy import ForeignKey, Text
 from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -29,7 +28,7 @@ class EmailTemplate(BaseModel):
     # variables stores list of available variable names e.g. {"vars": ["candidate_name", "job_title"]}
 
     # relationships
-    company: Mapped["Company"] = relationship()  # noqa: F821
-    automation_rules: Mapped[list["AutomationRule"]] = relationship(  # noqa: F821
+    company: Mapped[Company] = relationship()  # noqa: F821
+    automation_rules: Mapped[list[AutomationRule]] = relationship(  # noqa: F821
         back_populates="template"
     )

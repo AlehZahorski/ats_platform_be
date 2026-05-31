@@ -10,6 +10,7 @@ job paste) going into Claude:
 The sanitiser is intentionally conservative — it logs and tags every replaced
 line so we can audit false positives without losing recruiter signal.
 """
+
 from __future__ import annotations
 
 import logging
@@ -21,14 +22,33 @@ logger = logging.getLogger(__name__)
 # Patterns that should never be in legitimate CV/job copy. Case-insensitive.
 # Order matters only for the audit log; matching is independent.
 _INJECTION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("ignore_previous",       re.compile(r"\b(ignore|disregard|forget)\s+(all\s+)?(previous|prior|above)\b", re.IGNORECASE)),
-    ("system_role",           re.compile(r"^\s*system\s*[:>]", re.IGNORECASE | re.MULTILINE)),
-    ("assistant_role",        re.compile(r"^\s*assistant\s*[:>]", re.IGNORECASE | re.MULTILINE)),
-    ("you_are_now",           re.compile(r"\byou\s+are\s+(now\s+)?(a\s+)?(\w+\s+){0,3}(model|assistant|ai)\b", re.IGNORECASE)),
-    ("new_instructions",      re.compile(r"\bnew\s+instructions?\s*[:>]", re.IGNORECASE)),
-    ("override_score",        re.compile(r"\b(score|rate|recommend)\b.*\b(100|max|top|always)\b", re.IGNORECASE)),
-    ("jailbreak_dan",         re.compile(r"\b(DAN|do\s+anything\s+now|jailbreak)\b", re.IGNORECASE)),
-    ("prompt_leak",           re.compile(r"\b(repeat|print|reveal|show|leak|output)\s+(\w+\s+){0,3}(prompt|instructions|system\s+message)\b", re.IGNORECASE)),
+    (
+        "ignore_previous",
+        re.compile(
+            r"\b(ignore|disregard|forget)\s+(all\s+)?(previous|prior|above)\b", re.IGNORECASE
+        ),
+    ),
+    ("system_role", re.compile(r"^\s*system\s*[:>]", re.IGNORECASE | re.MULTILINE)),
+    ("assistant_role", re.compile(r"^\s*assistant\s*[:>]", re.IGNORECASE | re.MULTILINE)),
+    (
+        "you_are_now",
+        re.compile(
+            r"\byou\s+are\s+(now\s+)?(a\s+)?(\w+\s+){0,3}(model|assistant|ai)\b", re.IGNORECASE
+        ),
+    ),
+    ("new_instructions", re.compile(r"\bnew\s+instructions?\s*[:>]", re.IGNORECASE)),
+    (
+        "override_score",
+        re.compile(r"\b(score|rate|recommend)\b.*\b(100|max|top|always)\b", re.IGNORECASE),
+    ),
+    ("jailbreak_dan", re.compile(r"\b(DAN|do\s+anything\s+now|jailbreak)\b", re.IGNORECASE)),
+    (
+        "prompt_leak",
+        re.compile(
+            r"\b(repeat|print|reveal|show|leak|output)\s+(\w+\s+){0,3}(prompt|instructions|system\s+message)\b",
+            re.IGNORECASE,
+        ),
+    ),
 )
 
 # Cap how much we'll log per request — protects logs from a 200-page CV with
@@ -54,6 +74,7 @@ def sanitize_untrusted(text: str, *, source: str = "user") -> tuple[str, list[st
     cleaned = text
 
     for name, pattern in _INJECTION_PATTERNS:
+
         def _replace(match: re.Match[str], _name: str = name) -> str:
             if len(hits) < _MAX_REPORTED_HITS:
                 hits.append(_name)

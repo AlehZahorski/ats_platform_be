@@ -1,4 +1,5 @@
 """Shared test helpers for creating seeded DB state."""
+
 from __future__ import annotations
 
 import uuid

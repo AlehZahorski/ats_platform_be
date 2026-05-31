@@ -1,5 +1,4 @@
 import uuid
-from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,13 +22,16 @@ from app.modules.users.schemas import (
 from app.modules.users.service import InvitationService, UserService
 
 
-def _invitation_to_response(invitation: UserInvitation, raw_token: str | None = None) -> InvitationRead:
+def _invitation_to_response(
+    invitation: UserInvitation, raw_token: str | None = None
+) -> InvitationRead:
     """Attach the raw invitation URL only in non-production environments so the owner
     can copy the link when SMTP isn't configured. Never expose tokens in prod."""
     payload = InvitationRead.model_validate(invitation)
     if raw_token and not settings.is_production:
         payload.invitation_url = f"{settings.frontend_url}/accept-invitation?token={raw_token}"
     return payload
+
 
 router = APIRouter()
 
@@ -82,7 +84,7 @@ async def update_avatar(
 async def list_users(
     company: CurrentCompany,
     _user: CurrentUser,
-    role: Optional[UserRole] = None,
+    role: UserRole | None = None,
     service: UserService = Depends(_user_service),
 ) -> list[UserRead]:
     users = await service.list_by_company(company.id, role)

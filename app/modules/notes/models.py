@@ -13,7 +13,10 @@ class Note(BaseModel):
     __tablename__ = "notes"
 
     application_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("applications.id", ondelete="CASCADE"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("applications.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     author_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
@@ -21,5 +24,5 @@ class Note(BaseModel):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     visible_to_candidate: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
-    application: Mapped["Application"] = relationship(back_populates="notes")  # noqa: F821
-    author: Mapped["User | None"] = relationship()  # noqa: F821
+    application: Mapped[Application] = relationship(back_populates="notes")  # noqa: F821
+    author: Mapped[User | None] = relationship()  # noqa: F821

@@ -30,7 +30,6 @@ from app.services.mailer import mail_service
 
 
 class AuthService(BaseService[UserRepository]):
-
     def __init__(self, repository: UserRepository, company_repo: CompanyRepository) -> None:
         super().__init__(repository)
         self.company_repo = company_repo
@@ -58,7 +57,9 @@ class AuthService(BaseService[UserRepository]):
 
         try:
             token = secrets.token_urlsafe(32)
-            verification_url = f"{settings.frontend_url}/verify-email?token={token}&user_id={user.id}"
+            verification_url = (
+                f"{settings.frontend_url}/verify-email?token={token}&user_id={user.id}"
+            )
             mail_service.send_verification_email(background_tasks, user.email, verification_url)
         except Exception:
             # H4 (audit_backend_code): swallow the email failure so signup still
@@ -79,9 +80,7 @@ class AuthService(BaseService[UserRepository]):
     # audit_security L: pre-computed once at startup — a real bcrypt hash so
     # `verify_password` against it costs the same as a real check. Used to
     # equalise response time when the email does not exist.
-    _DUMMY_BCRYPT_HASH = (
-        "$2b$12$c5XSPYwbVbhEahCqUe3lA.ZDjzn3xn93rGmm4eJG1OQTehVDH8H/q"
-    )
+    _DUMMY_BCRYPT_HASH = "$2b$12$c5XSPYwbVbhEahCqUe3lA.ZDjzn3xn93rGmm4eJG1OQTehVDH8H/q"
 
     async def login(self, data: LoginRequest, response: Response) -> dict:
         user = await self.repository.get_by_email(data.email)
@@ -181,13 +180,19 @@ class AuthService(BaseService[UserRepository]):
     def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
         secure = settings.is_production
         response.set_cookie(
-            "access_token", access_token,
-            httponly=True, secure=secure, samesite="lax",
+            "access_token",
+            access_token,
+            httponly=True,
+            secure=secure,
+            samesite="lax",
             max_age=access_token_cookie_max_age(),
         )
         response.set_cookie(
-            "refresh_token", refresh_token,
-            httponly=True, secure=secure, samesite="lax",
+            "refresh_token",
+            refresh_token,
+            httponly=True,
+            secure=secure,
+            samesite="lax",
             max_age=settings.refresh_token_expire_days * 86400,
             path="/api/v1/auth/refresh",
         )

@@ -10,6 +10,7 @@ backend to Redis. Not a replacement for a real APM; just a guardrail so a
 sudden Anthropic outage doesn't make 100 background CV-parse jobs each
 wait 30 seconds for a timeout.
 """
+
 from __future__ import annotations
 
 import logging
@@ -74,8 +75,7 @@ class LLMCircuitBreaker:
             if len(self._state.failures) >= self.threshold and self._state.opened_at is None:
                 self._state.opened_at = now
                 logger.error(
-                    "LLM breaker %s OPENED after %d failures in %.0fs window — "
-                    "cooling for %.0fs",
+                    "LLM breaker %s OPENED after %d failures in %.0fs window — cooling for %.0fs",
                     self.name,
                     len(self._state.failures),
                     self.window_seconds,

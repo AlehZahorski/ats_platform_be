@@ -24,13 +24,14 @@ class PipelineStage(BaseModel):
     If we ever want per-tenant custom stages, add ``company_id`` here AND
     update every router in this module to take ``CurrentCompany``.
     """
+
     __tablename__ = "pipeline_stages"
 
     name: Mapped[str] = mapped_column(Text, nullable=False)
     order_index: Mapped[int] = mapped_column(Integer, nullable=False)
 
-    applications: Mapped[list["Application"]] = relationship(back_populates="stage")  # noqa: F821
-    history: Mapped[list["ApplicationStageHistory"]] = relationship(back_populates="stage")
+    applications: Mapped[list[Application]] = relationship(back_populates="stage")  # noqa: F821
+    history: Mapped[list[ApplicationStageHistory]] = relationship(back_populates="stage")
 
 
 class ApplicationStageHistory(BaseModel):
@@ -64,6 +65,6 @@ class ApplicationStageHistory(BaseModel):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
 
-    application: Mapped["Application"] = relationship(back_populates="stage_history")  # noqa: F821
-    stage: Mapped["PipelineStage"] = relationship(back_populates="history")
-    changer: Mapped["User | None"] = relationship()  # noqa: F821
+    application: Mapped[Application] = relationship(back_populates="stage_history")  # noqa: F821
+    stage: Mapped[PipelineStage] = relationship(back_populates="history")
+    changer: Mapped[User | None] = relationship()  # noqa: F821

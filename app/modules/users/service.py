@@ -35,8 +35,9 @@ INVITATION_TTL_DAYS = 7
 
 
 class UserService(BaseService[UserRepository]):
-
-    async def list_by_company(self, company_id: uuid.UUID, role: UserRole | None = None) -> list[User]:
+    async def list_by_company(
+        self, company_id: uuid.UUID, role: UserRole | None = None
+    ) -> list[User]:
         return await self.repository.list_by_company(company_id, role)
 
     async def update_language(self, user: User, language: str) -> User:
@@ -106,7 +107,6 @@ class UserService(BaseService[UserRepository]):
 
 
 class InvitationService(BaseService[InvitationRepository]):
-
     def __init__(
         self,
         repository: InvitationRepository,
@@ -301,13 +301,19 @@ def _new_token() -> tuple[str, str, datetime]:
 def _set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
     secure = settings.is_production
     response.set_cookie(
-        "access_token", access_token,
-        httponly=True, secure=secure, samesite="lax",
+        "access_token",
+        access_token,
+        httponly=True,
+        secure=secure,
+        samesite="lax",
         max_age=access_token_cookie_max_age(),
     )
     response.set_cookie(
-        "refresh_token", refresh_token,
-        httponly=True, secure=secure, samesite="lax",
+        "refresh_token",
+        refresh_token,
+        httponly=True,
+        secure=secure,
+        samesite="lax",
         max_age=settings.refresh_token_expire_days * 86400,
         path="/api/v1/auth/refresh",
     )

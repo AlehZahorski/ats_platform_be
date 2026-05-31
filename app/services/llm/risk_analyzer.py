@@ -1,4 +1,5 @@
 """Organizational risk assessment for a job offer via Claude."""
+
 from __future__ import annotations
 
 from typing import Any

@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.base_repository import BaseRepository
 from app.modules.audit.models import AuditLog
+
 # Force-import the related models so SQLAlchemy can resolve the string-FK
 # relationships declared on AuditLog the moment this repository is loaded —
 # avoids "could not find class 'User'" under some import orders.
@@ -32,9 +33,7 @@ class AuditRepository(BaseRepository[AuditLog]):
         if entity_id:
             query = query.where(AuditLog.entity_id == entity_id)
 
-        count_result = await self.db.execute(
-            select(func.count()).select_from(query.subquery())
-        )
+        count_result = await self.db.execute(select(func.count()).select_from(query.subquery()))
         total = count_result.scalar_one()
 
         # audit_database P1/F-37: list view in the admin UI renders the actor
@@ -42,8 +41,7 @@ class AuditRepository(BaseRepository[AuditLog]):
         # per audit row. AuditLog now declares `user` / `company` relations
         # (see models.py) so selectinload avoids the N+1.
         result = await self.db.execute(
-            query
-            .options(
+            query.options(
                 selectinload(AuditLog.user),
                 selectinload(AuditLog.company),
             )

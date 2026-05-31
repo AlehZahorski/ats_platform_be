@@ -5,6 +5,7 @@ Refactored from the legacy ``app/services/llm_cv_parser.py``:
 - async + retry + validated by JobMatchResult   (F-04, F-06, F-07)
 - candidate profile and job offer wrapped in separate untrusted blocks (F-01)
 """
+
 from __future__ import annotations
 
 from typing import Any

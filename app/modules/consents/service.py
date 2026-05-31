@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 
@@ -21,7 +20,6 @@ from app.modules.consents.schemas import (
 
 
 class ConsentService(BaseService[ConsentRepository]):
-
     # ── CRUD ──────────────────────────────────────────────────────────────────
     async def create(self, company_id: uuid.UUID, data: ConsentCreate) -> Consent:
         return await self.repository.create(company_id, data)
@@ -30,7 +28,7 @@ class ConsentService(BaseService[ConsentRepository]):
         self,
         company_id: uuid.UUID,
         active_only: bool = False,
-        language: Optional[str] = None,
+        language: str | None = None,
     ) -> list[Consent]:
         return await self.repository.list_by_company(
             company_id, active_only=active_only, language=language
@@ -58,9 +56,7 @@ class ConsentService(BaseService[ConsentRepository]):
     ) -> ApplicationConsent:
         return await self.repository.record_consent(application_id, data)
 
-    async def get_application_consents(
-        self, application_id: uuid.UUID
-    ) -> list[ApplicationConsent]:
+    async def get_application_consents(self, application_id: uuid.UUID) -> list[ApplicationConsent]:
         return await self.repository.get_application_consents(application_id)
 
     # ── GDPR: data retention ──────────────────────────────────────────────────
@@ -100,14 +96,14 @@ class ConsentService(BaseService[ConsentRepository]):
         kept the LLM's `reasoning` which often contains the candidate's name.
         The cleanup covers all of those + the physical CV file on disk + the
         normalized lookup keys so the row can no longer be re-identified."""
+        from app.modules.application_events.models import ApplicationEvent
         from app.modules.applications.models import (
             Application,
             ApplicationAnswer,
-            CVParseJob,
             CandidateJobMatch,
             CandidateProfile,
+            CVParseJob,
         )
-        from app.modules.application_events.models import ApplicationEvent
         from app.modules.jobs.models import Job
         from app.modules.notes.models import Note
         from app.services.file_storage import file_storage
@@ -150,9 +146,7 @@ class ConsentService(BaseService[ConsentRepository]):
             (CandidateJobMatch, CandidateJobMatch.application_id),
             (ApplicationEvent, ApplicationEvent.application_id),
         ]:
-            await db.execute(
-                model.__table__.delete().where(where_col == application_id)
-            )
+            await db.execute(model.__table__.delete().where(where_col == application_id))
 
         await db.flush()
 
@@ -191,7 +185,7 @@ class ConsentService(BaseService[ConsentRepository]):
         from app.modules.jobs.models import Job
 
         db = self.repository.db
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         result = await db.execute(
             select(Application)
             .join(Job, Application.job_id == Job.id)

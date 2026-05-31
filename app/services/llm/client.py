@@ -9,6 +9,7 @@ Why explicit retry: the SDK has `max_retries` but does not back off on 529
 (overloaded). We layer `tenacity` for 429/529 + connection errors. Other
 errors propagate so the caller can decide.
 """
+
 from __future__ import annotations
 
 import logging

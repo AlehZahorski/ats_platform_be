@@ -16,7 +16,6 @@ from app.core.security import (
 from app.modules.admins.models import Admin
 from app.modules.admins.repository import AdminRepository
 
-
 # Distinct cookie names — admins coexist with recruiter (`access_token`)
 # and candidate (`candidate_access_token`) sessions in the same browser.
 ADMIN_ACCESS_COOKIE = "admin_access_token"

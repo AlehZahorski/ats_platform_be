@@ -4,10 +4,11 @@ Parses the `candidate_access_token` cookie (separate from the recruiter
 `access_token` cookie) and loads the matching Candidate row. Raises 401
 if missing/invalid.
 """
+
 from __future__ import annotations
 
 import uuid
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import Cookie, Depends, HTTPException, status
 from jose import JWTError
@@ -22,7 +23,7 @@ from app.modules.candidates.service import CANDIDATE_ACCESS_COOKIE
 
 async def get_current_candidate(
     db: AsyncSession = Depends(get_db),
-    candidate_access_token: Optional[str] = Cookie(default=None, alias=CANDIDATE_ACCESS_COOKIE),
+    candidate_access_token: str | None = Cookie(default=None, alias=CANDIDATE_ACCESS_COOKIE),
 ) -> Candidate:
     creds_exc = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -51,7 +52,7 @@ async def get_current_candidate(
 
 async def get_optional_candidate(
     db: AsyncSession = Depends(get_db),
-    candidate_access_token: Optional[str] = Cookie(default=None, alias=CANDIDATE_ACCESS_COOKIE),
+    candidate_access_token: str | None = Cookie(default=None, alias=CANDIDATE_ACCESS_COOKIE),
 ) -> Candidate | None:
     """Same as `get_current_candidate` but returns None instead of raising 401.
     Used by endpoints that work both logged-in (e.g. attribute search-log entries)
@@ -73,4 +74,4 @@ async def get_optional_candidate(
 
 
 CurrentCandidate = Annotated[Candidate, Depends(get_current_candidate)]
-OptionalCandidate = Annotated[Optional[Candidate], Depends(get_optional_candidate)]
+OptionalCandidate = Annotated[Candidate | None, Depends(get_optional_candidate)]

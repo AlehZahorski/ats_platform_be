@@ -45,11 +45,11 @@ class Task(BaseModel):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # relationships
-    company: Mapped["Company"] = relationship()  # noqa: F821
-    application: Mapped["Application | None"] = relationship()  # noqa: F821
-    assignee: Mapped["User | None"] = relationship(  # noqa: F821
+    company: Mapped[Company] = relationship()  # noqa: F821
+    application: Mapped[Application | None] = relationship()  # noqa: F821
+    assignee: Mapped[User | None] = relationship(  # noqa: F821
         foreign_keys=[assigned_to]
     )
-    creator: Mapped["User | None"] = relationship(  # noqa: F821
+    creator: Mapped[User | None] = relationship(  # noqa: F821
         foreign_keys=[created_by]
     )

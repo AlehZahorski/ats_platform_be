@@ -364,7 +364,7 @@ ARTICLES: list[dict] = [
     {
         "slug": "feedback-po-odrzuceniu",
         "title": "Jak prosić o feedback po odrzuceniu (i go dostać)",
-        "excerpt": "Większość firm milczy po „dziękujemy". Pokazujemy, jak skłonić ich do konkretu.",
+        "excerpt": "Większość firm milczy po „dziękujemy”. Pokazujemy, jak skłonić ich do konkretu.",
         "category": "rozmowy",
         "author_key": "EL",
         "read_time_minutes": 5,

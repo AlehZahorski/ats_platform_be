@@ -3,9 +3,10 @@
 Exercises AdminUsageService aggregation directly against seeded ApiUsageLog
 rows — no admin-auth plumbing needed for the aggregation logic itself.
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import delete
@@ -45,9 +46,33 @@ async def test_usage_report_aggregates_by_company(db_session):
     acme = await create_company(db_session, name="Acme")
     globex = await create_company(db_session, name="Globex")
 
-    await _add_log(db_session, company_id=acme.id, operation="cv_parsing", llm_model="claude-haiku-4-5", inp=100, out=50, cost=0.001)
-    await _add_log(db_session, company_id=acme.id, operation="job_match", llm_model="claude-sonnet-4-6", inp=200, out=80, cost=0.005)
-    await _add_log(db_session, company_id=globex.id, operation="cv_parsing", llm_model="claude-haiku-4-5", inp=300, out=120, cost=0.002)
+    await _add_log(
+        db_session,
+        company_id=acme.id,
+        operation="cv_parsing",
+        llm_model="claude-haiku-4-5",
+        inp=100,
+        out=50,
+        cost=0.001,
+    )
+    await _add_log(
+        db_session,
+        company_id=acme.id,
+        operation="job_match",
+        llm_model="claude-sonnet-4-6",
+        inp=200,
+        out=80,
+        cost=0.005,
+    )
+    await _add_log(
+        db_session,
+        company_id=globex.id,
+        operation="cv_parsing",
+        llm_model="claude-haiku-4-5",
+        inp=300,
+        out=120,
+        cost=0.002,
+    )
     await db_session.commit()
 
     report = await AdminUsageService(db_session).usage_report(days=None)
@@ -81,10 +106,28 @@ async def test_usage_report_aggregates_by_company(db_session):
 async def test_usage_report_respects_days_window(db_session):
     await _reset_usage(db_session)
     acme = await create_company(db_session, name="Acme Old")
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
-    await _add_log(db_session, company_id=acme.id, operation="cv_parsing", llm_model="m", inp=10, out=10, cost=0.001, when=now)
-    await _add_log(db_session, company_id=acme.id, operation="cv_parsing", llm_model="m", inp=10, out=10, cost=0.001, when=now - timedelta(days=40))
+    await _add_log(
+        db_session,
+        company_id=acme.id,
+        operation="cv_parsing",
+        llm_model="m",
+        inp=10,
+        out=10,
+        cost=0.001,
+        when=now,
+    )
+    await _add_log(
+        db_session,
+        company_id=acme.id,
+        operation="cv_parsing",
+        llm_model="m",
+        inp=10,
+        out=10,
+        cost=0.001,
+        when=now - timedelta(days=40),
+    )
     await db_session.commit()
 
     # 30-day window excludes the 40-day-old row.

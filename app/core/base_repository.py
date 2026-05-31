@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Generic, TypeVar
+from typing import TypeVar
 from uuid import UUID
 
 from sqlalchemy import select
@@ -11,7 +11,7 @@ from app.models.base import BaseModel
 ModelT = TypeVar("ModelT", bound=BaseModel)
 
 
-class BaseRepository(Generic[ModelT]):
+class BaseRepository[ModelT: BaseModel]:
     """Generic repository providing common CRUD operations for any ORM model.
 
     Subclasses must define the `model` class attribute:
@@ -26,9 +26,7 @@ class BaseRepository(Generic[ModelT]):
         self.db = db
 
     async def get_by_id(self, id: UUID) -> ModelT | None:
-        result = await self.db.execute(
-            select(self.model).where(self.model.id == id)
-        )
+        result = await self.db.execute(select(self.model).where(self.model.id == id))
         return result.scalar_one_or_none()
 
     async def save(self, instance: ModelT) -> ModelT:

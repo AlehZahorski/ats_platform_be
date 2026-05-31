@@ -17,7 +17,9 @@ def _get_service(db: AsyncSession = Depends(get_db)) -> InterviewService:
     return InterviewService(InterviewRepository(db), AuditService(db))
 
 
-@router.post("/applications/{application_id}/interviews", response_model=InterviewRead, status_code=201)
+@router.post(
+    "/applications/{application_id}/interviews", response_model=InterviewRead, status_code=201
+)
 async def schedule_interview(
     application_id: uuid.UUID,
     data: InterviewCreate,

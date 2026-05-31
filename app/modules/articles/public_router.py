@@ -4,9 +4,10 @@ Mirrors the company public router pattern: separate file so the route
 prefix can stay plural (`/articles`) while any future authenticated
 admin endpoints live in their own router.
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, Query
@@ -33,15 +34,21 @@ router = APIRouter()
 # Articles — list / featured / categories / detail
 # ─────────────────────────────────────────────────────────────────────
 
+
 @router.get("/public", response_model=ArticleList)
 async def list_public_articles(
-    q:        str | None = Query(None, min_length=1),
+    q: str | None = Query(None, min_length=1),
     category: str | None = Query(None),
-    type:     str        = Query("editorial", pattern="^(editorial|company|all)$", description="Filter by article flavour."),
-    sort:     str        = Query("newest", pattern="^(newest|oldest)$"),
-    skip:     int        = Query(0, ge=0),
-    limit:    int        = Query(12, ge=1, le=60),
-    exclude_featured: bool = Query(False, description="Skip articles flagged as featured — used by the grid below the hero card."),
+    type: str = Query(
+        "editorial", pattern="^(editorial|company|all)$", description="Filter by article flavour."
+    ),
+    sort: str = Query("newest", pattern="^(newest|oldest)$"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(12, ge=1, le=60),
+    exclude_featured: bool = Query(
+        False,
+        description="Skip articles flagged as featured — used by the grid below the hero card.",
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     base = select(Article).where(Article.is_published.is_(True))
@@ -50,7 +57,7 @@ async def list_public_articles(
     # company articles — that's how brand content earns its slot. The
     # /firmy-pisza view (type=company) shows ALL published company posts
     # regardless of promotion (the brand section is their home).
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if type == "editorial":
         base = base.where(
             or_(
@@ -112,12 +119,11 @@ async def list_categories(
     the top of /poradnik and /firmy-pisza. For 'editorial' we include
     actively-promoted company articles so the chip counts match what the
     user actually sees in the grid below."""
-    stmt = (
-        select(Article.category, func.count(Article.id).label("count"))
-        .where(Article.is_published.is_(True))
+    stmt = select(Article.category, func.count(Article.id).label("count")).where(
+        Article.is_published.is_(True)
     )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if type == "editorial":
         stmt = stmt.where(
             or_(
@@ -132,17 +138,19 @@ async def list_categories(
     elif type == "company":
         stmt = stmt.where(Article.type == "company")
 
-    rows = (await db.execute(
-        stmt.group_by(Article.category).order_by(func.count(Article.id).desc())
-    )).all()
+    rows = (
+        await db.execute(stmt.group_by(Article.category).order_by(func.count(Article.id).desc()))
+    ).all()
     return [{"category": row.category, "count": row.count} for row in rows]
 
 
 @router.get("/public/{slug}", response_model=ArticleDetail)
 async def get_public_article(slug: str, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
-    article = (await db.execute(
-        select(Article).where(Article.slug == slug, Article.is_published.is_(True))
-    )).scalar_one_or_none()
+    article = (
+        await db.execute(
+            select(Article).where(Article.slug == slug, Article.is_published.is_(True))
+        )
+    ).scalar_one_or_none()
     if not article:
         raise NotFoundError("Artykuł nie został znaleziony.")
     return _detail(article)
@@ -152,6 +160,7 @@ async def get_public_article(slug: str, db: AsyncSession = Depends(get_db)) -> d
 # Newsletter — collect an email, no sending pipeline yet.
 # ─────────────────────────────────────────────────────────────────────
 
+
 @router.post("/newsletter/subscribe", response_model=NewsletterSubscribeResponse, status_code=201)
 async def newsletter_subscribe(
     data: NewsletterSubscribeRequest,
@@ -159,14 +168,16 @@ async def newsletter_subscribe(
 ) -> NewsletterSubscribeResponse:
     email_norm = data.email.strip().lower()
 
-    existing = (await db.execute(
-        select(NewsletterSubscriber).where(NewsletterSubscriber.email == email_norm)
-    )).scalar_one_or_none()
+    existing = (
+        await db.execute(
+            select(NewsletterSubscriber).where(NewsletterSubscriber.email == email_norm)
+        )
+    ).scalar_one_or_none()
 
     if existing:
         # Idempotent re-subscribe: bump the timestamp + clear any prior
         # unsubscribe so the user lands back on the list, then return.
-        existing.subscribed_at = datetime.now(timezone.utc)
+        existing.subscribed_at = datetime.now(UTC)
         existing.unsubscribed_at = None
         if data.source and not existing.source:
             existing.source = data.source
@@ -181,7 +192,7 @@ async def newsletter_subscribe(
     sub = NewsletterSubscriber(
         email=email_norm,
         source=data.source,
-        subscribed_at=datetime.now(timezone.utc),
+        subscribed_at=datetime.now(UTC),
     )
     db.add(sub)
     await db.flush()
@@ -197,6 +208,7 @@ async def newsletter_subscribe(
 # Response shaping
 # ─────────────────────────────────────────────────────────────────────
 
+
 def _author(a: Article) -> ArticleAuthor:
     return ArticleAuthor(name=a.author_name, role=a.author_role, avatar_url=a.author_avatar_url)
 
@@ -209,10 +221,10 @@ def _brand_company(a: Article) -> dict[str, Any] | None:
         return None
     c = a.company
     return {
-        "id":          c.id,
-        "slug":        c.slug,
-        "name":        c.name,
-        "logo_url":    c.logo_url,
+        "id": c.id,
+        "slug": c.slug,
+        "name": c.name,
+        "logo_url": c.logo_url,
         "is_verified": c.is_verified,
     }
 

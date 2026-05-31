@@ -20,8 +20,20 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 # ── bootstrap path so we can import app modules ──────────────────────────────
 sys.path.insert(0, ".")
+import app.modules.application_events.models  # noqa: F401
+import app.modules.automation.models  # noqa: F401
+import app.modules.consents.models  # noqa: F401
+import app.modules.email_templates.models  # noqa: F401
+import app.modules.interviews.models  # noqa: F401
+
+# Side-effect imports — register all remaining models with SQLAlchemy so
+# relationships (e.g. Job → JobAnalysis) can be resolved during mapper init.
+import app.modules.jobs.analysis_models  # noqa: F401
+import app.modules.reviews.models  # noqa: F401
+import app.modules.tasks.models  # noqa: F401
 from app.core.config import settings
 from app.core.security import generate_public_token, hash_password
+from app.modules.applications.duplicate_service import normalize_email, normalize_phone
 
 # ── models ───────────────────────────────────────────────────────────────────
 from app.modules.applications.models import (
@@ -33,7 +45,6 @@ from app.modules.applications.models import (
     CandidateScore,
     CVParseJob,
 )
-from app.modules.applications.duplicate_service import normalize_email, normalize_phone
 from app.modules.audit.models import AuditLog
 from app.modules.companies.models import Company
 from app.modules.forms.models import FormField, FormTemplate
@@ -43,28 +54,17 @@ from app.modules.pipeline.models import ApplicationStageHistory, PipelineStage
 from app.modules.tags.models import ApplicationTag, Tag
 from app.modules.users.models import User
 
-# Side-effect imports — register all remaining models with SQLAlchemy so
-# relationships (e.g. Job → JobAnalysis) can be resolved during mapper init.
-import app.modules.jobs.analysis_models           # noqa: F401
-import app.modules.email_templates.models         # noqa: F401
-import app.modules.automation.models              # noqa: F401
-import app.modules.interviews.models              # noqa: F401
-import app.modules.tasks.models                   # noqa: F401
-import app.modules.consents.models                # noqa: F401
-import app.modules.application_events.models      # noqa: F401
-import app.modules.reviews.models                 # noqa: F401
-
 # ═════════════════════════════════════════════════════════════════════════════
 # Seed data definitions
 # ═════════════════════════════════════════════════════════════════════════════
 
 PIPELINE_STAGES = [
-    ("Applied",   1),
+    ("Applied", 1),
     ("Screening", 2),
     ("Interview", 3),
-    ("Offer",     4),
-    ("Hired",     5),
-    ("Rejected",  6),
+    ("Offer", 4),
+    ("Hired", 5),
+    ("Rejected", 6),
 ]
 
 COMPANIES = [
@@ -73,44 +73,78 @@ COMPANIES = [
 
 USERS = [
     # (company_index, email, password, role)
-    (0, "owner@wakanta.pl",      "Password123!", "owner"),
-    (0, "recruiter@wakanta.pl",  "Password123!", "recruiter"),
+    (0, "owner@wakanta.pl", "Password123!", "owner"),
+    (0, "recruiter@wakanta.pl", "Password123!", "recruiter"),
     (0, "recruiter2@wakanta.pl", "Password123!", "recruiter"),
-    (0, "manager@wakanta.pl",    "Password123!", "manager"),
-    (0, "manager2@wakanta.pl",   "Password123!", "manager"),
+    (0, "manager@wakanta.pl", "Password123!", "manager"),
+    (0, "manager2@wakanta.pl", "Password123!", "manager"),
 ]
 
 JOBS = [
     # (company_index, title, department, location, status, description)
-    (0, "Senior Backend Engineer",    "Engineering",  "Warsaw, Poland",   "open",
-     "We are looking for a senior Python/FastAPI developer to join our growing team."),
-    (0, "Frontend Developer (React)", "Engineering",  "Remote",           "open",
-     "Build beautiful, performant UIs with React and TypeScript."),
-    (0, "Product Manager",            "Product",      "Warsaw, Poland",   "open",
-     "Drive product strategy and work closely with engineering teams."),
-    (0, "UX Designer",                "Design",       "Krakow, Poland",   "draft",
-     "Create intuitive user experiences for our SaaS products."),
-    (0, "DevOps Engineer",            "Infrastructure","Remote",          "closed",
-     "Manage our cloud infrastructure on AWS with Terraform and Kubernetes."),
+    (
+        0,
+        "Senior Backend Engineer",
+        "Engineering",
+        "Warsaw, Poland",
+        "open",
+        "We are looking for a senior Python/FastAPI developer to join our growing team.",
+    ),
+    (
+        0,
+        "Frontend Developer (React)",
+        "Engineering",
+        "Remote",
+        "open",
+        "Build beautiful, performant UIs with React and TypeScript.",
+    ),
+    (
+        0,
+        "Product Manager",
+        "Product",
+        "Warsaw, Poland",
+        "open",
+        "Drive product strategy and work closely with engineering teams.",
+    ),
+    (
+        0,
+        "UX Designer",
+        "Design",
+        "Krakow, Poland",
+        "draft",
+        "Create intuitive user experiences for our SaaS products.",
+    ),
+    (
+        0,
+        "DevOps Engineer",
+        "Infrastructure",
+        "Remote",
+        "closed",
+        "Manage our cloud infrastructure on AWS with Terraform and Kubernetes.",
+    ),
 ]
 
 TAGS = [
     # (company_index, name)
-    (0, "python"),    (0, "react"),     (0, "senior"),
-    (0, "remote"),    (0, "recommended"),(0, "fast-learner"),
+    (0, "python"),
+    (0, "react"),
+    (0, "senior"),
+    (0, "remote"),
+    (0, "recommended"),
+    (0, "fast-learner"),
 ]
 
 CANDIDATES = [
-    ("Jan",      "Kowalski",   "jan.kowalski@example.com",   "+48 600 100 200"),
-    ("Anna",     "Nowak",      "anna.nowak@example.com",     "+48 601 200 300"),
-    ("Piotr",    "Wiśniewski", "piotr.w@example.com",        "+48 602 300 400"),
-    ("Katarzyna","Wójcik",     "kasia.wojcik@example.com",   "+48 603 400 500"),
-    ("Michał",   "Kamiński",   "michal.k@example.com",       "+48 604 500 600"),
-    ("Agnieszka","Lewandowska","agnieszka.l@example.com",    "+48 605 600 700"),
-    ("Tomasz",   "Zieliński",  "tomasz.z@example.com",       "+48 606 700 800"),
-    ("Marta",    "Szymańska",  "marta.sz@example.com",       "+48 607 800 900"),
-    ("Łukasz",   "Woźniak",    "lukasz.w@example.com",       None),
-    ("Zofia",    "Dąbrowska",  "zofia.d@example.com",        "+48 609 000 100"),
+    ("Jan", "Kowalski", "jan.kowalski@example.com", "+48 600 100 200"),
+    ("Anna", "Nowak", "anna.nowak@example.com", "+48 601 200 300"),
+    ("Piotr", "Wiśniewski", "piotr.w@example.com", "+48 602 300 400"),
+    ("Katarzyna", "Wójcik", "kasia.wojcik@example.com", "+48 603 400 500"),
+    ("Michał", "Kamiński", "michal.k@example.com", "+48 604 500 600"),
+    ("Agnieszka", "Lewandowska", "agnieszka.l@example.com", "+48 605 600 700"),
+    ("Tomasz", "Zieliński", "tomasz.z@example.com", "+48 606 700 800"),
+    ("Marta", "Szymańska", "marta.sz@example.com", "+48 607 800 900"),
+    ("Łukasz", "Woźniak", "lukasz.w@example.com", None),
+    ("Zofia", "Dąbrowska", "zofia.d@example.com", "+48 609 000 100"),
 ]
 
 NOTES_CONTENT = [
@@ -126,19 +160,24 @@ NOTES_CONTENT = [
 
 FORM_FIELDS = [
     {"label": "Years of experience", "field_type": "number", "required": True},
-    {"label": "Current company",     "field_type": "text",   "required": False},
-    {"label": "Notice period",       "field_type": "select", "required": True,
-     "options": ["Immediately", "2 weeks", "1 month", "3 months"]},
-    {"label": "Cover letter",        "field_type": "textarea","required": False},
+    {"label": "Current company", "field_type": "text", "required": False},
+    {
+        "label": "Notice period",
+        "field_type": "select",
+        "required": True,
+        "options": ["Immediately", "2 weeks", "1 month", "3 months"],
+    },
+    {"label": "Cover letter", "field_type": "textarea", "required": False},
     {"label": "Expected salary (PLN/month)", "field_type": "number", "required": True},
-    {"label": "LinkedIn profile",    "field_type": "text",   "required": False},
-    {"label": "Available for remote","field_type": "checkbox","required": False},
+    {"label": "LinkedIn profile", "field_type": "text", "required": False},
+    {"label": "Available for remote", "field_type": "checkbox", "required": False},
 ]
 
 
 # ═════════════════════════════════════════════════════════════════════════════
 # Seeder
 # ═════════════════════════════════════════════════════════════════════════════
+
 
 class Seeder:
     def __init__(self, session: AsyncSession):
@@ -176,11 +215,22 @@ class Seeder:
     async def _truncate_all(self):
         print("🗑  Truncating all tables...")
         tables = [
-            "audit_logs", "application_tags", "candidate_scores",
-            "application_stage_history", "application_answers", "notes",
-            "applications", "job_form_templates", "form_fields",
-            "form_templates", "tags", "refresh_tokens", "jobs",
-            "users", "companies", "pipeline_stages",
+            "audit_logs",
+            "application_tags",
+            "candidate_scores",
+            "application_stage_history",
+            "application_answers",
+            "notes",
+            "applications",
+            "job_form_templates",
+            "form_fields",
+            "form_templates",
+            "tags",
+            "refresh_tokens",
+            "jobs",
+            "users",
+            "companies",
+            "pipeline_stages",
         ]
         for table in tables:
             await self.db.execute(text(f'TRUNCATE TABLE "{table}" CASCADE'))
@@ -196,7 +246,9 @@ class Seeder:
         count = result.scalar()
         if count and count > 0:
             print(f"⏭  Pipeline stages already exist ({count}), skipping.")
-            result2 = await self.db.execute(text("SELECT id, name, order_index FROM pipeline_stages ORDER BY order_index"))
+            result2 = await self.db.execute(
+                text("SELECT id, name, order_index FROM pipeline_stages ORDER BY order_index")
+            )
             rows = result2.fetchall()
             for row in rows:
                 stage = PipelineStage()
@@ -303,8 +355,7 @@ class Seeder:
 
             # Link form template
             template = next(
-                (t for t in self.templates if t.company_id == self.companies[company_idx].id),
-                None
+                (t for t in self.templates if t.company_id == self.companies[company_idx].id), None
             )
             if template:
                 link = JobFormTemplate(job_id=job.id, template_id=template.id)
@@ -331,8 +382,16 @@ class Seeder:
 
         # Distribute candidates across open jobs with varying stages
         stage_progression = [
-            "Applied", "Screening", "Interview", "Offer", "Hired",
-            "Rejected", "Applied", "Screening", "Interview", "Applied",
+            "Applied",
+            "Screening",
+            "Interview",
+            "Offer",
+            "Hired",
+            "Rejected",
+            "Applied",
+            "Screening",
+            "Interview",
+            "Applied",
         ]
 
         for i, (first, last, email, phone) in enumerate(CANDIDATES):
@@ -342,8 +401,7 @@ class Seeder:
 
             # Find the recruiter for this company
             recruiter = next(
-                (u for u in acme_users if u.role in ("owner", "recruiter")),
-                acme_users[0]
+                (u for u in acme_users if u.role in ("owner", "recruiter")), acme_users[0]
             )
 
             app = Application(
@@ -432,7 +490,9 @@ class Seeder:
     async def _seed_llm_data(self):
         print("🌱 Seeding LLM enrichment data...")
 
-        result = await self.db.execute(text("SELECT id, job_id FROM applications ORDER BY created_at LIMIT 10"))
+        result = await self.db.execute(
+            text("SELECT id, job_id FROM applications ORDER BY created_at LIMIT 10")
+        )
         applications = result.fetchall()
         if not applications:
             print("   No applications found, skipping LLM data.")
@@ -446,17 +506,42 @@ class Seeder:
                 "location": "Warszawa, Polska",
                 "linkedin_url": "https://linkedin.com/in/jan-kowalski",
                 "github_url": "https://github.com/jankowalski",
-                "technical_skills": [{"name": "Python", "level": "expert"}, {"name": "FastAPI", "level": "advanced"}, {"name": "PostgreSQL", "level": "advanced"}, {"name": "Docker", "level": "intermediate"}, {"name": "AWS", "level": "intermediate"}],
-                "soft_skills": [{"name": "Komunikacja"}, {"name": "Mentoring"}, {"name": "Problem solving"}],
-                "languages": [{"name": "Polish", "level": "native"}, {"name": "English", "level": "B2"}],
-                "certifications": [{"name": "AWS Solutions Architect", "issuer": "Amazon", "year": 2023}],
+                "technical_skills": [
+                    {"name": "Python", "level": "expert"},
+                    {"name": "FastAPI", "level": "advanced"},
+                    {"name": "PostgreSQL", "level": "advanced"},
+                    {"name": "Docker", "level": "intermediate"},
+                    {"name": "AWS", "level": "intermediate"},
+                ],
+                "soft_skills": [
+                    {"name": "Komunikacja"},
+                    {"name": "Mentoring"},
+                    {"name": "Problem solving"},
+                ],
+                "languages": [
+                    {"name": "Polish", "level": "native"},
+                    {"name": "English", "level": "B2"},
+                ],
+                "certifications": [
+                    {"name": "AWS Solutions Architect", "issuer": "Amazon", "year": 2023}
+                ],
                 "hobbies": ["open source", "wspinaczka", "fotografia"],
                 "volunteering": ["CoderDojo mentor 2022-2023"],
                 "total_experience_years": 6.5,
                 "seniority_estimate": "senior",
-                "strengths": ["Głęboka wiedza backendowa", "Silne poczucie ownership", "Dobry mentor"],
+                "strengths": [
+                    "Głęboka wiedza backendowa",
+                    "Silne poczucie ownership",
+                    "Dobry mentor",
+                ],
                 "red_flags": [],
-                "personality_signals": {"team_player": True, "team_player_reason": "Aktywnie mentoruje juniorów i uczestniczy w code review", "leadership_indicators": "Prowadził zespół 4 developerów przez 2 lata", "growth_mindset": "Regularnie zdobywa certyfikaty, prowadzi projekty open source", "communication_style": "techniczny i precyzyjny"},
+                "personality_signals": {
+                    "team_player": True,
+                    "team_player_reason": "Aktywnie mentoruje juniorów i uczestniczy w code review",
+                    "leadership_indicators": "Prowadził zespół 4 developerów przez 2 lata",
+                    "growth_mindset": "Regularnie zdobywa certyfikaty, prowadzi projekty open source",
+                    "communication_style": "techniczny i precyzyjny",
+                },
                 "culture_fit_notes": "Kandydat wykazuje silne zaangażowanie w społeczność tech. Hobby (wspinaczka) sugeruje determinację i odporność na trudności. Wolontariat w CoderDojo wskazuje na chęć dzielenia się wiedzą.",
             },
             {
@@ -466,17 +551,40 @@ class Seeder:
                 "location": "Kraków, Polska",
                 "linkedin_url": "https://linkedin.com/in/anna-nowak-dev",
                 "github_url": "",
-                "technical_skills": [{"name": "React", "level": "advanced"}, {"name": "TypeScript", "level": "advanced"}, {"name": "CSS/Tailwind", "level": "expert"}, {"name": "Next.js", "level": "intermediate"}],
-                "soft_skills": [{"name": "Kreatywność"}, {"name": "Empatia"}, {"name": "Dokładność"}],
-                "languages": [{"name": "Polish", "level": "native"}, {"name": "English", "level": "C1"}, {"name": "German", "level": "A2"}],
+                "technical_skills": [
+                    {"name": "React", "level": "advanced"},
+                    {"name": "TypeScript", "level": "advanced"},
+                    {"name": "CSS/Tailwind", "level": "expert"},
+                    {"name": "Next.js", "level": "intermediate"},
+                ],
+                "soft_skills": [
+                    {"name": "Kreatywność"},
+                    {"name": "Empatia"},
+                    {"name": "Dokładność"},
+                ],
+                "languages": [
+                    {"name": "Polish", "level": "native"},
+                    {"name": "English", "level": "C1"},
+                    {"name": "German", "level": "A2"},
+                ],
                 "certifications": [],
                 "hobbies": ["malarstwo", "bieganie", "podcasts o designie"],
                 "volunteering": [],
                 "total_experience_years": 4.0,
                 "seniority_estimate": "mid",
-                "strengths": ["Silne wyczucie UX", "Dbałość o dostępność (a11y)", "Szybkie prototypowanie"],
+                "strengths": [
+                    "Silne wyczucie UX",
+                    "Dbałość o dostępność (a11y)",
+                    "Szybkie prototypowanie",
+                ],
                 "red_flags": ["Krótki staż w ostatniej firmie (8 miesięcy)"],
-                "personality_signals": {"team_player": True, "team_player_reason": "Wymienia liczne projekty grupowe i cross-functional collaboration", "leadership_indicators": "Brak wyraźnych wskaźników przywódczych", "growth_mindset": "Aktywnie śledzi trendy designu, uczy się nowych narzędzi", "communication_style": "otwarty i empatyczny"},
+                "personality_signals": {
+                    "team_player": True,
+                    "team_player_reason": "Wymienia liczne projekty grupowe i cross-functional collaboration",
+                    "leadership_indicators": "Brak wyraźnych wskaźników przywódczych",
+                    "growth_mindset": "Aktywnie śledzi trendy designu, uczy się nowych narzędzi",
+                    "communication_style": "otwarty i empatyczny",
+                },
                 "culture_fit_notes": "Kandydatka wydaje się być osobą kreatywną i zorientowaną na jakość. Zainteresowanie malarstwem i designem sugeruje estetyczną wrażliwość. Dobra do zespołów dbających o product design.",
             },
             {
@@ -502,7 +610,7 @@ class Seeder:
         ]
 
         created_profiles = []
-        for i, (app_id, job_id) in enumerate(applications[:len(llm_profiles)]):
+        for i, (app_id, job_id) in enumerate(applications[: len(llm_profiles)]):
             profile_data = llm_profiles[i % len(llm_profiles)]
 
             parse_job = CVParseJob(
@@ -510,8 +618,12 @@ class Seeder:
                 cv_url=f"uploads/cv/seed_{i}.pdf",
                 status="completed",
                 parser_version=profile_data["parser_version"],
-                llm_model="claude-haiku-4-5-20251001" if profile_data["parser_version"] == "v2-llm" else None,
-                token_usage={"input_tokens": 1200, "output_tokens": 800, "total_tokens": 2000} if profile_data["parser_version"] == "v2-llm" else None,
+                llm_model="claude-haiku-4-5-20251001"
+                if profile_data["parser_version"] == "v2-llm"
+                else None,
+                token_usage={"input_tokens": 1200, "output_tokens": 800, "total_tokens": 2000}
+                if profile_data["parser_version"] == "v2-llm"
+                else None,
                 raw_text="[seed text]",
                 normalized_result={"first_name": "Seed", "last_name": "User"},
                 started_at=datetime.now(UTC) - timedelta(hours=2),
@@ -524,8 +636,22 @@ class Seeder:
                 headline="Software Engineer" if i % 2 == 0 else "Frontend Developer",
                 summary="Experienced developer with strong problem-solving skills.",
                 skills=[{"name": "Python"}, {"name": "JavaScript"}],
-                experience=[{"title": "Senior Dev", "company": "Acme Corp", "date_range": "2020-present", "description": "Backend development"}],
-                education=[{"school": "Politechnika Warszawska", "degree": "Informatyka", "date_range": "2015-2020", "description": None}],
+                experience=[
+                    {
+                        "title": "Senior Dev",
+                        "company": "Acme Corp",
+                        "date_range": "2020-present",
+                        "description": "Backend development",
+                    }
+                ],
+                education=[
+                    {
+                        "school": "Politechnika Warszawska",
+                        "degree": "Informatyka",
+                        "date_range": "2015-2020",
+                        "description": None,
+                    }
+                ],
                 parsing_status="completed",
                 **{k: v for k, v in profile_data.items() if k != "parser_version"},
                 parser_version=profile_data["parser_version"],
@@ -536,11 +662,36 @@ class Seeder:
 
         # Seed job matches for v2-llm profiles
         match_data = [
-            {"match_score": 87, "fit_score": 82, "recommendation": "top_candidate", "reasoning": "Kandydat spełnia wszystkie wymagania techniczne i wykazuje silne dopasowanie kulturowe. Doświadczenie w architekturze mikrousług jest dokładnie tym czego szukamy.", "strengths_match": ["6+ lat Python — spełnia senior requirement", "AWS certyfikacja — kluczowe dla naszego stacku", "Doświadczenie mentorskie — ważne dla rozwoju zespołu"], "gaps": ["Brak doświadczenia z Kubernetes (nice-to-have)"]},
-            {"match_score": 72, "fit_score": 90, "recommendation": "consider", "reasoning": "Bardzo dobre dopasowanie kulturowe i silne umiejętności frontendowe. Brak doświadczenia z Next.js może wymagać onboardingu, ale kandydatka szybko się uczy.", "strengths_match": ["React + TypeScript na poziomie advanced", "Silne wyczucie UX — cenne w naszym produkcie", "Znajomość angielskiego na C1"], "gaps": ["Next.js tylko na poziomie intermediate", "Krótki staż w poprzedniej firmie wymaga wyjaśnienia"]},
+            {
+                "match_score": 87,
+                "fit_score": 82,
+                "recommendation": "top_candidate",
+                "reasoning": "Kandydat spełnia wszystkie wymagania techniczne i wykazuje silne dopasowanie kulturowe. Doświadczenie w architekturze mikrousług jest dokładnie tym czego szukamy.",
+                "strengths_match": [
+                    "6+ lat Python — spełnia senior requirement",
+                    "AWS certyfikacja — kluczowe dla naszego stacku",
+                    "Doświadczenie mentorskie — ważne dla rozwoju zespołu",
+                ],
+                "gaps": ["Brak doświadczenia z Kubernetes (nice-to-have)"],
+            },
+            {
+                "match_score": 72,
+                "fit_score": 90,
+                "recommendation": "consider",
+                "reasoning": "Bardzo dobre dopasowanie kulturowe i silne umiejętności frontendowe. Brak doświadczenia z Next.js może wymagać onboardingu, ale kandydatka szybko się uczy.",
+                "strengths_match": [
+                    "React + TypeScript na poziomie advanced",
+                    "Silne wyczucie UX — cenne w naszym produkcie",
+                    "Znajomość angielskiego na C1",
+                ],
+                "gaps": [
+                    "Next.js tylko na poziomie intermediate",
+                    "Krótki staż w poprzedniej firmie wymaga wyjaśnienia",
+                ],
+            },
         ]
 
-        for i, (profile, job_id) in enumerate(created_profiles[:len(match_data)]):
+        for i, (profile, job_id) in enumerate(created_profiles[: len(match_data)]):
             md = match_data[i]
             match = CandidateJobMatch(
                 application_id=profile.application_id,
@@ -579,7 +730,9 @@ class Seeder:
                 self.db.add(log)
 
         await self.db.flush()
-        print(f"   Created {len(created_profiles)} candidate profiles, {len(match_data)} job matches, 5 API usage logs.")
+        print(
+            f"   Created {len(created_profiles)} candidate profiles, {len(match_data)} job matches, 5 API usage logs."
+        )
 
     async def _get_first_field(self, job_id: uuid.UUID):
         """Get first form field for a job's template."""
@@ -591,7 +744,7 @@ class Seeder:
                 ORDER BY ff.order_index
                 LIMIT 1
             """),
-            {"job_id": job_id}
+            {"job_id": job_id},
         )
         row = result.fetchone()
         return row[0] if row else None
@@ -609,6 +762,7 @@ class Seeder:
 # ═════════════════════════════════════════════════════════════════════════════
 # Entry point
 # ═════════════════════════════════════════════════════════════════════════════
+
 
 async def main():
     fresh = "--fresh" in sys.argv

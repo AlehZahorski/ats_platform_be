@@ -1,11 +1,11 @@
 """
 Pytest configuration and shared test fixtures.
 """
+
 from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncGenerator
-from typing import Any
 
 import pytest
 import pytest_asyncio
@@ -16,6 +16,7 @@ from sqlalchemy.ext.compiler import compiles
 
 from app.core.database import Base, get_db
 from app.main import app
+
 
 # ---------------------------------------------------------------------------
 # Postgres JSONB on SQLite — models use the PG-specific JSONB type, but the
@@ -35,9 +36,7 @@ def _compile_jsonb_as_json_on_sqlite(type_, compiler, **kw):  # noqa: ANN001
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 
 test_engine = create_async_engine(TEST_DB_URL, echo=False)
-TestSessionLocal = async_sessionmaker(
-    bind=test_engine, class_=AsyncSession, expire_on_commit=False
-)
+TestSessionLocal = async_sessionmaker(bind=test_engine, class_=AsyncSession, expire_on_commit=False)
 
 
 @pytest.fixture(scope="session")
@@ -99,9 +98,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
     app.dependency_overrides[get_db] = override_get_db
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
 
     app.dependency_overrides.clear()

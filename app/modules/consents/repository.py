@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -37,7 +36,7 @@ class ConsentRepository(BaseRepository[Consent]):
         self,
         company_id: uuid.UUID,
         active_only: bool = False,
-        language: Optional[str] = None,
+        language: str | None = None,
     ) -> list[Consent]:
         query = select(Consent).where(Consent.company_id == company_id)
         if active_only:
@@ -81,9 +80,7 @@ class ConsentRepository(BaseRepository[Consent]):
         await self.db.flush()
         return record
 
-    async def get_application_consents(
-        self, application_id: uuid.UUID
-    ) -> list[ApplicationConsent]:
+    async def get_application_consents(self, application_id: uuid.UUID) -> list[ApplicationConsent]:
         result = await self.db.execute(
             select(ApplicationConsent)
             .where(ApplicationConsent.application_id == application_id)

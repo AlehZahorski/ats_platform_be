@@ -1,5 +1,4 @@
 import uuid
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,8 +23,8 @@ def _get_repository(db: AsyncSession = Depends(get_db)) -> AuditRepository:
 async def list_audit_logs(
     company: CurrentCompany,
     _user: CurrentUser,
-    entity_type: Optional[str] = Query(None),
-    entity_id: Optional[uuid.UUID] = Query(None),
+    entity_type: str | None = Query(None),
+    entity_id: uuid.UUID | None = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     repository: AuditRepository = Depends(_get_repository),

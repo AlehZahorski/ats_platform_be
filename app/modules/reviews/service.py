@@ -26,15 +26,29 @@ def _default_template() -> ScorecardTemplateCreate:
         name="Default Hiring Manager Scorecard",
         description=t("reviews.default_scorecard_description"),
         criteria=[
-            {"label": t("reviews.criterion.role_fit.label"), "description": t("reviews.criterion.role_fit.description"), "order_index": 0, "max_score": 5},
-            {"label": t("reviews.criterion.technical_strength.label"), "description": t("reviews.criterion.technical_strength.description"), "order_index": 1, "max_score": 5},
-            {"label": t("reviews.criterion.team_collaboration.label"), "description": t("reviews.criterion.team_collaboration.description"), "order_index": 2, "max_score": 5},
+            {
+                "label": t("reviews.criterion.role_fit.label"),
+                "description": t("reviews.criterion.role_fit.description"),
+                "order_index": 0,
+                "max_score": 5,
+            },
+            {
+                "label": t("reviews.criterion.technical_strength.label"),
+                "description": t("reviews.criterion.technical_strength.description"),
+                "order_index": 1,
+                "max_score": 5,
+            },
+            {
+                "label": t("reviews.criterion.team_collaboration.label"),
+                "description": t("reviews.criterion.team_collaboration.description"),
+                "order_index": 2,
+                "max_score": 5,
+            },
         ],
     )
 
 
 class ReviewsService(BaseService[ReviewsRepository]):
-
     async def list_templates(self, company_id: uuid.UUID) -> list[ScorecardTemplate]:
         templates = await self.repository.list_templates(company_id)
         if templates:
@@ -104,7 +118,11 @@ class ReviewsService(BaseService[ReviewsRepository]):
                 raise UnprocessableError(t("reviews.duplicate_criterion"))
             if response.score > criterion.max_score:
                 raise UnprocessableError(
-                    t("reviews.score_exceeds_max", label=criterion.label, max_score=criterion.max_score)
+                    t(
+                        "reviews.score_exceeds_max",
+                        label=criterion.label,
+                        max_score=criterion.max_score,
+                    )
                 )
             seen.add(response.criterion_id)
             payload.append(response.model_dump())

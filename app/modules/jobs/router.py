@@ -5,11 +5,12 @@ Each endpoint:
 2. Delegates to JobService for any logic
 3. Returns the serialized response
 """
+
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from sqlalchemy import func, select
@@ -52,6 +53,7 @@ router = APIRouter()
 # Dependency helpers
 # ───────────────────────────────────────────────────────────────────────────
 
+
 def _get_service(db: AsyncSession = Depends(get_db)) -> JobService:
     return JobService(JobRepository(db))
 
@@ -70,7 +72,9 @@ async def _get_owned_risk_item(service: JobService, job: Job, item_id: uuid.UUID
     return item
 
 
-async def _get_owned_mitigation(service: JobService, job: Job, action_id: uuid.UUID) -> MitigationAction:
+async def _get_owned_mitigation(
+    service: JobService, job: Job, action_id: uuid.UUID
+) -> MitigationAction:
     action = await service.mitigation_repo.get_by_id_and_job(action_id, job.id)
     if not action:
         raise NotFoundError(t("jobs.mitigation_not_found"))
@@ -81,6 +85,7 @@ async def _get_owned_mitigation(service: JobService, job: Job, action_id: uuid.U
 # Public endpoints (unauthenticated)
 # ───────────────────────────────────────────────────────────────────────────
 
+
 @router.get("/public")
 async def list_public_jobs(
     q: str | None = Query(None, min_length=1),
@@ -90,8 +95,14 @@ async def list_public_jobs(
     seniority: list[str] | None = Query(None),
     employment_size: list[str] | None = Query(None),
     shift_system: list[str] | None = Query(None),
-    qualification: list[str] | None = Query(None, description="Required qualification codes (e.g. forklift_udt). Job must list all selected."),
-    job_ids: list[uuid.UUID] | None = Query(None, description="Whitelist of job IDs. Used by the 'Obserwowane' tab to fetch only saved jobs in one round-trip."),
+    qualification: list[str] | None = Query(
+        None,
+        description="Required qualification codes (e.g. forklift_udt). Job must list all selected.",
+    ),
+    job_ids: list[uuid.UUID] | None = Query(
+        None,
+        description="Whitelist of job IDs. Used by the 'Obserwowane' tab to fetch only saved jobs in one round-trip.",
+    ),
     verified_only: bool = Query(False, description="Show only jobs from verified companies."),
     location: str | None = Query(None),
     salary_min: int | None = Query(None, ge=0),
@@ -139,9 +150,14 @@ async def list_public_jobs(
         # a JSON array of strings, so this gives us OR semantics — a job
         # matches if it lists any of the requested quals.
         from sqlalchemy import text
-        base = base.where(text("jobs.required_qualifications ?| :quals").bindparams(quals=qualification))
+
+        base = base.where(
+            text("jobs.required_qualifications ?| :quals").bindparams(quals=qualification)
+        )
     if verified_only:
-        base = base.join(CompanyModel, Job.company_id == CompanyModel.id).where(CompanyModel.is_verified.is_(True))
+        base = base.join(CompanyModel, Job.company_id == CompanyModel.id).where(
+            CompanyModel.is_verified.is_(True)
+        )
     if location:
         base = base.where(Job.location.ilike(f"%{location.strip()}%"))
     if salary_min is not None:
@@ -167,15 +183,20 @@ async def list_public_jobs(
 @router.get("/public/stats")
 async def public_stats(db: AsyncSession = Depends(get_db)) -> dict:
     """Counters shown in the hero — total open jobs, total verified-or-active companies."""
-    from app.modules.companies.models import Company
 
-    total_jobs = (await db.execute(
-        select(func.count()).select_from(select(Job).where(Job.status == JobStatus.open).subquery())
-    )).scalar_one()
+    total_jobs = (
+        await db.execute(
+            select(func.count()).select_from(
+                select(Job).where(Job.status == JobStatus.open).subquery()
+            )
+        )
+    ).scalar_one()
     # Count distinct companies with at least one open job — more honest than counting all companies
-    total_companies = (await db.execute(
-        select(func.count(func.distinct(Job.company_id))).where(Job.status == JobStatus.open)
-    )).scalar_one()
+    total_companies = (
+        await db.execute(
+            select(func.count(func.distinct(Job.company_id))).where(Job.status == JobStatus.open)
+        )
+    ).scalar_one()
     return {"total_jobs": total_jobs, "total_companies": total_companies}
 
 
@@ -190,28 +211,33 @@ async def public_popular(
     is empty (cold-start — no search history yet).
     """
     from datetime import timedelta
+
     from app.modules.candidates.models import SearchLog
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
-    log_rows = (await db.execute(
-        select(SearchLog.category, func.count().label("hits"))
-        .where(SearchLog.category.is_not(None), SearchLog.created_at >= cutoff)
-        .group_by(SearchLog.category)
-        .order_by(func.count().desc())
-        .limit(limit)
-    )).all()
+    cutoff = datetime.now(UTC) - timedelta(days=30)
+    log_rows = (
+        await db.execute(
+            select(SearchLog.category, func.count().label("hits"))
+            .where(SearchLog.category.is_not(None), SearchLog.created_at >= cutoff)
+            .group_by(SearchLog.category)
+            .order_by(func.count().desc())
+            .limit(limit)
+        )
+    ).all()
 
     if log_rows:
         return {"items": [{"category": row.category, "hits": row.hits} for row in log_rows]}
 
     # Cold start: top categories by open-job count.
-    fallback_rows = (await db.execute(
-        select(Job.category, func.count().label("hits"))
-        .where(Job.status == JobStatus.open, Job.category.is_not(None))
-        .group_by(Job.category)
-        .order_by(func.count().desc())
-        .limit(limit)
-    )).all()
+    fallback_rows = (
+        await db.execute(
+            select(Job.category, func.count().label("hits"))
+            .where(Job.status == JobStatus.open, Job.category.is_not(None))
+            .group_by(Job.category)
+            .order_by(func.count().desc())
+            .limit(limit)
+        )
+    ).all()
     return {"items": [{"category": row.category, "hits": row.hits} for row in fallback_rows]}
 
 
@@ -247,6 +273,7 @@ async def get_public_job(
 # Authenticated CRUD
 # ───────────────────────────────────────────────────────────────────────────
 
+
 @router.post("", response_model=JobRead, status_code=201)
 async def create_job(
     data: JobCreate,
@@ -264,7 +291,7 @@ async def list_jobs(
     _user: CurrentUser,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
-    job_status: Optional[JobStatus] = Query(None, alias="status"),
+    job_status: JobStatus | None = Query(None, alias="status"),
     service: JobService = Depends(_get_service),
 ) -> JobList:
     jobs, total = await service.repository.list_by_company(
@@ -364,7 +391,9 @@ async def parse_existing_offer(
         company_id=company.id,
         language=detect_language(request),
     )
-    return JobParseResult(**{k: v for k, v in extracted.items() if k in JobParseResult.model_fields})
+    return JobParseResult(
+        **{k: v for k, v in extracted.items() if k in JobParseResult.model_fields}
+    )
 
 
 @router.post("/{job_id}/clone", response_model=JobRead, status_code=201)
@@ -382,6 +411,7 @@ async def clone_job(
 # ───────────────────────────────────────────────────────────────────────────
 # LLM endpoints
 # ───────────────────────────────────────────────────────────────────────────
+
 
 @router.post(
     "/{job_id}/analyze",
@@ -436,6 +466,7 @@ async def suggest_job(
 # Risk items CRUD
 # ───────────────────────────────────────────────────────────────────────────
 
+
 @router.post("/{job_id}/risks", response_model=RiskItemRead, status_code=201)
 async def add_risk_item(
     job_id: uuid.UUID,
@@ -481,6 +512,7 @@ async def delete_risk_item(
 # ───────────────────────────────────────────────────────────────────────────
 # Mitigation actions CRUD
 # ───────────────────────────────────────────────────────────────────────────
+
 
 @router.post("/{job_id}/mitigations", response_model=MitigationActionRead, status_code=201)
 async def add_mitigation(
@@ -529,23 +561,57 @@ async def delete_mitigation(
 # ───────────────────────────────────────────────────────────────────────────
 
 _PUBLIC_LIST_FIELDS: tuple[str, ...] = (
-    "title", "slug", "department", "location", "role_summary",
-    "work_mode", "remote_constraints", "contract_type",
-    "salary_min", "salary_max", "salary_currency", "salary_period",
-    "category", "shift_system", "employment_size", "required_qualifications",
-    "seniority", "tech_stack",
+    "title",
+    "slug",
+    "department",
+    "location",
+    "role_summary",
+    "work_mode",
+    "remote_constraints",
+    "contract_type",
+    "salary_min",
+    "salary_max",
+    "salary_currency",
+    "salary_period",
+    "category",
+    "shift_system",
+    "employment_size",
+    "required_qualifications",
+    "seniority",
+    "tech_stack",
 )
 
 _PUBLIC_DETAIL_FIELDS: tuple[str, ...] = (
-    "title", "slug", "department", "location",
-    "role_summary", "responsibilities", "must_haves",
-    "nice_to_haves", "tech_stack", "domain_context",
-    "seniority", "experience_min_years", "experience_max_years",
-    "work_mode", "remote_constraints", "success_profile", "team_context",
-    "reporting_to", "value_proposition", "benefits", "hiring_process",
-    "salary_min", "salary_max", "salary_currency", "salary_period",
+    "title",
+    "slug",
+    "department",
+    "location",
+    "role_summary",
+    "responsibilities",
+    "must_haves",
+    "nice_to_haves",
+    "tech_stack",
+    "domain_context",
+    "seniority",
+    "experience_min_years",
+    "experience_max_years",
+    "work_mode",
+    "remote_constraints",
+    "success_profile",
+    "team_context",
+    "reporting_to",
+    "value_proposition",
+    "benefits",
+    "hiring_process",
+    "salary_min",
+    "salary_max",
+    "salary_currency",
+    "salary_period",
     "contract_type",
-    "category", "shift_system", "employment_size", "required_qualifications",
+    "category",
+    "shift_system",
+    "employment_size",
+    "required_qualifications",
     # Internal-only — never exposed on /public:
     #   role_purpose, role_scope, role_deliverables  (HR context)
     #   risk_items, mitigation_actions, analysis, risk_assessment  (AI / HR notes)
@@ -576,9 +642,9 @@ def _public_company(company) -> dict[str, Any]:
     `slug` lets the FE link the company name on a job card to /firmy/{slug}.
     """
     return {
-        "id":          str(company.id),
-        "name":        company.name,
-        "slug":        getattr(company, "slug", None),
-        "logo_url":    getattr(company, "logo_url", None),
+        "id": str(company.id),
+        "name": company.name,
+        "slug": getattr(company, "slug", None),
+        "logo_url": getattr(company, "logo_url", None),
         "is_verified": getattr(company, "is_verified", False),
     }

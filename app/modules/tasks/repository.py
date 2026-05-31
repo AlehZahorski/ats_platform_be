@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -15,17 +14,13 @@ from app.modules.tasks.schemas import TaskCreate, TaskUpdate
 class TaskRepository(BaseRepository[Task]):
     model = Task
 
-    async def create(
-        self, company_id: uuid.UUID, created_by: uuid.UUID, data: TaskCreate
-    ) -> Task:
+    async def create(self, company_id: uuid.UUID, created_by: uuid.UUID, data: TaskCreate) -> Task:
         task = Task(company_id=company_id, created_by=created_by, **data.model_dump())
         self.db.add(task)
         await self.db.flush()
         return await self._load(task.id)  # type: ignore[return-value]
 
-    async def get_by_id_and_company(
-        self, task_id: uuid.UUID, company_id: uuid.UUID
-    ) -> Task | None:
+    async def get_by_id_and_company(self, task_id: uuid.UUID, company_id: uuid.UUID) -> Task | None:
         result = await self.db.execute(
             select(Task)
             .where(Task.id == task_id, Task.company_id == company_id)
@@ -36,9 +31,9 @@ class TaskRepository(BaseRepository[Task]):
     async def list_by_company(
         self,
         company_id: uuid.UUID,
-        assigned_to: Optional[uuid.UUID] = None,
-        completed: Optional[bool] = None,
-        application_id: Optional[uuid.UUID] = None,
+        assigned_to: uuid.UUID | None = None,
+        completed: bool | None = None,
+        application_id: uuid.UUID | None = None,
     ) -> list[Task]:
         query = (
             select(Task)
@@ -59,7 +54,7 @@ class TaskRepository(BaseRepository[Task]):
         for field, value in data.model_dump(exclude_unset=True).items():
             setattr(task, field, value)
         if data.completed is True and not task.completed_at:
-            task.completed_at = datetime.now(timezone.utc)
+            task.completed_at = datetime.now(UTC)
         elif data.completed is False:
             task.completed_at = None
         await self.db.flush()

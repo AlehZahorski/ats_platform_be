@@ -29,7 +29,10 @@ class Job(BaseModel):
     )
 
     company_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("companies.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     title: Mapped[str] = mapped_column(Text, nullable=False)
     # Public URL slug. Unique per company (partial unique index). Used in
@@ -91,27 +94,42 @@ class Job(BaseModel):
     suggest_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # Relationships
-    company: Mapped["Company"] = relationship(back_populates="jobs")  # noqa: F821
-    applications: Mapped[list["Application"]] = relationship(back_populates="job", cascade="all, delete-orphan")  # noqa: F821
-    form_template_link: Mapped["JobFormTemplate | None"] = relationship(back_populates="job", cascade="all, delete-orphan", uselist=False)  # noqa: F821
-    analysis: Mapped["JobAnalysis | None"] = relationship(back_populates="job", cascade="all, delete-orphan", uselist=False)  # noqa: F821
-    risk_assessment: Mapped["JobRiskAssessment | None"] = relationship(back_populates="job", cascade="all, delete-orphan", uselist=False)  # noqa: F821
-    risk_items: Mapped[list["RiskItem"]] = relationship(back_populates="job", cascade="all, delete-orphan", order_by="RiskItem.order")  # noqa: F821
-    mitigation_actions: Mapped[list["MitigationAction"]] = relationship(back_populates="job", cascade="all, delete-orphan", order_by="MitigationAction.order")  # noqa: F821
+    company: Mapped[Company] = relationship(back_populates="jobs")  # noqa: F821
+    applications: Mapped[list[Application]] = relationship(
+        back_populates="job", cascade="all, delete-orphan"
+    )  # noqa: F821
+    form_template_link: Mapped[JobFormTemplate | None] = relationship(
+        back_populates="job", cascade="all, delete-orphan", uselist=False
+    )  # noqa: F821
+    analysis: Mapped[JobAnalysis | None] = relationship(
+        back_populates="job", cascade="all, delete-orphan", uselist=False
+    )  # noqa: F821
+    risk_assessment: Mapped[JobRiskAssessment | None] = relationship(
+        back_populates="job", cascade="all, delete-orphan", uselist=False
+    )  # noqa: F821
+    risk_items: Mapped[list[RiskItem]] = relationship(
+        back_populates="job", cascade="all, delete-orphan", order_by="RiskItem.order"
+    )  # noqa: F821
+    mitigation_actions: Mapped[list[MitigationAction]] = relationship(
+        back_populates="job", cascade="all, delete-orphan", order_by="MitigationAction.order"
+    )  # noqa: F821
 
 
 class JobFormTemplate(BaseModel):
     __tablename__ = "job_form_templates"
 
     job_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False, primary_key=True
+        UUID(as_uuid=True),
+        ForeignKey("jobs.id", ondelete="CASCADE"),
+        nullable=False,
+        primary_key=True,
     )
     template_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("form_templates.id", ondelete="RESTRICT"), nullable=False
     )
 
-    job: Mapped["Job"] = relationship(back_populates="form_template_link")  # noqa: F821
-    template: Mapped["FormTemplate"] = relationship()  # noqa: F821
+    job: Mapped[Job] = relationship(back_populates="form_template_link")  # noqa: F821
+    template: Mapped[FormTemplate] = relationship()  # noqa: F821
 
 
 class RiskItem(BaseModel):
@@ -121,10 +139,12 @@ class RiskItem(BaseModel):
         UUID(as_uuid=True), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False, index=True
     )
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    severity: Mapped[str] = mapped_column(Text, nullable=False, default="medium")  # high | medium | low
+    severity: Mapped[str] = mapped_column(
+        Text, nullable=False, default="medium"
+    )  # high | medium | low
     order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
-    job: Mapped["Job"] = relationship(back_populates="risk_items")  # noqa: F821
+    job: Mapped[Job] = relationship(back_populates="risk_items")  # noqa: F821
 
 
 class MitigationAction(BaseModel):
@@ -136,4 +156,4 @@ class MitigationAction(BaseModel):
     description: Mapped[str] = mapped_column(Text, nullable=False)
     order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
-    job: Mapped["Job"] = relationship(back_populates="mitigation_actions")  # noqa: F821
+    job: Mapped[Job] = relationship(back_populates="mitigation_actions")  # noqa: F821

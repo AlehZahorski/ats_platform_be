@@ -7,7 +7,6 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-
 # Slug is the public URL fragment. Lowercase letters, digits, hyphens.
 # 3–60 chars so /firmy/{slug} stays sane and SEO-friendly.
 SLUG_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9-]{1,58}[a-z0-9])?$")
@@ -25,6 +24,7 @@ class CompanyCreate(CompanyBase):
 # Section payloads — every JSONB section has a strict pydantic shape
 # so the dashboard editor and the public renderer agree on field names.
 # ─────────────────────────────────────────────────────────────────────
+
 
 class HowWeWorkCard(BaseModel):
     icon: str = Field(min_length=1, max_length=40)
@@ -62,6 +62,7 @@ class CompanyUpdate(BaseModel):
     scope for MVP). The service layer enforces this; the schema only does
     format validation.
     """
+
     name: str | None = Field(default=None, min_length=1, max_length=200)
     slug: str | None = Field(default=None)
     logo_url: str | None = None
@@ -75,13 +76,13 @@ class CompanyUpdate(BaseModel):
     website: str | None = Field(default=None, max_length=400)
     remote_percentage: int | None = Field(default=None, ge=0, le=100)
 
-    tech_stack:          list[str] | None = None
-    how_we_work:         list[HowWeWorkCard] | None = None
-    benefits:            list[str] | None = None
+    tech_stack: list[str] | None = None
+    how_we_work: list[HowWeWorkCard] | None = None
+    benefits: list[str] | None = None
     recruitment_process: list[RecruitmentStep] | None = None
-    timeline:            list[TimelineEntry] | None = None
-    faq:                 list[FaqEntry] | None = None
-    gallery:             list[GalleryItem] | None = None
+    timeline: list[TimelineEntry] | None = None
+    faq: list[FaqEntry] | None = None
+    gallery: list[GalleryItem] | None = None
 
     @field_validator("slug")
     @classmethod
@@ -101,6 +102,7 @@ class CompanyRead(CompanyBase):
     editor needs to round-trip. Public never sees this shape — public reads
     go through CompanyPublicDetail.
     """
+
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
@@ -119,13 +121,13 @@ class CompanyRead(CompanyBase):
     website: str | None
     remote_percentage: int | None
 
-    tech_stack:          list[Any] = []
-    how_we_work:         list[Any] = []
-    benefits:            list[Any] = []
+    tech_stack: list[Any] = []
+    how_we_work: list[Any] = []
+    benefits: list[Any] = []
     recruitment_process: list[Any] = []
-    timeline:            list[Any] = []
-    faq:                 list[Any] = []
-    gallery:             list[Any] = []
+    timeline: list[Any] = []
+    faq: list[Any] = []
+    gallery: list[Any] = []
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -134,8 +136,10 @@ class CompanyRead(CompanyBase):
 # Shaped to never leak internal fields. The list endpoint returns
 # `CompanyPublicSummary`; the detail endpoint returns `CompanyPublicDetail`.
 
+
 class CompanyPublicSummary(BaseModel):
     """Card shown on /firmy. Designed for grid rendering — minimal payload."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
@@ -157,6 +161,7 @@ class CompanyPublicSummary(BaseModel):
 
 class CompanyPublicDetail(CompanyPublicSummary):
     """Full profile shown on /firmy/{slug}. Adds every JSONB section."""
+
     description: str | None
     website: str | None
     how_we_work: list[Any]

@@ -35,5 +35,5 @@ class Interview(BaseModel):
     # status: scheduled | completed | cancelled
 
     # relationships
-    application: Mapped["Application"] = relationship()  # noqa: F821
-    recruiter: Mapped["User | None"] = relationship()  # noqa: F821
+    application: Mapped[Application] = relationship()  # noqa: F821
+    recruiter: Mapped[User | None] = relationship()  # noqa: F821

@@ -6,8 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.core.enums.jobs import ContractType, JobStatus, Seniority, SalaryPeriod, WorkMode
-
+from app.core.enums.jobs import JobStatus, SalaryPeriod
 
 # ── Shared literals ────────────────────────────────────────────────────────
 RiskSeverity = Literal["low", "medium", "high"]
@@ -18,16 +17,18 @@ RiskLevel = Literal["low", "medium", "high"]
 # Job offer — editable fields (shared between Create / Update)
 # ───────────────────────────────────────────────────────────────────────────
 
+
 class JobOfferFields(BaseModel):
     """All editable job offer fields. Title required only on Create."""
+
     title: str | None = None
     slug: str | None = None
     department: str | None = None
     location: str | None = None
     # Classification (multi-industry / multi-country support)
-    category: str | None = None              # machine code from frontend categories config
-    shift_system: str | None = None          # one_shift|two_shift|three_shift|weekend|equivalent
-    employment_size: str | None = None       # full|part_50|part_75|temporary|internship|apprenticeship
+    category: str | None = None  # machine code from frontend categories config
+    shift_system: str | None = None  # one_shift|two_shift|three_shift|weekend|equivalent
+    employment_size: str | None = None  # full|part_50|part_75|temporary|internship|apprenticeship
     required_qualifications: list[str] | None = None
     # Role content
     role_summary: str | None = None
@@ -81,6 +82,7 @@ class AssignTemplateRequest(BaseModel):
 
 class JobParseRequest(BaseModel):
     """Raw text from an existing job advertisement, to be structured via LLM."""
+
     text: str = Field(min_length=20, max_length=20000)
 
 
@@ -88,6 +90,7 @@ class JobParseResult(BaseModel):
     """Structured fields extracted from raw text. All fields optional — the
     parser returns whatever it could confidently extract.
     """
+
     title: str | None = None
     department: str | None = None
     location: str | None = None
@@ -118,8 +121,10 @@ class JobParseResult(BaseModel):
 # AI-generated — analysis & risk assessment (persisted, 1:1 with Job)
 # ───────────────────────────────────────────────────────────────────────────
 
+
 class JobAnalysisRead(BaseModel):
     """Persisted attractiveness analysis."""
+
     model_config = ConfigDict(from_attributes=True)
 
     score: int | None = None
@@ -139,6 +144,7 @@ class RiskFactor(BaseModel):
 
 class JobRiskAssessmentRead(BaseModel):
     """Persisted organizational risk assessment."""
+
     model_config = ConfigDict(from_attributes=True)
 
     score: int | None = None
@@ -151,6 +157,7 @@ class JobRiskAssessmentRead(BaseModel):
 # ───────────────────────────────────────────────────────────────────────────
 # User-entered — risk items & mitigation actions (1:N with Job)
 # ───────────────────────────────────────────────────────────────────────────
+
 
 class RiskItemCreate(BaseModel):
     description: str
@@ -196,6 +203,7 @@ class MitigationActionRead(BaseModel):
 # ───────────────────────────────────────────────────────────────────────────
 # Job — full response (nests analysis + risk + lists)
 # ───────────────────────────────────────────────────────────────────────────
+
 
 class JobRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -284,6 +292,7 @@ class JobList(BaseModel):
 # LLM suggest endpoint — returns generated content fields
 # ───────────────────────────────────────────────────────────────────────────
 
+
 class JobSuggestRead(BaseModel):
     role_summary: str | None = None
     role_purpose: str | None = None
@@ -302,6 +311,7 @@ class JobSuggestRead(BaseModel):
 # LLM analyze endpoint — legacy contract (different naming than JobAnalysisRead)
 # Returned by POST /jobs/{id}/analyze; persisted form is JobAnalysisRead.
 # ───────────────────────────────────────────────────────────────────────────
+
 
 class JobOfferAnalysisRead(BaseModel):
     attractiveness_score: int

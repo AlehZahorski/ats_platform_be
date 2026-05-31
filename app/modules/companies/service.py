@@ -8,7 +8,6 @@ from app.modules.companies.schemas import CompanyCreate, CompanyUpdate
 
 
 class CompanyService(BaseService[CompanyRepository]):
-
     async def create(self, data: CompanyCreate) -> Company:
         return await self.repository.create(data)
 

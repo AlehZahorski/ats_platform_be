@@ -9,6 +9,7 @@ from sqlalchemy.orm import DeclarativeBase
 
 from app.core.config import settings
 
+
 # ---------------------------------------------------------------------------
 # Engine
 # ---------------------------------------------------------------------------
@@ -25,9 +26,7 @@ def _connect_args() -> dict:
     return {
         "server_settings": {
             "statement_timeout": str(settings.db_statement_timeout_ms),
-            "idle_in_transaction_session_timeout": str(
-                settings.db_idle_in_transaction_timeout_ms
-            ),
+            "idle_in_transaction_session_timeout": str(settings.db_idle_in_transaction_timeout_ms),
             "application_name": settings.app_name or "wakanta-api",
         }
     }
@@ -53,10 +52,11 @@ engine = create_async_engine(
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,
     class_=AsyncSession,
-    expire_on_commit=False,        # avoid lazy-load errors after commit
+    expire_on_commit=False,  # avoid lazy-load errors after commit
     autocommit=False,
     autoflush=False,
 )
+
 
 # ---------------------------------------------------------------------------
 # Declarative base — imported by all models

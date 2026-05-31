@@ -26,7 +26,9 @@ def _service(db: AsyncSession = Depends(get_db)) -> OrganizerService:
 @router.get("/board", response_model=BoardResponse)
 async def get_board(
     user: CurrentUser,
-    week_start: date_t = Query(..., description="Any date within the requested week; snapped to Monday."),
+    week_start: date_t = Query(
+        ..., description="Any date within the requested week; snapped to Monday."
+    ),
     scope: Literal["self", "team"] = Query("team"),
     service: OrganizerService = Depends(_service),
 ) -> BoardResponse:

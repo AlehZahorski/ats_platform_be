@@ -3,8 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import and_, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.core.base_repository import BaseRepository
 from app.core.enums.users import UserRole
@@ -35,7 +34,9 @@ class UserRepository(BaseRepository[User]):
         result = await self.db.execute(select(User).where(User.email == email))
         return result.scalar_one_or_none()
 
-    async def list_by_company(self, company_id: uuid.UUID, role: UserRole | None = None) -> list[User]:
+    async def list_by_company(
+        self, company_id: uuid.UUID, role: UserRole | None = None
+    ) -> list[User]:
         query = select(User).where(User.company_id == company_id)
         if role:
             query = query.where(User.role == role)

@@ -31,7 +31,7 @@ class AutomationRule(BaseModel):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     # relationships
-    company: Mapped["Company"] = relationship()  # noqa: F821
-    template: Mapped["EmailTemplate | None"] = relationship(  # noqa: F821
+    company: Mapped[Company] = relationship()  # noqa: F821
+    template: Mapped[EmailTemplate | None] = relationship(  # noqa: F821
         back_populates="automation_rules"
     )

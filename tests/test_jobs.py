@@ -1,4 +1,5 @@
 """Tests for the jobs module."""
+
 from __future__ import annotations
 
 import pytest
@@ -9,13 +10,14 @@ from tests.helpers import create_company, create_verified_user
 
 async def _login(client: AsyncClient, email: str, password: str = "testpassword") -> None:
     """Helper: log in and set cookie on the test client."""
-    from app.core.security import create_access_token
     # Bypass SMTP by injecting a valid access token cookie directly
     # (test_login_success_sets_cookie already validates the real flow)
     pass
 
 
-async def _get_authed_client(client: AsyncClient, db_session, suffix: str = "") -> tuple[AsyncClient, object]:
+async def _get_authed_client(
+    client: AsyncClient, db_session, suffix: str = ""
+) -> tuple[AsyncClient, object]:
     """Seed a company + user, inject auth cookie, return (client, company)."""
     from app.core.security import create_access_token
 
@@ -64,6 +66,7 @@ async def test_list_jobs(client: AsyncClient, db_session) -> None:
 async def test_get_job_not_found(client: AsyncClient, db_session) -> None:
     client, _ = await _get_authed_client(client, db_session, "notfound")
     import uuid
+
     response = await client.get(f"/api/v1/jobs/{uuid.uuid4()}")
     assert response.status_code == 404
 
@@ -138,13 +141,19 @@ async def test_jobs_company_isolation(client: AsyncClient, db_session) -> None:
     await db_session.commit()
 
     # Create job as company A
-    token_a = create_access_token(str(user_a.id), {"company_id": str(company_a.id), "role": "owner"})
+    token_a = create_access_token(
+        str(user_a.id), {"company_id": str(company_a.id), "role": "owner"}
+    )
     client.cookies.set("access_token", token_a)
-    create_resp = await client.post("/api/v1/jobs", json={"title": "Company A Job", "status": "draft"})
+    create_resp = await client.post(
+        "/api/v1/jobs", json={"title": "Company A Job", "status": "draft"}
+    )
     job_id = create_resp.json()["id"]
 
     # Try to access as company B
-    token_b = create_access_token(str(user_b.id), {"company_id": str(company_b.id), "role": "owner"})
+    token_b = create_access_token(
+        str(user_b.id), {"company_id": str(company_b.id), "role": "owner"}
+    )
     client.cookies.set("access_token", token_b)
     response = await client.get(f"/api/v1/jobs/{job_id}")
     assert response.status_code == 404
@@ -181,7 +190,9 @@ async def test_cannot_publish_incomplete_job_offer(client: AsyncClient, db_sessi
 
 
 @pytest.mark.asyncio
-async def test_public_job_contains_structured_offer_content(client: AsyncClient, db_session) -> None:
+async def test_public_job_contains_structured_offer_content(
+    client: AsyncClient, db_session
+) -> None:
     client, company = await _get_authed_client(client, db_session, "publicstructured")
 
     create_resp = await client.post(

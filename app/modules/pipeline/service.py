@@ -18,6 +18,7 @@ from app.modules.pipeline.repository import PipelineRepository
 @dataclass
 class StageChangeContext:
     """Data returned from update_application_stage for the router to handle notifications."""
+
     history: ApplicationStageHistory
     candidate_email: str
     candidate_name: str
@@ -27,8 +28,9 @@ class StageChangeContext:
 
 
 class PipelineService(BaseService[PipelineRepository]):
-
-    def __init__(self, repository: PipelineRepository, audit: AuditService, db: AsyncSession) -> None:
+    def __init__(
+        self, repository: PipelineRepository, audit: AuditService, db: AsyncSession
+    ) -> None:
         super().__init__(repository)
         self.audit = audit
         # Direct db access for cross-module queries until ApplicationRepository is refactored
@@ -49,7 +51,9 @@ class PipelineService(BaseService[PipelineRepository]):
             raise UnprocessableError(t("pipeline.stage_name_required"))
         return await self.repository.update_stage_name(stage, name)
 
-    async def reorder_stages(self, stage_orders: list[tuple[uuid.UUID, int]]) -> list[PipelineStage]:
+    async def reorder_stages(
+        self, stage_orders: list[tuple[uuid.UUID, int]]
+    ) -> list[PipelineStage]:
         existing_ids = {stage.id for stage in await self.repository.list_stages()}
         requested_ids = {stage_id for stage_id, _ in stage_orders}
         if existing_ids != requested_ids:

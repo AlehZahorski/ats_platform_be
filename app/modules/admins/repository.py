@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,11 +25,15 @@ class AdminRepository:
         return result.scalar_one_or_none()
 
     async def touch_last_login(self, admin: Admin) -> None:
-        admin.last_login_at = datetime.now(timezone.utc)
+        admin.last_login_at = datetime.now(UTC)
         await self.db.flush()
 
-    async def save_refresh_token(self, admin_id: uuid.UUID, token_hash: str, expires_at: datetime) -> None:
-        self.db.add(AdminRefreshToken(admin_id=admin_id, token_hash=token_hash, expires_at=expires_at))
+    async def save_refresh_token(
+        self, admin_id: uuid.UUID, token_hash: str, expires_at: datetime
+    ) -> None:
+        self.db.add(
+            AdminRefreshToken(admin_id=admin_id, token_hash=token_hash, expires_at=expires_at)
+        )
         await self.db.flush()
 
     async def get_refresh(self, token_hash: str) -> AdminRefreshToken | None:
@@ -37,7 +41,7 @@ class AdminRepository:
             select(AdminRefreshToken).where(
                 AdminRefreshToken.token_hash == token_hash,
                 AdminRefreshToken.revoked.is_(False),
-                AdminRefreshToken.expires_at > datetime.now(timezone.utc),
+                AdminRefreshToken.expires_at > datetime.now(UTC),
             )
         )
         return result.scalar_one_or_none()

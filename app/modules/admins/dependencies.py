@@ -4,10 +4,11 @@ Parses the `admin_access_token` cookie and loads the matching Admin
 row. Raises 401 if missing/invalid. Mirrors the candidate dependency
 shape so call sites are symmetric across identity types.
 """
+
 from __future__ import annotations
 
 import uuid
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import Cookie, Depends, HTTPException, status
 from jose import JWTError
@@ -22,7 +23,7 @@ from app.modules.admins.service import ADMIN_ACCESS_COOKIE
 
 async def get_current_admin(
     db: AsyncSession = Depends(get_db),
-    admin_access_token: Optional[str] = Cookie(default=None, alias=ADMIN_ACCESS_COOKIE),
+    admin_access_token: str | None = Cookie(default=None, alias=ADMIN_ACCESS_COOKIE),
 ) -> Admin:
     creds_exc = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

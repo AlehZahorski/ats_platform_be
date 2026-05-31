@@ -43,21 +43,16 @@ class AutomationRepository(BaseRepository[AutomationRule]):
         trigger_type: AutomationTriggerType,
         trigger_value: str | None = None,
     ) -> list[AutomationRule]:
-        query = (
-            select(AutomationRule)
-            .where(
-                AutomationRule.company_id == company_id,
-                AutomationRule.trigger_type == trigger_type,
-                AutomationRule.is_active.is_(True),
-                AutomationRule.template_id.isnot(None),
-            )
+        query = select(AutomationRule).where(
+            AutomationRule.company_id == company_id,
+            AutomationRule.trigger_type == trigger_type,
+            AutomationRule.is_active.is_(True),
+            AutomationRule.template_id.isnot(None),
         )
         if trigger_value:
             query = query.where(AutomationRule.trigger_value == trigger_value)
 
-        result = await self.db.execute(
-            query.options(selectinload(AutomationRule.template))
-        )
+        result = await self.db.execute(query.options(selectinload(AutomationRule.template)))
         return list(result.scalars().all())
 
     async def update(self, rule: AutomationRule, data: AutomationRuleUpdate) -> AutomationRule:

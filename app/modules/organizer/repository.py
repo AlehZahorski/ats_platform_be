@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from datetime import date as date_t
-from typing import Sequence
 
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload

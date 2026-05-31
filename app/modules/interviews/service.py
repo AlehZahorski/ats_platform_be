@@ -14,7 +14,6 @@ from app.modules.interviews.schemas import InterviewCreate, InterviewUpdate
 
 
 class InterviewService(BaseService[InterviewRepository]):
-
     def __init__(self, repository: InterviewRepository, audit: AuditService) -> None:
         super().__init__(repository)
         self.audit = audit
@@ -29,13 +28,15 @@ class InterviewService(BaseService[InterviewRepository]):
         self._validate_meeting_url(data.meeting_url, data.status)
         interview = await self.repository.create(application_id, data)
 
-        self.audit.db.add(ApplicationEvent(
-            application_id=application_id,
-            company_id=company_id,
-            event_type="interview_scheduled",
-            event_value=str(interview.scheduled_at),
-            metadata_={"interview_id": str(interview.id), "meeting_url": interview.meeting_url},
-        ))
+        self.audit.db.add(
+            ApplicationEvent(
+                application_id=application_id,
+                company_id=company_id,
+                event_type="interview_scheduled",
+                event_value=str(interview.scheduled_at),
+                metadata_={"interview_id": str(interview.id), "meeting_url": interview.meeting_url},
+            )
+        )
         await self.audit.log(
             company_id=company_id,
             user_id=user_id,
@@ -61,7 +62,9 @@ class InterviewService(BaseService[InterviewRepository]):
         self._validate_meeting_url(next_url, next_status)
         return await self.repository.update(interview, data)
 
-    async def delete(self, interview_id: uuid.UUID, company_id: uuid.UUID, user_id: uuid.UUID) -> None:
+    async def delete(
+        self, interview_id: uuid.UUID, company_id: uuid.UUID, user_id: uuid.UUID
+    ) -> None:
         interview = await self.get(interview_id)
         await self.audit.log(
             company_id=company_id,

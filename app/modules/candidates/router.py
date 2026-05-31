@@ -1,5 +1,4 @@
 import uuid
-from typing import Optional
 
 from fastapi import APIRouter, Cookie, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -53,7 +52,10 @@ async def signup(
     service: CandidateAuthService = Depends(_auth_service),
 ) -> CandidateRead:
     candidate = await service.signup(
-        email=data.email, password=data.password, full_name=data.full_name, response=response,
+        email=data.email,
+        password=data.password,
+        full_name=data.full_name,
+        response=response,
     )
     return CandidateRead.model_validate(candidate)
 
@@ -75,7 +77,7 @@ async def login(
 @router.post("/logout", status_code=204)
 async def logout(
     response: Response,
-    candidate_refresh_token: Optional[str] = Cookie(default=None, alias=CANDIDATE_REFRESH_COOKIE),
+    candidate_refresh_token: str | None = Cookie(default=None, alias=CANDIDATE_REFRESH_COOKIE),
     service: CandidateAuthService = Depends(_auth_service),
 ) -> Response:
     await service.logout(refresh_token=candidate_refresh_token, response=response)
@@ -89,11 +91,12 @@ async def logout(
 )
 async def refresh(
     response: Response,
-    candidate_refresh_token: Optional[str] = Cookie(default=None, alias=CANDIDATE_REFRESH_COOKIE),
+    candidate_refresh_token: str | None = Cookie(default=None, alias=CANDIDATE_REFRESH_COOKIE),
     service: CandidateAuthService = Depends(_auth_service),
 ) -> CandidateRead:
     if not candidate_refresh_token:
         from app.core.exceptions import UnauthorizedError
+
         raise UnauthorizedError("Brak sesji")
     candidate = await service.refresh(refresh_token=candidate_refresh_token, response=response)
     return CandidateRead.model_validate(candidate)
@@ -200,7 +203,10 @@ async def create_saved_search(
     db: AsyncSession = Depends(get_db),
 ) -> SavedSearchRead:
     ss = await SavedSearchRepository(db).create(
-        candidate.id, data.name, data.query, data.notify_email,
+        candidate.id,
+        data.name,
+        data.query,
+        data.notify_email,
     )
     return SavedSearchRead.model_validate(ss)
 

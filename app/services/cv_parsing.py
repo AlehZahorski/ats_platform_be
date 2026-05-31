@@ -15,10 +15,9 @@ from pypdf import PdfReader
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
-from app.core.i18n import detect_text_language, t
 from app.core.enums.applications import CVParseStatus, ParsingStatus
+from app.core.i18n import detect_text_language, t
 from app.modules.applications.repository import ApplicationRepository
-from app.services.llm import CVEnricher, JobMatcher
 from app.services.cv_keywords import (
     DEGREE_WORDS,
     EDUCATION_WORDS,
@@ -28,6 +27,7 @@ from app.services.cv_keywords import (
     SECTION_ALIASES,
     SKILL_KEYWORDS,
 )
+from app.services.llm import CVEnricher, JobMatcher
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +37,7 @@ CV_PARSE_TIMEOUT = 120
 # ---------------------------------------------------------------------------
 # CVTextExtractor — Single Responsibility: read raw text from PDF/DOCX files
 # ---------------------------------------------------------------------------
+
 
 class CVTextExtractor:
     """Extracts raw text from CV files. Supports PDF and DOCX."""
@@ -105,6 +106,7 @@ class CVTextExtractor:
 # CVProfileParser — Single Responsibility: parse structured data from CV text
 # ---------------------------------------------------------------------------
 
+
 class CVProfileParser:
     """Parses a structured candidate profile from raw CV text.
     Keyword data lives in cv_keywords.py."""
@@ -158,7 +160,9 @@ class CVProfileParser:
             if canonical.startswith(("name", "imie", "nazwisko i imie")):
                 possible = re.sub(
                     r"^(name|imię|imie|nazwisko i imię|nazwisko i imie)\s*:?\s*",
-                    "", cleaned, flags=re.IGNORECASE,
+                    "",
+                    cleaned,
+                    flags=re.IGNORECASE,
                 )
                 split = _split_name(possible)
                 if any(split):
@@ -254,7 +258,9 @@ class CVProfileParser:
             return True
         if _looks_like_date_range(cleaned):
             return False
-        if _looks_like_role_or_company(cleaned, ROLE_WORDS) or _looks_like_school_line(cleaned, EDUCATION_WORDS):
+        if _looks_like_role_or_company(cleaned, ROLE_WORDS) or _looks_like_school_line(
+            cleaned, EDUCATION_WORDS
+        ):
             return False
         return bool(
             re.fullmatch(r"[A-ZĄĆĘŁŃÓŚŹŻ][A-ZĄĆĘŁŃÓŚŹŻ /&()'\-]{3,}", cleaned)
@@ -269,15 +275,18 @@ class CVProfileParser:
         for line in candidates:
             cleaned_line = re.sub(r"^[A-Za-zÀ-ÿ /-]+:\s*", "", line)
             parts = [
-                p.strip(" -•,;:") for p in re.split(r"[,|/•]", cleaned_line)
-                if p.strip(" -•,;:")
+                p.strip(" -•,;:") for p in re.split(r"[,|/•]", cleaned_line) if p.strip(" -•,;:")
             ]
             for part in parts:
                 lowered = part.lower()
                 if lowered in SKILL_KEYWORDS and _format_skill(part) not in seen:
                     seen.append(_format_skill(part))
                 elif 1 <= len(part.split()) <= 4 and any(char.isalpha() for char in part):
-                    if lowered not in {"mother tongue(s)", "communication", "management"} and _looks_like_skill(part, SKILL_KEYWORDS):
+                    if lowered not in {
+                        "mother tongue(s)",
+                        "communication",
+                        "management",
+                    } and _looks_like_skill(part, SKILL_KEYWORDS):
                         formatted = _format_skill(part)
                         if formatted not in seen:
                             seen.append(formatted)
@@ -345,7 +354,11 @@ class CVProfileParser:
                 if not current["school"] and _looks_like_school_line(line, EDUCATION_WORDS):
                     current["school"] = line
                     continue
-                if current["school"] and not current["degree"] and _looks_like_degree_line(line, DEGREE_WORDS):
+                if (
+                    current["school"]
+                    and not current["degree"]
+                    and _looks_like_degree_line(line, DEGREE_WORDS)
+                ):
                     current["degree"] = line
                     continue
 
@@ -359,6 +372,7 @@ class CVProfileParser:
 # ---------------------------------------------------------------------------
 # CVParsingService — Single Responsibility: orchestrate the parse pipeline
 # ---------------------------------------------------------------------------
+
 
 class CVParsingService:
     """Orchestrates the full CV parsing pipeline: fetch job → extract → parse → persist."""
@@ -406,9 +420,7 @@ class CVParsingService:
                 # call always sees [REDACTED_*] placeholders for contact data.
                 # Consent gates the *matching* call below, not this redaction.
                 application = parse_job.application
-                consent_granted = bool(
-                    application and application.ai_profiling_consented_at
-                )
+                consent_granted = bool(application and application.ai_profiling_consented_at)
                 redact = settings.llm_redact_pii
 
                 cv_lang = detect_text_language(
@@ -481,6 +493,7 @@ class CVParsingService:
                     application = parse_job.application
                     if application:
                         from app.modules.jobs.models import Job
+
                         job_result = await db.get(Job, application.job_id)
                         if job_result:
                             await repo.save_api_usage_log(
@@ -495,7 +508,10 @@ class CVParsingService:
                 # AND a successful enrichment).
                 if enriched and profile and consent_granted:
                     await self._run_matching(
-                        repo, db, parse_job, profile,
+                        repo,
+                        db,
+                        parse_job,
+                        profile,
                         correlation_id=correlation_id,
                     )
                 elif enriched and profile and not consent_granted:
@@ -508,7 +524,8 @@ class CVParsingService:
                 await db.rollback()
                 logger.error(
                     "CV parsing failed for job %s: %s",
-                    parse_job_id, exc,
+                    parse_job_id,
+                    exc,
                     extra={"correlation_id": correlation_id},
                 )
                 parse_job.status = CVParseStatus.failed
@@ -528,8 +545,13 @@ class CVParsingService:
                 await db.commit()
 
     async def _run_matching(
-        self, repo, db, parse_job, profile,
-        *, correlation_id: str,
+        self,
+        repo,
+        db,
+        parse_job,
+        profile,
+        *,
+        correlation_id: str,
     ) -> None:
         """Run automatic LLM matching after successful CV enrichment.
 
@@ -538,6 +560,7 @@ class CVParsingService:
         and the job snapshot have not changed.
         """
         from app.modules.jobs.models import Job
+
         application = parse_job.application
         if not application:
             return
@@ -616,6 +639,7 @@ class CVParsingService:
         # off, circuit breaker open, irrecoverable Anthropic error.
         if match_res is None:
             from app.core.config import settings as _settings
+
             failure_status = "llm_disabled" if not _settings.llm_enabled else "llm_failed"
             await repo.save_job_match(
                 application_id=application.id,
@@ -711,6 +735,7 @@ async def run_cv_parse_job(parse_job_id: object) -> None:
 # Private helpers (pure functions shared between extractor and parser)
 # ---------------------------------------------------------------------------
 
+
 def _sanitize(text: str) -> str:
     return text.replace("\x00", "")
 
@@ -797,7 +822,12 @@ def _looks_like_degree_line(value: str, degree_words: frozenset[str]) -> bool:
 
 def _looks_like_subsection_heading(value: str) -> bool:
     canonical = _canonicalize(value)
-    if canonical in {"technologies practices", "technologies & practices", "dodatkowo", "additional information"}:
+    if canonical in {
+        "technologies practices",
+        "technologies & practices",
+        "dodatkowo",
+        "additional information",
+    }:
         return True
     return value.endswith(":") and len(value.split()) <= 5
 
@@ -811,10 +841,23 @@ def _looks_like_skill(value: str, skill_keywords: frozenset[str]) -> bool:
 def _looks_like_personal_metadata(value: str) -> bool:
     lowered = _canonicalize(value)
     metadata_starts = (
-        "nationality", "date of birth", "place of birth", "gender",
-        "linkedin", "github", "email", "email address", "phone",
-        "adres e mail", "telefon", "narodowosc", "data urodzenia",
-        "miejsce urodzenia", "plec", "obywatelstwo", "zezwolenie na prace",
+        "nationality",
+        "date of birth",
+        "place of birth",
+        "gender",
+        "linkedin",
+        "github",
+        "email",
+        "email address",
+        "phone",
+        "adres e mail",
+        "telefon",
+        "narodowosc",
+        "data urodzenia",
+        "miejsce urodzenia",
+        "plec",
+        "obywatelstwo",
+        "zezwolenie na prace",
     )
     return lowered.startswith(metadata_starts)
 
@@ -853,15 +896,22 @@ def _empty_entry(kind: str) -> dict[str, object]:
 
 
 def _has_entry_content(entry: dict[str, object]) -> bool:
-    return any([
-        entry.get("title"), entry.get("company"), entry.get("school"),
-        entry.get("degree"), entry.get("date_range"), bool(entry.get("description_lines")),
-    ])
+    return any(
+        [
+            entry.get("title"),
+            entry.get("company"),
+            entry.get("school"),
+            entry.get("degree"),
+            entry.get("date_range"),
+            bool(entry.get("description_lines")),
+        ]
+    )
 
 
 def _finalize_entry(entry: dict[str, object], kind: str) -> dict[str, str | None]:
     description_lines = [
-        line for line in entry["description_lines"]  # type: ignore[union-attr]
+        line
+        for line in entry["description_lines"]  # type: ignore[union-attr]
         if not _looks_like_subsection_heading(line)
     ]
     description = " ".join(description_lines).strip() or None

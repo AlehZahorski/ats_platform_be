@@ -10,7 +10,6 @@ from app.modules.notes.schemas import NoteCreate
 
 
 class NoteService(BaseService[NoteRepository]):
-
     def __init__(self, repository: NoteRepository, audit: AuditService) -> None:
         super().__init__(repository)
         self.audit = audit

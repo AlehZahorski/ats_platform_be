@@ -1,5 +1,5 @@
 import uuid
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import Cookie, Depends, HTTPException, status
 from jose import JWTError
@@ -36,7 +36,7 @@ DbSession = Annotated[AsyncSession, Depends(get_db)]
 # ---------------------------------------------------------------------------
 async def get_current_user(
     db: DbSession,
-    access_token: Optional[str] = Cookie(default=None),
+    access_token: str | None = Cookie(default=None),
 ) -> User:
     credentials_exc = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -59,9 +59,7 @@ async def get_current_user(
     except (JWTError, ValueError):
         raise credentials_exc
 
-    result = await db.execute(
-        select(User).where(User.id == user_uuid)
-    )
+    result = await db.execute(select(User).where(User.id == user_uuid))
     user = result.scalar_one_or_none()
 
     if user is None:
@@ -93,9 +91,7 @@ async def get_current_company(
     db: DbSession,
     current_user: User = Depends(get_current_user),
 ) -> Company:
-    result = await db.execute(
-        select(Company).where(Company.id == current_user.company_id)
-    )
+    result = await db.execute(select(Company).where(Company.id == current_user.company_id))
     company = result.scalar_one_or_none()
 
     if company is None:
@@ -120,6 +116,7 @@ def require_roles(*roles: str):
                 detail=t("auth.role_not_permitted", role=current_user.role),
             )
         return current_user
+
     return _check
 
 

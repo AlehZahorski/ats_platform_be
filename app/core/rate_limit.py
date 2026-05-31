@@ -17,9 +17,10 @@ Two ways to apply the limiter:
    dependency so we sidestep the decorator's signature mutation entirely.
    Prefer this on routes annotated with ``from __future__ import annotations``.
 """
+
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 from fastapi import Request
 from slowapi import Limiter
@@ -51,13 +52,14 @@ def rate_limit(rate: str) -> Callable:
                      dependencies=[Depends(rate_limit("10/minute"))])
         async def analyze(...): ...
     """
+
     def _dep(request: Request) -> None:
         # slowapi's Limiter.limit returns a decorator; we replicate its
         # check by calling the underlying limiter for this request and rate.
         # The limiter raises RateLimitExceeded when over the budget; the
         # SlowAPIMiddleware already handles converting that to HTTP 429.
-        from slowapi.errors import RateLimitExceeded
         from limits import parse
+        from slowapi.errors import RateLimitExceeded
 
         # Honour the global enable flag so tests (and any kill-switch) can
         # disable limiting in one place — mirrors slowapi's own .limit() guard.
@@ -70,4 +72,5 @@ def rate_limit(rate: str) -> Callable:
         # via Limiter.enabled — re-use its store and strategy.
         if not limiter.limiter.hit(item, key):  # type: ignore[attr-defined]
             raise RateLimitExceeded(item)
+
     return _dep

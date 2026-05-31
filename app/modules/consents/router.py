@@ -1,5 +1,4 @@
 import uuid
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
@@ -43,7 +42,7 @@ async def list_consents(
     company: CurrentCompany,
     _user: CurrentUser,
     active_only: bool = Query(False),
-    language: Optional[str] = Query(None),
+    language: str | None = Query(None),
     service: ConsentService = Depends(_get_service),
 ) -> list[ConsentRead]:
     consents = await service.list(company.id, active_only=active_only, language=language)

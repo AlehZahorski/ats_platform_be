@@ -8,6 +8,7 @@ domain is closely tied to ``Job``):
 3. ``RiskItemRepository``         — CRUD for user-entered risk items (1:N)
 4. ``MitigationActionRepository`` — CRUD for user-entered mitigation actions (1:N)
 """
+
 from __future__ import annotations
 
 import uuid
@@ -39,6 +40,7 @@ _MISSING = object()
 # JobRepository — CRUD + form template link
 # ───────────────────────────────────────────────────────────────────────────
 
+
 class JobRepository(BaseRepository[Job]):
     model = Job
 
@@ -67,14 +69,21 @@ class JobRepository(BaseRepository[Job]):
         if status:
             query = query.where(Job.status == status)
 
-        total = (await self.db.execute(select(func.count()).select_from(query.subquery()))).scalar_one()
+        total = (
+            await self.db.execute(select(func.count()).select_from(query.subquery()))
+        ).scalar_one()
         items = (
-            await self.db.execute(
-                query.offset(skip).limit(limit)
-                .order_by(Job.created_at.desc())
-                .options(*self._eager_load_options())
+            (
+                await self.db.execute(
+                    query.offset(skip)
+                    .limit(limit)
+                    .order_by(Job.created_at.desc())
+                    .options(*self._eager_load_options())
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
 
         return list(items), total
 
@@ -134,6 +143,7 @@ class JobRepository(BaseRepository[Job]):
 # AnalysisRepository — upsert for JobAnalysis + JobRiskAssessment (1:1)
 # ───────────────────────────────────────────────────────────────────────────
 
+
 class AnalysisRepository:
     """Upsert AI results into the 1:1 analysis tables.
 
@@ -152,7 +162,9 @@ class AnalysisRepository:
 
     async def get_risk_assessment(self, job_id: uuid.UUID) -> JobRiskAssessment | None:
         return (
-            await self.db.execute(select(JobRiskAssessment).where(JobRiskAssessment.job_id == job_id))
+            await self.db.execute(
+                select(JobRiskAssessment).where(JobRiskAssessment.job_id == job_id)
+            )
         ).scalar_one_or_none()
 
     async def upsert_analysis(self, job_id: uuid.UUID, data: dict[str, Any]) -> JobAnalysis:
@@ -171,7 +183,9 @@ class AnalysisRepository:
         await self.db.flush()
         return row
 
-    async def upsert_risk_assessment(self, job_id: uuid.UUID, data: dict[str, Any]) -> JobRiskAssessment:
+    async def upsert_risk_assessment(
+        self, job_id: uuid.UUID, data: dict[str, Any]
+    ) -> JobRiskAssessment:
         existing = await self.get_risk_assessment(job_id)
         now = datetime.now(UTC)
 
@@ -191,6 +205,7 @@ class AnalysisRepository:
 # ───────────────────────────────────────────────────────────────────────────
 # RiskItemRepository — CRUD for user-entered risk items (1:N)
 # ───────────────────────────────────────────────────────────────────────────
+
 
 class RiskItemRepository(BaseRepository[RiskItem]):
     model = RiskItem
@@ -226,6 +241,7 @@ class RiskItemRepository(BaseRepository[RiskItem]):
 # MitigationActionRepository — CRUD for user-entered mitigation actions (1:N)
 # ───────────────────────────────────────────────────────────────────────────
 
+
 class MitigationActionRepository(BaseRepository[MitigationAction]):
     model = MitigationAction
 
@@ -237,7 +253,9 @@ class MitigationActionRepository(BaseRepository[MitigationAction]):
         )
         return list(result.scalars().all())
 
-    async def get_by_id_and_job(self, action_id: uuid.UUID, job_id: uuid.UUID) -> MitigationAction | None:
+    async def get_by_id_and_job(
+        self, action_id: uuid.UUID, job_id: uuid.UUID
+    ) -> MitigationAction | None:
         result = await self.db.execute(
             select(MitigationAction).where(
                 MitigationAction.id == action_id,
@@ -253,7 +271,9 @@ class MitigationActionRepository(BaseRepository[MitigationAction]):
         await self.db.refresh(action)
         return action
 
-    async def update(self, action: MitigationAction, data: MitigationActionUpdate) -> MitigationAction:
+    async def update(
+        self, action: MitigationAction, data: MitigationActionUpdate
+    ) -> MitigationAction:
         for field, value in data.model_dump(exclude_unset=True).items():
             setattr(action, field, value)
         await self.db.flush()

@@ -11,8 +11,9 @@ from app.modules.forms.schemas import FormFieldCreate, FormTemplateCreate, FormT
 
 
 class FormService(BaseService[FormRepository]):
-
-    async def create_template(self, company_id: uuid.UUID, data: FormTemplateCreate) -> FormTemplate:
+    async def create_template(
+        self, company_id: uuid.UUID, data: FormTemplateCreate
+    ) -> FormTemplate:
         return await self.repository.create_template(company_id, data)
 
     async def get_template(self, template_id: uuid.UUID, company_id: uuid.UUID) -> FormTemplate:

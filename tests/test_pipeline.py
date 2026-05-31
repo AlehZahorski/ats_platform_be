@@ -7,12 +7,20 @@ import pytest
 from app.core.security import create_access_token
 from app.modules.interviews.models import Interview
 from app.services.mailer import mail_service
-from tests.helpers import create_application, create_company, create_job, create_pipeline_stages, create_verified_user
+from tests.helpers import (
+    create_application,
+    create_company,
+    create_job,
+    create_pipeline_stages,
+    create_verified_user,
+)
 
 
 async def _get_authed_client(client, db_session, role: str = "recruiter"):
     company = await create_company(db_session, f"Pipeline Co {role}")
-    user = await create_verified_user(db_session, company.id, email=f"{role}@pipeline.com", role=role)
+    user = await create_verified_user(
+        db_session, company.id, email=f"{role}@pipeline.com", role=role
+    )
     await db_session.commit()
 
     token = create_access_token(
@@ -39,7 +47,9 @@ async def test_recruiter_can_create_rename_reorder_and_delete_stage(client, db_s
     stage = create_response.json()
     assert stage["name"] == "Assessment"
 
-    rename_response = await client.patch(f"/api/v1/pipeline/{stage['id']}", json={"name": "Technical Assessment"})
+    rename_response = await client.patch(
+        f"/api/v1/pipeline/{stage['id']}", json={"name": "Technical Assessment"}
+    )
     assert rename_response.status_code == 200
     assert rename_response.json()["name"] == "Technical Assessment"
 
@@ -48,8 +58,7 @@ async def test_recruiter_can_create_rename_reorder_and_delete_stage(client, db_s
     stages = stages_response.json()
     reordered_payload = {
         "stages": [
-            {"id": item["id"], "order_index": index}
-            for index, item in enumerate(reversed(stages))
+            {"id": item["id"], "order_index": index} for index, item in enumerate(reversed(stages))
         ]
     }
     reorder_response = await client.post("/api/v1/pipeline/reorder", json=reordered_payload)
@@ -70,7 +79,9 @@ async def test_manager_cannot_manage_stages(client, db_session) -> None:
 @pytest.mark.asyncio
 async def test_cannot_move_candidate_to_interview_without_meeting_link(client, db_session) -> None:
     company = await create_company(db_session, "Interview Guard Co")
-    user = await create_verified_user(db_session, company.id, email="guard@pipeline.com", role="recruiter")
+    user = await create_verified_user(
+        db_session, company.id, email="guard@pipeline.com", role="recruiter"
+    )
     job = await create_job(db_session, company.id, "DevOps Engineer", "open")
     stages = await create_pipeline_stages(db_session)
     application = await create_application(db_session, job.id, stage_id=stages[0].id)
@@ -99,7 +110,9 @@ async def test_cannot_move_candidate_to_interview_without_meeting_link(client, d
 @pytest.mark.asyncio
 async def test_can_move_candidate_to_interview_when_meeting_link_exists(client, db_session) -> None:
     company = await create_company(db_session, "Interview Ready Co")
-    user = await create_verified_user(db_session, company.id, email="owner@ready.com", role="recruiter")
+    user = await create_verified_user(
+        db_session, company.id, email="owner@ready.com", role="recruiter"
+    )
     job = await create_job(db_session, company.id, "DevOps Engineer", "open")
     stages = await create_pipeline_stages(db_session)
     application = await create_application(db_session, job.id, stage_id=stages[0].id)

@@ -4,6 +4,7 @@ This is intentionally NOT a generator. We extract what's in the source —
 never invent, never improve. Used to onboard recruiters who have existing
 offers in Word docs, on competitor sites, etc., without retyping them.
 """
+
 from __future__ import annotations
 
 from app.core.config import settings

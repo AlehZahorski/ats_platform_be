@@ -17,7 +17,7 @@ from app.core.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 from app.core.config import settings
-from app.core.database import engine, Base, AsyncSessionLocal
+from app.core.database import AsyncSessionLocal, engine
 from app.core.enums import CVParseStatus
 from app.core.exceptions import DomainException
 from app.core.i18n import detect_language, set_language, t
@@ -67,6 +67,7 @@ async def lifespan(app: FastAPI):
     # real request.
     try:
         import asyncio as _asyncio
+
         from sqlalchemy import text as _text
 
         async def _ping():
@@ -77,7 +78,9 @@ async def lifespan(app: FastAPI):
         await _asyncio.gather(*(_ping() for _ in range(warmup_target)))
         logger.info("DB pool pre-warmed with %d connections", warmup_target)
     except Exception:
-        logger.warning("DB pool pre-warm skipped — first request will pay cold-connect cost", exc_info=True)
+        logger.warning(
+            "DB pool pre-warm skipped — first request will pay cold-connect cost", exc_info=True
+        )
 
     try:
         yield
@@ -216,6 +219,7 @@ def create_app() -> FastAPI:
     # impossible to detect after the fact.
     async def _logged_rate_limit_handler(request: Request, exc: RateLimitExceeded):
         from slowapi.util import get_remote_address
+
         logger.warning(
             "Rate limit exceeded path=%s ip=%s detail=%s",
             request.url.path,
@@ -231,6 +235,7 @@ def create_app() -> FastAPI:
     # Static file serving
     # -----------------------------------------------------------------------
     import os
+
     os.makedirs(settings.cv_upload_dir, exist_ok=True)
     app.mount(
         "/uploads",
@@ -263,6 +268,7 @@ def create_app() -> FastAPI:
     @app.get("/ready", include_in_schema=False)
     async def ready() -> JSONResponse:
         from sqlalchemy import text
+
         try:
             async with AsyncSessionLocal() as db:
                 await db.execute(text("SELECT 1"))
@@ -278,6 +284,7 @@ def create_app() -> FastAPI:
     # Values come from env vars set by the CI/CD pipeline; sensible defaults
     # avoid breaking local dev.
     import os
+
     @app.get("/version", include_in_schema=False)
     async def version() -> dict:
         return {
@@ -292,6 +299,7 @@ def create_app() -> FastAPI:
     @app.get("/health/llm", include_in_schema=False)
     async def llm_health() -> dict:
         from app.services.llm.circuit import default_breaker
+
         return {
             "llm_enabled": settings.llm_enabled,
             "breaker_open": default_breaker.is_open(),
@@ -319,6 +327,7 @@ def create_app() -> FastAPI:
         except Exception:
             body_preview = "<unreadable>"
         import sys
+
         msg = (
             f"[422] {request.method} {request.url.path} :: "
             f"errors={exc.errors()} body={body_preview}"
@@ -333,9 +342,11 @@ def create_app() -> FastAPI:
     @app.exception_handler(DomainException)
     async def domain_exception_handler(request: Request, exc: DomainException) -> JSONResponse:
         import sys
+
         print(
             f"[DomainException {exc.status_code}] {request.method} {request.url.path} :: {exc.detail!r}",
-            file=sys.stderr, flush=True,
+            file=sys.stderr,
+            flush=True,
         )
         return JSONResponse(
             status_code=exc.status_code,

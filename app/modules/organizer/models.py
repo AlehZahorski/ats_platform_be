@@ -38,5 +38,5 @@ class WorkSchedule(BaseModel):
         nullable=True,
     )
 
-    user: Mapped["User"] = relationship(foreign_keys=[user_id])  # noqa: F821
-    editor: Mapped["User | None"] = relationship(foreign_keys=[updated_by])  # noqa: F821
+    user: Mapped[User] = relationship(foreign_keys=[user_id])  # noqa: F821
+    editor: Mapped[User | None] = relationship(foreign_keys=[updated_by])  # noqa: F821

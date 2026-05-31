@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -11,21 +10,21 @@ from app.core.enums.tasks import TaskType
 
 class TaskCreate(BaseModel):
     title: str
-    description: Optional[str] = None
-    type: Optional[TaskType] = None
-    application_id: Optional[uuid.UUID] = None
-    assigned_to: Optional[uuid.UUID] = None
-    due_date: Optional[datetime] = None
+    description: str | None = None
+    type: TaskType | None = None
+    application_id: uuid.UUID | None = None
+    assigned_to: uuid.UUID | None = None
+    due_date: datetime | None = None
 
 
 class TaskUpdate(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    type: Optional[TaskType] = None
-    application_id: Optional[uuid.UUID] = None
-    assigned_to: Optional[uuid.UUID] = None
-    due_date: Optional[datetime] = None
-    completed: Optional[bool] = None
+    title: str | None = None
+    description: str | None = None
+    type: TaskType | None = None
+    application_id: uuid.UUID | None = None
+    assigned_to: uuid.UUID | None = None
+    due_date: datetime | None = None
+    completed: bool | None = None
 
 
 class UserRead(BaseModel):
@@ -39,16 +38,16 @@ class TaskRead(BaseModel):
 
     id: uuid.UUID
     company_id: uuid.UUID
-    application_id: Optional[uuid.UUID]
-    assigned_to: Optional[uuid.UUID]
-    created_by: Optional[uuid.UUID]
+    application_id: uuid.UUID | None
+    assigned_to: uuid.UUID | None
+    created_by: uuid.UUID | None
     title: str
-    description: Optional[str]
-    type: Optional[TaskType]
-    due_date: Optional[datetime]
+    description: str | None
+    type: TaskType | None
+    due_date: datetime | None
     completed: bool
-    completed_at: Optional[datetime]
-    assignee: Optional[UserRead]
-    creator: Optional[UserRead]
+    completed_at: datetime | None
+    assignee: UserRead | None
+    creator: UserRead | None
     created_at: datetime
     updated_at: datetime

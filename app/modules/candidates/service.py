@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import uuid
 from datetime import UTC, datetime, timedelta
 
 from fastapi import Response
 
 from app.core.config import settings
-from app.core.exceptions import ConflictError, NotFoundError, UnauthorizedError
+from app.core.exceptions import ConflictError, UnauthorizedError
 from app.core.i18n import t
 from app.core.security import (
     access_token_cookie_max_age,
@@ -19,7 +18,6 @@ from app.core.security import (
 from app.modules.candidates.models import Candidate
 from app.modules.candidates.repository import CandidateRepository
 
-
 # Cookie names — kept separate from the recruiter-side cookies so the two
 # sessions can coexist in the same browser without stomping each other.
 CANDIDATE_ACCESS_COOKIE = "candidate_access_token"
@@ -30,10 +28,14 @@ class CandidateAuthService:
     def __init__(self, repo: CandidateRepository) -> None:
         self.repo = repo
 
-    async def signup(self, *, email: str, password: str, full_name: str | None, response: Response) -> Candidate:
+    async def signup(
+        self, *, email: str, password: str, full_name: str | None, response: Response
+    ) -> Candidate:
         email_norm = email.strip().lower()
         if await self.repo.get_by_email(email_norm):
-            raise ConflictError(t("auth.email_taken") if False else "Adres e-mail jest już zarejestrowany")
+            raise ConflictError(
+                t("auth.email_taken") if False else "Adres e-mail jest już zarejestrowany"
+            )
         candidate = await self.repo.create(
             email=email_norm,
             password_hash=hash_password(password),

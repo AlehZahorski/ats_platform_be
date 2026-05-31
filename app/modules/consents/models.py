@@ -7,8 +7,8 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import BaseModel
 from app.core.database import Base
+from app.models.base import BaseModel
 
 
 class Consent(BaseModel):
@@ -27,8 +27,8 @@ class Consent(BaseModel):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     # relationships
-    company: Mapped["Company"] = relationship()  # noqa: F821
-    application_consents: Mapped[list["ApplicationConsent"]] = relationship(
+    company: Mapped[Company] = relationship()  # noqa: F821
+    application_consents: Mapped[list[ApplicationConsent]] = relationship(
         back_populates="consent", cascade="all, delete-orphan"
     )
 
@@ -59,5 +59,5 @@ class ApplicationConsent(Base):
     )
 
     # relationships
-    application: Mapped["Application"] = relationship()  # noqa: F821
-    consent: Mapped["Consent"] = relationship(back_populates="application_consents")
+    application: Mapped[Application] = relationship()  # noqa: F821
+    consent: Mapped[Consent] = relationship(back_populates="application_consents")

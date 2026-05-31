@@ -28,7 +28,10 @@ class AuditLog(BaseModel):
     )
 
     company_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"), nullable=True, index=True
+        UUID(as_uuid=True),
+        ForeignKey("companies.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
@@ -46,5 +49,5 @@ class AuditLog(BaseModel):
     # eager-load the actor and company. Default lazy="select" is intentional
     # — callers that don't paginate (e.g. background scripts) still work; the
     # list endpoint uses selectinload() in repository.list() to batch them.
-    user: Mapped["User | None"] = relationship(foreign_keys=[user_id])  # noqa: F821
-    company: Mapped["Company | None"] = relationship(foreign_keys=[company_id])  # noqa: F821
+    user: Mapped[User | None] = relationship(foreign_keys=[user_id])  # noqa: F821
+    company: Mapped[Company | None] = relationship(foreign_keys=[company_id])  # noqa: F821

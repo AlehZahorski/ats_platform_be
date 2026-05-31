@@ -13,9 +13,7 @@ class PipelineRepository(BaseRepository[PipelineStage]):
     model = PipelineStage
 
     async def list_stages(self) -> list[PipelineStage]:
-        result = await self.db.execute(
-            select(PipelineStage).order_by(PipelineStage.order_index)
-        )
+        result = await self.db.execute(select(PipelineStage).order_by(PipelineStage.order_index))
         return list(result.scalars().all())
 
     async def get_max_order_index(self) -> int:
@@ -35,7 +33,9 @@ class PipelineRepository(BaseRepository[PipelineStage]):
         await self.db.flush()
         return stage
 
-    async def reorder_stages(self, stage_orders: list[tuple[uuid.UUID, int]]) -> list[PipelineStage]:
+    async def reorder_stages(
+        self, stage_orders: list[tuple[uuid.UUID, int]]
+    ) -> list[PipelineStage]:
         stage_map = {stage.id: stage for stage in await self.list_stages()}
         for stage_id, order_index in stage_orders:
             if stage := stage_map.get(stage_id):

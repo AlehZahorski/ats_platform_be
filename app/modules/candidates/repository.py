@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,8 +35,14 @@ class CandidateRepository:
         await self.db.refresh(candidate)
         return candidate
 
-    async def save_refresh_token(self, candidate_id: uuid.UUID, token_hash: str, expires_at: datetime) -> None:
-        self.db.add(CandidateRefreshToken(candidate_id=candidate_id, token_hash=token_hash, expires_at=expires_at))
+    async def save_refresh_token(
+        self, candidate_id: uuid.UUID, token_hash: str, expires_at: datetime
+    ) -> None:
+        self.db.add(
+            CandidateRefreshToken(
+                candidate_id=candidate_id, token_hash=token_hash, expires_at=expires_at
+            )
+        )
         await self.db.flush()
 
     async def get_refresh(self, token_hash: str) -> CandidateRefreshToken | None:
@@ -44,7 +50,7 @@ class CandidateRepository:
             select(CandidateRefreshToken).where(
                 CandidateRefreshToken.token_hash == token_hash,
                 CandidateRefreshToken.revoked.is_(False),
-                CandidateRefreshToken.expires_at > datetime.now(timezone.utc),
+                CandidateRefreshToken.expires_at > datetime.now(UTC),
             )
         )
         return result.scalar_one_or_none()
@@ -70,7 +76,9 @@ class SavedJobRepository:
 
     async def list_for_candidate(self, candidate_id: uuid.UUID) -> list[SavedJob]:
         result = await self.db.execute(
-            select(SavedJob).where(SavedJob.candidate_id == candidate_id).order_by(SavedJob.created_at.desc())
+            select(SavedJob)
+            .where(SavedJob.candidate_id == candidate_id)
+            .order_by(SavedJob.created_at.desc())
         )
         return list(result.scalars().all())
 
@@ -100,18 +108,23 @@ class SavedJobRepository:
 class SavedCompanyRepository:
     """Mirrors SavedJobRepository — same shape, different FK. Lets us reuse
     the toggle-style UX (POST = add, DELETE = remove) on the frontend."""
+
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
     async def list_for_candidate(self, candidate_id: uuid.UUID) -> list[SavedCompany]:
         result = await self.db.execute(
-            select(SavedCompany).where(SavedCompany.candidate_id == candidate_id).order_by(SavedCompany.created_at.desc())
+            select(SavedCompany)
+            .where(SavedCompany.candidate_id == candidate_id)
+            .order_by(SavedCompany.created_at.desc())
         )
         return list(result.scalars().all())
 
     async def get(self, candidate_id: uuid.UUID, company_id: uuid.UUID) -> SavedCompany | None:
         result = await self.db.execute(
-            select(SavedCompany).where(SavedCompany.candidate_id == candidate_id, SavedCompany.company_id == company_id)
+            select(SavedCompany).where(
+                SavedCompany.candidate_id == candidate_id, SavedCompany.company_id == company_id
+            )
         )
         return result.scalar_one_or_none()
 
@@ -138,12 +151,18 @@ class SavedSearchRepository:
 
     async def list_for_candidate(self, candidate_id: uuid.UUID) -> list[SavedSearch]:
         result = await self.db.execute(
-            select(SavedSearch).where(SavedSearch.candidate_id == candidate_id).order_by(SavedSearch.created_at.desc())
+            select(SavedSearch)
+            .where(SavedSearch.candidate_id == candidate_id)
+            .order_by(SavedSearch.created_at.desc())
         )
         return list(result.scalars().all())
 
-    async def create(self, candidate_id: uuid.UUID, name: str, query: dict, notify_email: bool) -> SavedSearch:
-        ss = SavedSearch(candidate_id=candidate_id, name=name, query=query, notify_email=notify_email)
+    async def create(
+        self, candidate_id: uuid.UUID, name: str, query: dict, notify_email: bool
+    ) -> SavedSearch:
+        ss = SavedSearch(
+            candidate_id=candidate_id, name=name, query=query, notify_email=notify_email
+        )
         self.db.add(ss)
         await self.db.flush()
         await self.db.refresh(ss)
@@ -151,7 +170,9 @@ class SavedSearchRepository:
 
     async def delete(self, candidate_id: uuid.UUID, search_id: uuid.UUID) -> bool:
         result = await self.db.execute(
-            select(SavedSearch).where(SavedSearch.id == search_id, SavedSearch.candidate_id == candidate_id)
+            select(SavedSearch).where(
+                SavedSearch.id == search_id, SavedSearch.candidate_id == candidate_id
+            )
         )
         ss = result.scalar_one_or_none()
         if not ss:

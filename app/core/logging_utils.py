@@ -15,6 +15,7 @@ Three pieces:
 Keeping these as plain stdlib pieces means we can ship a real observability
 stack (structlog / OTel / Sentry) later without breaking call sites.
 """
+
 from __future__ import annotations
 
 import logging
@@ -85,10 +86,7 @@ class PiiRedactionFilter(logging.Filter):
             record.msg = _redact(record.msg)
         if record.args:
             try:
-                record.args = tuple(
-                    _redact(a) if isinstance(a, str) else a
-                    for a in record.args
-                )
+                record.args = tuple(_redact(a) if isinstance(a, str) else a for a in record.args)
             except Exception:  # noqa: BLE001 — never let logging crash callers
                 pass
         for field in self._STRING_EXTRA_FIELDS:

@@ -16,6 +16,7 @@ class Candidate(BaseModel):
     cookies. This separation lets us add candidate-only features (saved jobs,
     email alerts, application history) without polluting the HR auth flow.
     """
+
     __tablename__ = "candidates"
 
     email: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
@@ -29,16 +30,16 @@ class Candidate(BaseModel):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
-    refresh_tokens: Mapped[list["CandidateRefreshToken"]] = relationship(
+    refresh_tokens: Mapped[list[CandidateRefreshToken]] = relationship(
         back_populates="candidate", cascade="all, delete-orphan"
     )
-    saved_jobs: Mapped[list["SavedJob"]] = relationship(
+    saved_jobs: Mapped[list[SavedJob]] = relationship(
         back_populates="candidate", cascade="all, delete-orphan"
     )
-    saved_companies: Mapped[list["SavedCompany"]] = relationship(
+    saved_companies: Mapped[list[SavedCompany]] = relationship(
         back_populates="candidate", cascade="all, delete-orphan"
     )
-    saved_searches: Mapped[list["SavedSearch"]] = relationship(
+    saved_searches: Mapped[list[SavedSearch]] = relationship(
         back_populates="candidate", cascade="all, delete-orphan"
     )
 
@@ -47,27 +48,35 @@ class CandidateRefreshToken(BaseModel):
     __tablename__ = "candidate_refresh_tokens"
 
     candidate_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("candidates.id", ondelete="CASCADE"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("candidates.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     token_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
-    candidate: Mapped["Candidate"] = relationship(back_populates="refresh_tokens")
+    candidate: Mapped[Candidate] = relationship(back_populates="refresh_tokens")
 
 
 class SavedJob(BaseModel):
     __tablename__ = "saved_jobs"
-    __table_args__ = (UniqueConstraint("candidate_id", "job_id", name="uq_saved_jobs_candidate_job"),)
+    __table_args__ = (
+        UniqueConstraint("candidate_id", "job_id", name="uq_saved_jobs_candidate_job"),
+    )
 
     candidate_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("candidates.id", ondelete="CASCADE"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("candidates.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     job_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False
     )
 
-    candidate: Mapped["Candidate"] = relationship(back_populates="saved_jobs")
+    candidate: Mapped[Candidate] = relationship(back_populates="saved_jobs")
 
 
 class SavedCompany(BaseModel):
@@ -76,17 +85,23 @@ class SavedCompany(BaseModel):
     Anonymous follows live in localStorage on the client. The same UI hook
     abstracts both stores (see useSavedCompaniesSet on the frontend).
     """
+
     __tablename__ = "saved_companies"
-    __table_args__ = (UniqueConstraint("candidate_id", "company_id", name="uq_saved_companies_candidate_company"),)
+    __table_args__ = (
+        UniqueConstraint("candidate_id", "company_id", name="uq_saved_companies_candidate_company"),
+    )
 
     candidate_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("candidates.id", ondelete="CASCADE"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("candidates.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     company_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False
     )
 
-    candidate: Mapped["Candidate"] = relationship(back_populates="saved_companies")
+    candidate: Mapped[Candidate] = relationship(back_populates="saved_companies")
 
 
 class SavedSearch(BaseModel):
@@ -95,16 +110,20 @@ class SavedSearch(BaseModel):
     salary range, keywords). Kept opaque on purpose so we don't need a migration
     every time a new filter is added.
     """
+
     __tablename__ = "saved_searches"
 
     candidate_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("candidates.id", ondelete="CASCADE"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("candidates.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     name: Mapped[str] = mapped_column(Text, nullable=False)
     query: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     notify_email: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
-    candidate: Mapped["Candidate"] = relationship(back_populates="saved_searches")
+    candidate: Mapped[Candidate] = relationship(back_populates="saved_searches")
 
 
 class SearchLog(BaseModel):
@@ -112,6 +131,7 @@ class SearchLog(BaseModel):
 
     Aggregated nightly to drive the "popular" chip row on the homepage.
     """
+
     __tablename__ = "search_logs"
 
     candidate_id: Mapped[uuid.UUID | None] = mapped_column(

@@ -9,6 +9,7 @@ Covers:
 - F-21  i18n.detect_text_language across mixed-language fixtures
 - F-06  schemas.JobMatchResult / CVEnrichmentResult validation
 """
+
 from __future__ import annotations
 
 import pytest
@@ -22,7 +23,6 @@ from app.services.llm.schemas import (
     JobMatchResult,
     LLMValidationError,
 )
-
 
 # ── F-01 safety -------------------------------------------------------------
 
@@ -220,22 +220,29 @@ class TestSchemas:
     def test_job_match_minimum_strengths(self):
         # MINIMUM POSITIVES RULE — strengths_match must have ≥ 1 item.
         with pytest.raises(Exception):
-            JobMatchResult.model_validate({
-                "match_score": 30,
-                "fit_score": 30,
-                "recommendation": "not_a_match",
-                "reasoning": "Insufficient match.",
-                "strengths_match": [],   # invalid — empty
-                "gaps": ["A", "B"],
-            })
+            JobMatchResult.model_validate(
+                {
+                    "match_score": 30,
+                    "fit_score": 30,
+                    "recommendation": "not_a_match",
+                    "reasoning": "Insufficient match.",
+                    "strengths_match": [],  # invalid — empty
+                    "gaps": ["A", "B"],
+                }
+            )
 
     def test_job_match_recommendation_enum(self):
         with pytest.raises(Exception):
-            JobMatchResult.model_validate({
-                "match_score": 50, "fit_score": 50,
-                "recommendation": "maybe",   # invalid value
-                "reasoning": "x", "strengths_match": ["x"], "gaps": [],
-            })
+            JobMatchResult.model_validate(
+                {
+                    "match_score": 50,
+                    "fit_score": 50,
+                    "recommendation": "maybe",  # invalid value
+                    "reasoning": "x",
+                    "strengths_match": ["x"],
+                    "gaps": [],
+                }
+            )
 
     def test_cv_enrichment_clamps_experience(self):
         out = CVEnrichmentResult.model_validate({"total_experience_years": 120})
@@ -248,9 +255,11 @@ class TestSchemas:
 
     def test_cv_enrichment_extra_fields_ignored(self):
         # Old prompt halucinated personality_signals — must NOT make schema fail.
-        out = CVEnrichmentResult.model_validate({
-            "personal_summary": "I lead teams.",
-            "personality_signals": {"team_player": True},
-        })
+        out = CVEnrichmentResult.model_validate(
+            {
+                "personal_summary": "I lead teams.",
+                "personality_signals": {"team_player": True},
+            }
+        )
         assert out.personal_summary == "I lead teams."
         assert not hasattr(out, "personality_signals")

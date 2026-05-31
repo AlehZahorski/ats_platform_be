@@ -1,7 +1,6 @@
 """Tests for the applications module."""
-from __future__ import annotations
 
-import uuid
+from __future__ import annotations
 
 import pytest
 from httpx import AsyncClient
@@ -125,6 +124,7 @@ async def test_list_applications(client: AsyncClient, db_session) -> None:
     # Re-authenticate
     from app.core.security import create_access_token
     from tests.helpers import create_company, create_verified_user
+
     company = await create_company(db_session, "ListCheck Co")
     user = await create_verified_user(db_session, company.id, "list@check.com")
     await db_session.commit()
@@ -150,6 +150,7 @@ async def test_score_application(client: AsyncClient, db_session) -> None:
 
     # Re-auth to score
     from app.core.security import create_access_token
+
     company = await create_company(db_session, "Score Co")
     user = await create_verified_user(db_session, company.id, "scorer@test.com")
     await db_session.commit()
@@ -220,7 +221,9 @@ async def test_duplicate_check_detects_existing_candidate(client: AsyncClient, d
 
 
 @pytest.mark.asyncio
-async def test_apply_requires_override_for_duplicate_candidate(client: AsyncClient, db_session) -> None:
+async def test_apply_requires_override_for_duplicate_candidate(
+    client: AsyncClient, db_session
+) -> None:
     _, _, job, _ = await _authed_client(client, db_session, "dupeapply")
     client.cookies.clear()
 

@@ -12,6 +12,7 @@ internal code path we may have missed during the refactor still works — but
 they are NO LONGER used by ``app.services.cv_parsing``. Remove this file
 once we've confirmed nothing imports from it across one release cycle.
 """
+
 from __future__ import annotations
 
 import asyncio

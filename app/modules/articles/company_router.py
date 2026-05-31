@@ -11,10 +11,11 @@ Key invariants vs the admin router:
   • Refuses to flip is_featured — the featured slot stays admin-curated.
   • Refuses to switch ownership to another company — once written, owned.
 """
+
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Query, Response, UploadFile, status
@@ -33,7 +34,6 @@ from app.modules.articles.schemas import (
 )
 from app.services.image_storage import ImageStorageService
 
-
 router = APIRouter()
 _cover_storage = ImageStorageService("article-covers")
 
@@ -42,15 +42,16 @@ _cover_storage = ImageStorageService("article-covers")
 # List / get — scoped to current company
 # ─────────────────────────────────────────────────────────────────────
 
+
 @router.get("", response_model=ArticleAdminList)
 async def list_company_articles(
     company: CurrentCompany,
-    _user:   CurrentUser,
-    q:       str | None = Query(None, min_length=1),
+    _user: CurrentUser,
+    q: str | None = Query(None, min_length=1),
     status_filter: str | None = Query(None, alias="status", pattern="^(draft|published)$"),
-    sort:    str        = Query("newest", pattern="^(newest|oldest|title)$"),
-    skip:    int        = Query(0, ge=0),
-    limit:   int        = Query(50, ge=1, le=200),
+    sort: str = Query("newest", pattern="^(newest|oldest|title)$"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     base = select(Article).where(Article.company_id == company.id, Article.type == "company")
@@ -79,7 +80,7 @@ async def list_company_articles(
 async def get_company_article(
     article_id: uuid.UUID,
     company: CurrentCompany,
-    _user:   CurrentUser,
+    _user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     article = await _require_owned(db, article_id, company.id)
@@ -90,11 +91,12 @@ async def get_company_article(
 # Create / update / delete
 # ─────────────────────────────────────────────────────────────────────
 
+
 @router.post("", response_model=ArticleAdminRead, status_code=status.HTTP_201_CREATED)
 async def create_company_article(
     data: ArticleCreate,
     company: CurrentCompany,
-    _user:   CurrentUser,
+    _user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     if data.is_featured:
@@ -105,7 +107,7 @@ async def create_company_article(
 
     published_at = data.published_at
     if data.is_published and not published_at:
-        published_at = datetime.now(timezone.utc)
+        published_at = datetime.now(UTC)
 
     article = Article(
         slug=data.slug,
@@ -134,7 +136,7 @@ async def update_company_article(
     article_id: uuid.UUID,
     data: ArticleUpdate,
     company: CurrentCompany,
-    _user:   CurrentUser,
+    _user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     article = await _require_owned(db, article_id, company.id)
@@ -147,8 +149,12 @@ async def update_company_article(
         if await _slug_taken(db, payload["slug"], exclude_id=article.id):
             raise ConflictError("Artykuł o tym adresie URL już istnieje.")
 
-    if payload.get("is_published") is True and not article.published_at and "published_at" not in payload:
-        payload["published_at"] = datetime.now(timezone.utc)
+    if (
+        payload.get("is_published") is True
+        and not article.published_at
+        and "published_at" not in payload
+    ):
+        payload["published_at"] = datetime.now(UTC)
 
     for field, value in payload.items():
         setattr(article, field, value)
@@ -161,7 +167,7 @@ async def update_company_article(
 async def delete_company_article(
     article_id: uuid.UUID,
     company: CurrentCompany,
-    _user:   CurrentUser,
+    _user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> Response:
     article = await _require_owned(db, article_id, company.id)
@@ -175,13 +181,13 @@ async def delete_company_article(
 async def toggle_publish(
     article_id: uuid.UUID,
     company: CurrentCompany,
-    _user:   CurrentUser,
+    _user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     article = await _require_owned(db, article_id, company.id)
     article.is_published = not article.is_published
     if article.is_published and not article.published_at:
-        article.published_at = datetime.now(timezone.utc)
+        article.published_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(article)
     return _owner_read(article)
@@ -191,11 +197,12 @@ async def toggle_publish(
 # Cover upload
 # ─────────────────────────────────────────────────────────────────────
 
+
 @router.post("/{article_id}/cover", response_model=ArticleAdminRead)
 async def upload_cover(
     article_id: uuid.UUID,
     company: CurrentCompany,
-    _user:   CurrentUser,
+    _user: CurrentUser,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
@@ -212,7 +219,7 @@ async def upload_cover(
 async def remove_cover(
     article_id: uuid.UUID,
     company: CurrentCompany,
-    _user:   CurrentUser,
+    _user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     article = await _require_owned(db, article_id, company.id)
@@ -226,6 +233,7 @@ async def remove_cover(
 # ─────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────
+
 
 async def _require_owned(db: AsyncSession, article_id: uuid.UUID, company_id: uuid.UUID) -> Article:
     result = await db.execute(
@@ -246,13 +254,17 @@ async def _slug_taken(db: AsyncSession, slug: str, exclude_id: uuid.UUID | None)
 
 
 def _owner_read(a: Article) -> dict[str, Any]:
-    company_block = {
-        "id":          a.company.id,
-        "slug":        a.company.slug,
-        "name":        a.company.name,
-        "logo_url":    a.company.logo_url,
-        "is_verified": a.company.is_verified,
-    } if a.company else None
+    company_block = (
+        {
+            "id": a.company.id,
+            "slug": a.company.slug,
+            "name": a.company.name,
+            "logo_url": a.company.logo_url,
+            "is_verified": a.company.is_verified,
+        }
+        if a.company
+        else None
+    )
     return {
         "id": a.id,
         "slug": a.slug,

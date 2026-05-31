@@ -5,12 +5,12 @@ database or the API response. Halucynowane pole (`recommendation: "maybe"`)
 albo brakujące pole = `LLMValidationError`, a caller decyduje czy fallback
 do v1-regex / 422 / retry.
 """
+
 from __future__ import annotations
 
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-
 
 # ---------------------------------------------------------------------------
 # Shared error
@@ -51,6 +51,7 @@ class EvidenceQuote(BaseModel):
     F-16: We replaced binary `team_player: true/false`-style signals (which
     invite bias) with quoted evidence the recruiter can verify in seconds.
     """
+
     model_config = ConfigDict(extra="ignore")
     observation: str = Field(..., min_length=1, max_length=200)
     quote: str = Field(..., min_length=1, max_length=400)
@@ -58,6 +59,7 @@ class EvidenceQuote(BaseModel):
 
 class CVEnrichmentResult(BaseModel):
     """Shape returned by the CV enrichment prompt."""
+
     model_config = ConfigDict(extra="ignore")
 
     personal_summary: str = ""
@@ -109,8 +111,16 @@ class JobMatchResult(BaseModel):
 
 
 _SeniorityLiteral = Literal[
-    "junior", "mid", "senior", "lead", "expert", "intern",
-    "operator", "team_leader", "foreman", "specialist",
+    "junior",
+    "mid",
+    "senior",
+    "lead",
+    "expert",
+    "intern",
+    "operator",
+    "team_leader",
+    "foreman",
+    "specialist",
 ]
 
 
@@ -133,8 +143,12 @@ class JobParseResult(BaseModel):
     work_mode: Literal["office", "hybrid", "remote", "mobile", "field"] | None = None
     contract_type: Literal["employment", "b2b", "contract", "internship", "temporary"] | None = None
     seniority: _SeniorityLiteral | None = None
-    shift_system: Literal["one_shift", "two_shift", "three_shift", "weekend", "equivalent"] | None = None
-    employment_size: Literal["full", "part_50", "part_75", "temporary", "internship", "apprenticeship"] | None = None
+    shift_system: (
+        Literal["one_shift", "two_shift", "three_shift", "weekend", "equivalent"] | None
+    ) = None
+    employment_size: (
+        Literal["full", "part_50", "part_75", "temporary", "internship", "apprenticeship"] | None
+    ) = None
     salary_min: int | None = None
     salary_max: int | None = None
     salary_currency: str | None = None

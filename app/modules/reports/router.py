@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
@@ -24,7 +22,7 @@ router = APIRouter()
 
 
 def _date_from_days(days: int) -> datetime:
-    return datetime.now(timezone.utc) - timedelta(days=days)
+    return datetime.now(UTC) - timedelta(days=days)
 
 
 @router.get("/time-to-hire", response_model=TimeToHireReport)
@@ -38,9 +36,7 @@ async def time_to_hire(
 
     # Find applications that reached "Hired" stage
     hired_stage = await db.execute(
-        select(PipelineStage).where(
-            func.lower(PipelineStage.name) == "hired"
-        )
+        select(PipelineStage).where(func.lower(PipelineStage.name) == "hired")
     )
     stage = hired_stage.scalar_one_or_none()
 
@@ -68,7 +64,7 @@ async def time_to_hire(
         return TimeToHireReport(avg_days=0, min_days=0, max_days=0, total_hired=0)
 
     durations = [
-        (row.changed_at - row.created_at.replace(tzinfo=timezone.utc)).days
+        (row.changed_at - row.created_at.replace(tzinfo=UTC)).days
         for row in rows
         if row.changed_at and row.created_at
     ]

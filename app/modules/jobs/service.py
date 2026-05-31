@@ -5,6 +5,7 @@ Delegates concerns to focused collaborators:
 - Persistence    → JobRepository, AnalysisRepository, RiskItemRepository, MitigationActionRepository
 - LLM           → JobAnalyzer, JobSuggester, RiskAnalyzer
 """
+
 from __future__ import annotations
 
 import uuid
@@ -38,33 +39,62 @@ from app.modules.jobs.schemas import (
 from app.modules.jobs.validators import PublishValidator, StatusTransitionValidator
 from app.services.llm import JobAnalyzer, JobParser, JobSuggester, RiskAnalyzer
 
-
 # Fields passed to each LLM service — kept as module constants for clarity.
 _ANALYZE_FIELDS: tuple[str, ...] = (
-    "title", "role_summary", "role_purpose", "responsibilities",
-    "must_haves", "nice_to_haves", "tech_stack", "domain_context",
-    "seniority", "experience_min_years", "experience_max_years",
-    "work_mode", "remote_constraints", "team_context", "success_profile",
-    "value_proposition", "benefits", "hiring_process",
-    "salary_min", "salary_max", "salary_currency", "salary_period",
+    "title",
+    "role_summary",
+    "role_purpose",
+    "responsibilities",
+    "must_haves",
+    "nice_to_haves",
+    "tech_stack",
+    "domain_context",
+    "seniority",
+    "experience_min_years",
+    "experience_max_years",
+    "work_mode",
+    "remote_constraints",
+    "team_context",
+    "success_profile",
+    "value_proposition",
+    "benefits",
+    "hiring_process",
+    "salary_min",
+    "salary_max",
+    "salary_currency",
+    "salary_period",
     "contract_type",
 )
 
 _RISK_FIELDS: tuple[str, ...] = (
-    "title", "department", "role_purpose", "role_scope", "role_deliverables",
-    "must_haves", "tech_stack", "domain_context",
-    "seniority", "experience_min_years", "team_context",
-    "salary_min", "salary_max", "salary_currency", "salary_period",
+    "title",
+    "department",
+    "role_purpose",
+    "role_scope",
+    "role_deliverables",
+    "must_haves",
+    "tech_stack",
+    "domain_context",
+    "seniority",
+    "experience_min_years",
+    "team_context",
+    "salary_min",
+    "salary_max",
+    "salary_currency",
+    "salary_period",
     "work_mode",
 )
 
 _SUGGEST_FIELDS: tuple[str, ...] = (
-    "title", "department", "seniority", "work_mode", "domain_context",
+    "title",
+    "department",
+    "seniority",
+    "work_mode",
+    "domain_context",
 )
 
 
 class JobService(BaseService[JobRepository]):
-
     def __init__(self, repository: JobRepository) -> None:
         super().__init__(repository)
         # Sibling repositories sharing the same AsyncSession
@@ -109,10 +139,12 @@ class JobService(BaseService[JobRepository]):
         merged = self._merged_state(job, JobUpdate(status=JobStatus.open))
         issues = PublishValidator.validate(merged)
         if issues:
-            raise UnprocessableError({
-                "message": t("jobs.not_ready"),
-                "issues": issues,
-            })
+            raise UnprocessableError(
+                {
+                    "message": t("jobs.not_ready"),
+                    "issues": issues,
+                }
+            )
         return await self.repository.update(job, JobUpdate(status=JobStatus.open))
 
     async def parse_text(
@@ -205,10 +237,12 @@ class JobService(BaseService[JobRepository]):
     async def analyze(self, job: Job, language: str = "en") -> JobOfferAnalysisRead:
         issues = PublishValidator.validate(job)
         if issues:
-            raise UnprocessableError({
-                "message": t("jobs.not_ready_for_analysis"),
-                "issues": issues,
-            })
+            raise UnprocessableError(
+                {
+                    "message": t("jobs.not_ready_for_analysis"),
+                    "issues": issues,
+                }
+            )
         await self._enforce_daily_budget(job.company_id)
         effective_lang = self._resolve_language(job, language)
         res = await self._job_analyzer.analyze(
@@ -228,15 +262,18 @@ class JobService(BaseService[JobRepository]):
             urgency_message=result.get("urgency_message", ""),
         )
 
-        await self.analysis_repo.upsert_analysis(job.id, {
-            "score": analysis.attractiveness_score,
-            "market_position": analysis.market_position,
-            "summary": analysis.summary,
-            "strengths": analysis.strengths,
-            "improvements": analysis.improvements,
-            "candidate_impact": analysis.candidate_impact,
-            "urgency_message": analysis.urgency_message,
-        })
+        await self.analysis_repo.upsert_analysis(
+            job.id,
+            {
+                "score": analysis.attractiveness_score,
+                "market_position": analysis.market_position,
+                "summary": analysis.summary,
+                "strengths": analysis.strengths,
+                "improvements": analysis.improvements,
+                "candidate_impact": analysis.candidate_impact,
+                "urgency_message": analysis.urgency_message,
+            },
+        )
         return analysis
 
     # ── LLM: risk assessment (persisted → JobRiskAssessment) ─────────────
@@ -251,12 +288,15 @@ class JobService(BaseService[JobRepository]):
         result = self._llm_data_or_fail(res, "jobs.risk_assessment_failed")
         await self._record_usage(job.company_id, operation="job_risk", meta=res.meta)
 
-        row = await self.analysis_repo.upsert_risk_assessment(job.id, {
-            "score": int(result.get("risk_score", 0)),
-            "level": result.get("risk_level", "medium"),
-            "factors": result.get("factors", []),
-            "recommendations": result.get("recommendations", []),
-        })
+        row = await self.analysis_repo.upsert_risk_assessment(
+            job.id,
+            {
+                "score": int(result.get("risk_score", 0)),
+                "level": result.get("risk_level", "medium"),
+                "factors": result.get("factors", []),
+                "recommendations": result.get("recommendations", []),
+            },
+        )
         return JobRiskAssessmentRead.model_validate(row)
 
     # ── LLM: content suggestion (not persisted) ───────────────────────────
@@ -280,6 +320,7 @@ class JobService(BaseService[JobRepository]):
 
         # Mark used — even if user discards the output, this was a paid call.
         from datetime import UTC, datetime
+
         job.suggest_used_at = datetime.now(UTC)
         await self.repository.db.flush()
 
@@ -301,7 +342,9 @@ class JobService(BaseService[JobRepository]):
     async def add_mitigation(self, job: Job, data: MitigationActionCreate) -> MitigationAction:
         return await self.mitigation_repo.add(job.id, data)
 
-    async def update_mitigation(self, action: MitigationAction, data: MitigationActionUpdate) -> MitigationAction:
+    async def update_mitigation(
+        self, action: MitigationAction, data: MitigationActionUpdate
+    ) -> MitigationAction:
         return await self.mitigation_repo.update(action, data)
 
     async def delete_mitigation(self, action: MitigationAction) -> None:

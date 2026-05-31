@@ -4,9 +4,10 @@ Aggregates ``api_usage_logs`` across ALL tenants (admin-only — no company
 scoping, unlike app/modules/llm_usage which is per-recruiter) into a
 per-company / per-operation / per-model cost + token report.
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,11 +37,7 @@ class AdminUsageService:
         Token/cost sums are coalesced to 0 so a company with only token-less
         rows still appears with calls > 0.
         """
-        cutoff = (
-            datetime.now(timezone.utc) - timedelta(days=days)
-            if days is not None
-            else None
-        )
+        cutoff = datetime.now(UTC) - timedelta(days=days) if days is not None else None
 
         def _scoped(stmt):
             return stmt.where(ApiUsageLog.created_at >= cutoff) if cutoff is not None else stmt
@@ -49,9 +46,7 @@ class AdminUsageService:
         calls = func.count(ApiUsageLog.id)
         inp = func.coalesce(func.sum(ApiUsageLog.input_tokens), 0)
         out = func.coalesce(func.sum(ApiUsageLog.output_tokens), 0)
-        total = func.coalesce(
-            func.sum(ApiUsageLog.input_tokens + ApiUsageLog.output_tokens), 0
-        )
+        total = func.coalesce(func.sum(ApiUsageLog.input_tokens + ApiUsageLog.output_tokens), 0)
         cost = func.coalesce(func.sum(ApiUsageLog.cost_usd), 0)
 
         # 1. Overview.
@@ -59,7 +54,11 @@ class AdminUsageService:
             await self.db.execute(
                 _scoped(
                     select(
-                        calls, inp, out, total, cost,
+                        calls,
+                        inp,
+                        out,
+                        total,
+                        cost,
                         func.count(func.distinct(ApiUsageLog.company_id)),
                     )
                 )
@@ -82,7 +81,11 @@ class AdminUsageService:
                     select(
                         ApiUsageLog.company_id,
                         Company.name,
-                        calls, inp, out, total, cost,
+                        calls,
+                        inp,
+                        out,
+                        total,
+                        cost,
                         func.max(ApiUsageLog.created_at),
                     )
                     .join(Company, Company.id == ApiUsageLog.company_id)

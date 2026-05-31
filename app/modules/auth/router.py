@@ -1,5 +1,4 @@
 import secrets
-from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,8 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import CurrentUser
 from app.core.exceptions import UnauthorizedError
-from app.core.rate_limit import rate_limit
 from app.core.i18n import t
+from app.core.rate_limit import rate_limit
 from app.core.security import get_google_auth_url
 from app.modules.auth.schemas import LoginRequest, MessageResponse, SignupCompanyRequest
 from app.modules.auth.service import AuthService
@@ -70,7 +69,7 @@ async def login(
 )
 async def refresh(
     response: Response,
-    refresh_token: Optional[str] = Cookie(default=None),
+    refresh_token: str | None = Cookie(default=None),
     service: AuthService = Depends(_get_service),
 ) -> MessageResponse:
     if not refresh_token:
@@ -82,7 +81,7 @@ async def refresh(
 @router.post("/logout", response_model=MessageResponse)
 async def logout(
     response: Response,
-    refresh_token: Optional[str] = Cookie(default=None),
+    refresh_token: str | None = Cookie(default=None),
     service: AuthService = Depends(_get_service),
 ) -> MessageResponse:
     result = await service.logout(refresh_token, response)

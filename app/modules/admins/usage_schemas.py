@@ -4,6 +4,7 @@ Shapes the cross-tenant view the admin panel renders from ``api_usage_logs``.
 Field names mirror the ORM model (``input_tokens`` / ``output_tokens`` /
 ``llm_model`` / ``operation``); ``total_tokens`` is derived (input + output).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -14,6 +15,7 @@ from pydantic import BaseModel
 
 class UsageOverview(BaseModel):
     """Platform-wide totals for the selected window."""
+
     total_calls: int
     total_input_tokens: int
     total_output_tokens: int

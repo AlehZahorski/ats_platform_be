@@ -78,6 +78,7 @@ class InvitationRead(BaseModel):
 
 class InvitationPreview(BaseModel):
     """Public preview shown on the accept-invitation page before the user sets a password."""
+
     email: EmailStr
     role: UserRole
     company_name: str

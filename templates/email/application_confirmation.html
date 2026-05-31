@@ -1,27 +1,27 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Application received — {{ app_name }}</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #f4f4f5; margin: 0; padding: 40px 0; }
-    .card { background: #fff; max-width: 560px; margin: 0 auto; border-radius: 8px;
-            padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-    h1 { font-size: 22px; color: #111; }
-    p  { color: #555; line-height: 1.6; }
-    .btn { display: inline-block; margin-top: 24px; padding: 14px 28px;
-           background: #2563eb; color: #fff; text-decoration: none;
-           border-radius: 6px; font-weight: 600; }
-    .footer { margin-top: 32px; font-size: 12px; color: #999; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>Application received ✓</h1>
-    <p>Hi {{ candidate_name }},</p>
-    <p>We received your application for <strong>{{ job_title }}</strong>. Use the link below to track your application status at any time.</p>
-    <a href="{{ tracking_url }}" class="btn">Track my application</a>
-    <p class="footer">You received this email because you submitted an application through {{ app_name }}.</p>
-  </div>
-</body>
-</html>
+{% extends "base.html" %}
+{% block title %}Aplikacja otrzymana{% endblock %}
+{% block preheader %}Otrzymaliśmy Twoją aplikację na stanowisko {{ job_title }}.{% endblock %}
+{% block content %}
+  <h2 style="margin:0 0 16px;color:#18181b;font-size:20px;">Aplikacja otrzymana ✓</h2>
+  <p style="margin:0 0 16px;color:#3f3f46;font-size:15px;line-height:1.6;">
+    Cześć {{ candidate_name }},
+  </p>
+  <p style="margin:0 0 16px;color:#3f3f46;font-size:15px;line-height:1.6;">
+    Otrzymaliśmy Twoją aplikację na stanowisko <strong>{{ job_title }}</strong>.
+    Wykorzystaj poniższy link, aby śledzić status swojej aplikacji w dowolnym momencie.
+  </p>
+  <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+    <tr>
+      <td style="border-radius:8px;background:#fbbf24;">
+        <a href="{{ tracking_url }}" style="display:inline-block;padding:14px 28px;color:#18181b;font-size:15px;font-weight:600;text-decoration:none;">
+          Śledź aplikację
+        </a>
+      </td>
+    </tr>
+  </table>
+  <p style="margin:0;color:#71717a;font-size:13px;line-height:1.6;">
+    Jeśli przycisk nie działa, skopiuj ten link:<br>
+    <a href="{{ tracking_url }}" style="color:#2563eb;word-break:break-all;">{{ tracking_url }}</a>
+  </p>
+{% endblock %}
+{% block footer_note %}Otrzymujesz tę wiadomość, ponieważ złożyłeś aplikację przez wakanta.pl.{% endblock %}

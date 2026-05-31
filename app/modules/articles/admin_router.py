@@ -6,6 +6,7 @@ create new posts, upload covers, and toggle publish/featured flags.
 URL prefix is `/admin/articles` (mounted from api/router.py), keeping
 admin and public routes cleanly separated.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -28,7 +29,6 @@ from app.modules.articles.schemas import (
 )
 from app.services.image_storage import ImageStorageService
 
-
 router = APIRouter()
 
 # Dedicated subdir so article covers don't mix with company assets.
@@ -39,16 +39,17 @@ _cover_storage = ImageStorageService("article-covers")
 # List / read
 # ─────────────────────────────────────────────────────────────────────
 
+
 @router.get("", response_model=ArticleAdminList)
 async def admin_list_articles(
     _admin: CurrentAdmin,
-    q:        str | None = Query(None, min_length=1),
+    q: str | None = Query(None, min_length=1),
     category: str | None = Query(None),
-    type:     str | None = Query(None, pattern="^(editorial|company)$"),
+    type: str | None = Query(None, pattern="^(editorial|company)$"),
     status_filter: str | None = Query(None, alias="status", pattern="^(draft|published)$"),
-    sort:     str        = Query("newest", pattern="^(newest|oldest|title)$"),
-    skip:     int        = Query(0, ge=0),
-    limit:    int        = Query(50, ge=1, le=200),
+    sort: str = Query("newest", pattern="^(newest|oldest|title)$"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     base = select(Article)
@@ -90,6 +91,7 @@ async def admin_get_article(
 # ─────────────────────────────────────────────────────────────────────
 # Create / update / delete
 # ─────────────────────────────────────────────────────────────────────
+
 
 @router.post("", response_model=ArticleAdminRead, status_code=status.HTTP_201_CREATED)
 async def admin_create_article(
@@ -144,7 +146,11 @@ async def admin_update_article(
 
     # When flipping is_published true the first time, stamp published_at
     # for the editor's convenience (they don't have to set it manually).
-    if payload.get("is_published") is True and not article.published_at and "published_at" not in payload:
+    if (
+        payload.get("is_published") is True
+        and not article.published_at
+        and "published_at" not in payload
+    ):
         payload["published_at"] = datetime.now(timezone.utc)
 
     for field, value in payload.items():
@@ -176,6 +182,7 @@ async def admin_delete_article(
 # Quick toggles — used by the list view to flip flags without
 # round-tripping through the full edit form.
 # ─────────────────────────────────────────────────────────────────────
+
 
 @router.post("/{article_id}/publish", response_model=ArticleAdminRead)
 async def admin_toggle_publish(
@@ -213,14 +220,16 @@ async def admin_toggle_feature(
 # for a defined window. `days` = null means "remove promotion".
 # ─────────────────────────────────────────────────────────────────────
 
-from datetime import timedelta  # noqa: E402  — kept local to keep top imports tidy
+from datetime import UTC, timedelta  # noqa: E402  — kept local to keep top imports tidy
 
 
 @router.post("/{article_id}/promote", response_model=ArticleAdminRead)
 async def admin_promote_article(
     article_id: uuid.UUID,
     _admin: CurrentAdmin,
-    days: int | None = Query(None, ge=1, le=365, description="Window length in days. Omit to unpromote."),
+    days: int | None = Query(
+        None, ge=1, le=365, description="Window length in days. Omit to unpromote."
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     article = await _require(db, article_id)
@@ -233,7 +242,7 @@ async def admin_promote_article(
         article.promoted_until = None
     else:
         article.is_promoted = True
-        article.promoted_until = datetime.now(timezone.utc) + timedelta(days=days)
+        article.promoted_until = datetime.now(UTC) + timedelta(days=days)
     await db.commit()
     await db.refresh(article)
     return _admin_read(article)
@@ -244,6 +253,7 @@ async def admin_promote_article(
 # previous file. Returns the refreshed admin view so the editor can
 # update its preview without an extra GET.
 # ─────────────────────────────────────────────────────────────────────
+
 
 @router.post("/{article_id}/cover", response_model=ArticleAdminRead)
 async def admin_upload_cover(
@@ -279,6 +289,7 @@ async def admin_remove_cover(
 # Helpers
 # ─────────────────────────────────────────────────────────────────────
 
+
 async def _require(db: AsyncSession, article_id: uuid.UUID) -> Article:
     result = await db.execute(select(Article).where(Article.id == article_id))
     article = result.scalar_one_or_none()
@@ -311,10 +322,10 @@ def _admin_read(a: Article) -> dict[str, Any]:
     company_block: dict[str, Any] | None = None
     if a.type == "company" and a.company:
         company_block = {
-            "id":          a.company.id,
-            "slug":        a.company.slug,
-            "name":        a.company.name,
-            "logo_url":    a.company.logo_url,
+            "id": a.company.id,
+            "slug": a.company.slug,
+            "name": a.company.name,
+            "logo_url": a.company.logo_url,
             "is_verified": a.company.is_verified,
         }
     return {

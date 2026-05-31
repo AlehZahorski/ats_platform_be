@@ -1,36 +1,27 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>You've been invited — {{ app_name }}</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #f4f4f5; margin: 0; padding: 40px 0; }
-    .card { background: #fff; max-width: 560px; margin: 0 auto; border-radius: 8px;
-            padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-    h1 { font-size: 22px; color: #111; margin-bottom: 8px; }
-    p  { color: #555; line-height: 1.6; }
-    .role { display: inline-block; padding: 2px 10px; background: #eef2ff; color: #4338ca;
-            border-radius: 999px; font-size: 13px; font-weight: 600; }
-    .btn { display: inline-block; margin-top: 24px; padding: 14px 28px;
-           background: #2563eb; color: #fff; text-decoration: none;
-           border-radius: 6px; font-weight: 600; }
-    .footer { margin-top: 32px; font-size: 12px; color: #999; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>You're invited to {{ company_name }}</h1>
-    <p>
-      <strong>{{ invited_by_email }}</strong> has invited you to join
-      <strong>{{ company_name }}</strong> on {{ app_name }} as
-      <span class="role">{{ role }}</span>.
-    </p>
-    <p>Click the button below to set your password and activate your account.</p>
-    <a href="{{ invitation_url }}" class="btn">Accept invitation</a>
-    <p class="footer">
-      This invitation expires in 7 days. If you weren't expecting it, you can safely ignore this email.
-    </p>
-  </div>
-</body>
-</html>
+{% extends "base.html" %}
+{% block title %}Zaproszenie do zespołu{% endblock %}
+{% block preheader %}{{ invited_by_email }} zaprosił(a) Cię do zespołu {{ company_name }}.{% endblock %}
+{% block content %}
+  <h2 style="margin:0 0 16px;color:#18181b;font-size:20px;">Zaproszenie do zespołu</h2>
+  <p style="margin:0 0 16px;color:#3f3f46;font-size:15px;line-height:1.6;">
+    <strong>{{ invited_by_email }}</strong> zaprosił(a) Cię do dołączenia do zespołu
+    <strong>{{ company_name }}</strong> w wakanta.pl jako <strong>{{ role }}</strong>.
+  </p>
+  <p style="margin:0 0 16px;color:#3f3f46;font-size:15px;line-height:1.6;">
+    Kliknij poniżej, aby przyjąć zaproszenie i ustawić hasło.
+  </p>
+  <table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+    <tr>
+      <td style="border-radius:8px;background:#fbbf24;">
+        <a href="{{ invitation_url }}" style="display:inline-block;padding:14px 28px;color:#18181b;font-size:15px;font-weight:600;text-decoration:none;">
+          Przyjmij zaproszenie
+        </a>
+      </td>
+    </tr>
+  </table>
+  <p style="margin:0;color:#71717a;font-size:13px;line-height:1.6;">
+    Jeśli przycisk nie działa, skopiuj ten link:<br>
+    <a href="{{ invitation_url }}" style="color:#2563eb;word-break:break-all;">{{ invitation_url }}</a>
+  </p>
+{% endblock %}
+{% block footer_note %}Otrzymujesz tę wiadomość, ponieważ {{ company_name }} zaprosiła Cię do zespołu w wakanta.pl.{% endblock %}

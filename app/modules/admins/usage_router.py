@@ -4,6 +4,7 @@ Admin-only, cross-tenant view of ``api_usage_logs``. Distinct from
 app/modules/llm_usage (which is company-scoped for recruiters) — here an
 admin sees every company's token spend. Guarded by ``get_current_admin``.
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query

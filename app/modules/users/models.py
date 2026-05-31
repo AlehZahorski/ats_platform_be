@@ -23,7 +23,10 @@ class User(BaseModel):
     )
 
     company_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("companies.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     # audit_database P3/F-36: UNIQUE already creates a btree index — the extra
     # `index=True` produced a duplicate. Drop it; the unique constraint covers
@@ -32,13 +35,17 @@ class User(BaseModel):
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     role: Mapped[str] = mapped_column(Text, nullable=False, default="recruiter")
     is_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
     language: Mapped[str] = mapped_column(Text, nullable=False, default="en")  # v2: i18n
     avatar_key: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # relationships
-    company: Mapped["Company"] = relationship(back_populates="users")  # noqa: F821
-    refresh_tokens: Mapped[list["RefreshToken"]] = relationship(back_populates="user", cascade="all, delete-orphan")  # noqa: F821
+    company: Mapped[Company] = relationship(back_populates="users")  # noqa: F821
+    refresh_tokens: Mapped[list[RefreshToken]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )  # noqa: F821
 
 
 class RefreshToken(BaseModel):
@@ -49,7 +56,9 @@ class RefreshToken(BaseModel):
     __table_args__ = (
         Index(
             "ix_refresh_tokens_user_revoked_expires",
-            "user_id", "revoked", "expires_at",
+            "user_id",
+            "revoked",
+            "expires_at",
         ),
     )
 
@@ -61,14 +70,17 @@ class RefreshToken(BaseModel):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
-    user: Mapped["User"] = relationship(back_populates="refresh_tokens")
+    user: Mapped[User] = relationship(back_populates="refresh_tokens")
 
 
 class UserInvitation(BaseModel):
     __tablename__ = "user_invitations"
 
     company_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("companies.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     email: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     role: Mapped[str] = mapped_column(Text, nullable=False)

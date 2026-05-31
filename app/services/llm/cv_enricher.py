@@ -7,6 +7,7 @@ Refactored from the legacy ``app/services/llm_cv_parser.py``:
 - contact PII (email / phone) redacted before send (F-02, unconditional)
 - raw_text length capped by settings              (F-13)
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -53,8 +54,9 @@ class CVEnricher(BaseLLMService):
             ]
             text = redact_pii(text, names=[t for t in name_tokens if t])
 
-        extra = "REGEX-PARSED DATA (trusted, from our own parser):\n" \
-                + self._serialize_payload(parsed_data)
+        extra = "REGEX-PARSED DATA (trusted, from our own parser):\n" + self._serialize_payload(
+            parsed_data
+        )
 
         return await self._call(
             blocks=[("untrusted_cv_text", text)],

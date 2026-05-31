@@ -12,7 +12,9 @@ from app.modules.notes.schemas import NoteCreate
 class NoteRepository(BaseRepository[Note]):
     model = Note
 
-    async def create(self, application_id: uuid.UUID, author_id: uuid.UUID, data: NoteCreate) -> Note:
+    async def create(
+        self, application_id: uuid.UUID, author_id: uuid.UUID, data: NoteCreate
+    ) -> Note:
         note = Note(application_id=application_id, author_id=author_id, **data.model_dump())
         return await self.save(note)
 

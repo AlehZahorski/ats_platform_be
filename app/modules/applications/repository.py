@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.base_repository import BaseRepository
@@ -15,10 +14,10 @@ from app.modules.applications.models import (
     Application,
     ApplicationAnswer,
     ApplicationDuplicateLink,
-    CVParseJob,
     CandidateJobMatch,
     CandidateProfile,
     CandidateScore,
+    CVParseJob,
 )
 from app.modules.applications.schemas import ApplicationCreate, ScoreCreate
 from app.modules.pipeline.models import ApplicationStageHistory
@@ -41,8 +40,12 @@ class ApplicationRepository(BaseRepository[Application]):
         # and `cleanup_expired` had nothing to act on — meaning we kept PII
         # indefinitely, which is a direct GDPR breach. The cleanup scheduler
         # will turn these into anonymised rows once the deadline passes.
-        from datetime import UTC, datetime as _dt, timedelta as _td
+        from datetime import UTC
+        from datetime import datetime as _dt
+        from datetime import timedelta as _td
+
         from app.core.config import settings
+
         retention_until = _dt.now(UTC) + _td(days=30 * settings.application_retention_months)
         app = Application(
             job_id=job_id,
@@ -61,11 +64,13 @@ class ApplicationRepository(BaseRepository[Application]):
         await self.db.flush()
 
         for answer in data.answers:
-            self.db.add(ApplicationAnswer(
-                application_id=app.id,
-                field_id=answer.field_id,
-                value=answer.value,
-            ))
+            self.db.add(
+                ApplicationAnswer(
+                    application_id=app.id,
+                    field_id=answer.field_id,
+                    value=answer.value,
+                )
+            )
         await self.db.flush()
         return await self._load(app.id)
 
@@ -124,10 +129,18 @@ class ApplicationRepository(BaseRepository[Application]):
                 | Application.email.ilike(term)
             )
 
-        total = (await self.db.execute(select(func.count()).select_from(query.subquery()))).scalar_one()
+        total = (
+            await self.db.execute(select(func.count()).select_from(query.subquery()))
+        ).scalar_one()
         items = (
-            await self.db.execute(query.offset(skip).limit(limit).order_by(Application.created_at.desc()))
-        ).scalars().all()
+            (
+                await self.db.execute(
+                    query.offset(skip).limit(limit).order_by(Application.created_at.desc())
+                )
+            )
+            .scalars()
+            .all()
+        )
         return list(items), total
 
     async def upsert_score(
@@ -189,15 +202,24 @@ class ApplicationRepository(BaseRepository[Application]):
         match_reasons: dict[uuid.UUID, list[str]],
     ) -> None:
         for dup_id in duplicate_application_ids:
-            self.db.add(ApplicationDuplicateLink(
-                source_application_id=source_application_id,
-                duplicate_application_id=dup_id,
-                match_reasons=match_reasons.get(dup_id, []),
-            ))
+            self.db.add(
+                ApplicationDuplicateLink(
+                    source_application_id=source_application_id,
+                    duplicate_application_id=dup_id,
+                    match_reasons=match_reasons.get(dup_id, []),
+                )
+            )
         await self.db.flush()
 
-    async def create_cv_parse_job(self, application_id: uuid.UUID, cv_url: str | None, language: str = "en") -> CVParseJob:
-        job = CVParseJob(application_id=application_id, cv_url=cv_url, status=CVParseStatus.queued, language=language)
+    async def create_cv_parse_job(
+        self, application_id: uuid.UUID, cv_url: str | None, language: str = "en"
+    ) -> CVParseJob:
+        job = CVParseJob(
+            application_id=application_id,
+            cv_url=cv_url,
+            status=CVParseStatus.queued,
+            language=language,
+        )
         return await self.save(job)
 
     async def get_cv_parse_job(self, parse_job_id: uuid.UUID) -> CVParseJob | None:
@@ -217,9 +239,15 @@ class ApplicationRepository(BaseRepository[Application]):
         )
         return result.scalar_one_or_none()
 
-    async def create_or_replace_cv_parse_job(self, application_id: uuid.UUID, cv_url: str | None) -> CVParseJob:
+    async def create_or_replace_cv_parse_job(
+        self, application_id: uuid.UUID, cv_url: str | None
+    ) -> CVParseJob:
         latest = await self.get_latest_cv_parse_job(application_id)
-        if latest and latest.status in {CVParseStatus.queued, CVParseStatus.extracting, CVParseStatus.parsing}:
+        if latest and latest.status in {
+            CVParseStatus.queued,
+            CVParseStatus.extracting,
+            CVParseStatus.parsing,
+        }:
             return latest
         return await self.create_cv_parse_job(application_id, cv_url)
 
@@ -261,35 +289,35 @@ class ApplicationRepository(BaseRepository[Application]):
         )
         profile = result.scalar_one_or_none()
 
-        fields = dict(
-            headline=headline,
-            summary=summary,
-            skills=skills,
-            experience=experience,
-            education=education,
-            parsing_status=parsing_status,
-            parsing_error=parsing_error,
-            last_parsed_at=last_parsed_at,
-            parser_version=parser_version,
-            personal_summary=personal_summary,
-            executive_summary=executive_summary,
-            location=location,
-            linkedin_url=linkedin_url,
-            github_url=github_url,
-            technical_skills=technical_skills,
-            soft_skills=soft_skills,
-            languages=languages,
-            certifications=certifications,
-            hobbies=hobbies,
-            volunteering=volunteering,
-            total_experience_years=total_experience_years,
-            seniority_estimate=seniority_estimate,
-            strengths=strengths,
-            red_flags=red_flags,
-            personality_signals=personality_signals,
-            evidence_quotes=evidence_quotes,
-            culture_fit_notes=culture_fit_notes,
-        )
+        fields = {
+            "headline": headline,
+            "summary": summary,
+            "skills": skills,
+            "experience": experience,
+            "education": education,
+            "parsing_status": parsing_status,
+            "parsing_error": parsing_error,
+            "last_parsed_at": last_parsed_at,
+            "parser_version": parser_version,
+            "personal_summary": personal_summary,
+            "executive_summary": executive_summary,
+            "location": location,
+            "linkedin_url": linkedin_url,
+            "github_url": github_url,
+            "technical_skills": technical_skills,
+            "soft_skills": soft_skills,
+            "languages": languages,
+            "certifications": certifications,
+            "hobbies": hobbies,
+            "volunteering": volunteering,
+            "total_experience_years": total_experience_years,
+            "seniority_estimate": seniority_estimate,
+            "strengths": strengths,
+            "red_flags": red_flags,
+            "personality_signals": personality_signals,
+            "evidence_quotes": evidence_quotes,
+            "culture_fit_notes": culture_fit_notes,
+        }
 
         if profile:
             for key, value in fields.items():
@@ -385,7 +413,7 @@ class ApplicationRepository(BaseRepository[Application]):
 
     async def sum_llm_cost_last_24h(self, company_id: uuid.UUID) -> float:
         """F-05: rolling 24h cost used by the daily-budget guard."""
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+        cutoff = datetime.now(UTC) - timedelta(hours=24)
         result = await self.db.execute(
             select(func.coalesce(func.sum(ApiUsageLog.cost_usd), 0.0)).where(
                 ApiUsageLog.company_id == company_id,
@@ -401,7 +429,7 @@ class ApplicationRepository(BaseRepository[Application]):
         days: int = 30,
     ) -> list[dict]:
         """F-17: per-day, per-model, per-prompt aggregation for the dashboard."""
-        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        cutoff = datetime.now(UTC) - timedelta(days=days)
         day = func.date_trunc("day", ApiUsageLog.created_at)
         stmt = (
             select(

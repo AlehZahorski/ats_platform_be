@@ -1,5 +1,4 @@
 import uuid
-from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
@@ -34,8 +33,8 @@ async def list_tasks(
     company: CurrentCompany,
     user: CurrentUser,
     assigned_to_me: bool = Query(False),
-    completed: Optional[bool] = Query(None),
-    application_id: Optional[uuid.UUID] = Query(None),
+    completed: bool | None = Query(None),
+    application_id: uuid.UUID | None = Query(None),
     service: TaskService = Depends(_get_service),
 ) -> list[TaskRead]:
     tasks = await service.list(

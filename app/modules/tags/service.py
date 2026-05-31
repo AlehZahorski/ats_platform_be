@@ -11,7 +11,6 @@ from app.modules.tags.schemas import TagCreate
 
 
 class TagService(BaseService[TagRepository]):
-
     async def create(self, company_id: uuid.UUID, data: TagCreate) -> Tag:
         return await self.repository.create(company_id, data)
 
@@ -24,7 +23,9 @@ class TagService(BaseService[TagRepository]):
             raise NotFoundError(t("tags.not_found"))
         await self.repository.delete(tag)
 
-    async def assign_tag(self, application_id: uuid.UUID, tag_id: uuid.UUID, company_id: uuid.UUID) -> None:
+    async def assign_tag(
+        self, application_id: uuid.UUID, tag_id: uuid.UUID, company_id: uuid.UUID
+    ) -> None:
         tag = await self.repository.get_by_id_and_company(tag_id, company_id)
         if not tag:
             raise NotFoundError(t("tags.not_found"))

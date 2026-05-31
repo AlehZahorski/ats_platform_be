@@ -35,7 +35,9 @@ async def list_templates(
     return [ScorecardTemplateRead.model_validate(item) for item in templates]
 
 
-@router.post("/templates", response_model=ScorecardTemplateRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/templates", response_model=ScorecardTemplateRead, status_code=status.HTTP_201_CREATED
+)
 async def create_template(
     data: ScorecardTemplateCreate,
     company: CurrentCompany,

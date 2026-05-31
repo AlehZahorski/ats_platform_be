@@ -6,6 +6,7 @@ loudly so cost tracking never lies).
 
 Keep this list in sync with https://www.anthropic.com/pricing
 """
+
 from __future__ import annotations
 
 import logging
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class ModelPricing:
     """USD per 1 000 000 tokens, split by direction."""
+
     input_per_million: float
     output_per_million: float
 

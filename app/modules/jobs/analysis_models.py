@@ -16,7 +16,11 @@ class JobAnalysis(BaseModel):
     __tablename__ = "job_analyses"
 
     job_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False, unique=True, index=True
+        UUID(as_uuid=True),
+        ForeignKey("jobs.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
     )
     score: Mapped[int | None] = mapped_column(Integer)
     market_position: Mapped[str | None] = mapped_column(Text)
@@ -29,7 +33,7 @@ class JobAnalysis(BaseModel):
     urgency_message: Mapped[str | None] = mapped_column(Text)
     analyzed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-    job: Mapped["Job"] = relationship(back_populates="analysis")  # noqa: F821
+    job: Mapped[Job] = relationship(back_populates="analysis")  # noqa: F821
 
 
 class JobRiskAssessment(BaseModel):
@@ -45,12 +49,16 @@ class JobRiskAssessment(BaseModel):
     )
 
     job_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False, unique=True, index=True
+        UUID(as_uuid=True),
+        ForeignKey("jobs.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
     )
     score: Mapped[int | None] = mapped_column(Integer)
-    level: Mapped[str | None] = mapped_column(Text)          # high | medium | low
-    factors: Mapped[list | None] = mapped_column(JSONB)        # [{name: str, severity: str}]
+    level: Mapped[str | None] = mapped_column(Text)  # high | medium | low
+    factors: Mapped[list | None] = mapped_column(JSONB)  # [{name: str, severity: str}]
     recommendations: Mapped[list | None] = mapped_column(JSONB)  # [str]
     assessed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-    job: Mapped["Job"] = relationship(back_populates="risk_assessment")  # noqa: F821
+    job: Mapped[Job] = relationship(back_populates="risk_assessment")  # noqa: F821

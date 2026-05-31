@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
 from sqlalchemy import select
 
@@ -31,8 +30,8 @@ class EmailTemplateRepository(BaseRepository[EmailTemplate]):
     async def list_by_company(
         self,
         company_id: uuid.UUID,
-        language: Optional[str] = None,
-        type: Optional[str] = None,
+        language: str | None = None,
+        type: str | None = None,
     ) -> list[EmailTemplate]:
         query = select(EmailTemplate).where(EmailTemplate.company_id == company_id)
         if language:
@@ -43,9 +42,7 @@ class EmailTemplateRepository(BaseRepository[EmailTemplate]):
         result = await self.db.execute(query)
         return list(result.scalars().all())
 
-    async def update(
-        self, template: EmailTemplate, data: EmailTemplateUpdate
-    ) -> EmailTemplate:
+    async def update(self, template: EmailTemplate, data: EmailTemplateUpdate) -> EmailTemplate:
         for field, value in data.model_dump(exclude_unset=True).items():
             setattr(template, field, value)
         await self.db.flush()

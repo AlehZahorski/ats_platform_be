@@ -114,18 +114,55 @@ _PL_DIACRITICS = frozenset("ąćęłńóśźżĄĆĘŁŃÓŚŹŻ")
 # Common Polish function words / stopwords that rarely appear in English.
 # Includes ASCII-folded variants (e.g. ``sie``) because Polish recruiters
 # sometimes type without diacritics.
-_PL_STOPWORDS = frozenset({
-    # Diacritic forms
-    "się", "który", "która", "które", "którego", "której", "których",
-    "być", "także", "również", "zespołu",
-    # Diacritic-free forms (same words)
-    "sie", "ktory", "ktora", "ktore", "ktorego", "ktorej", "ktorych",
-    "byc", "takze", "rowniez", "zespolu",
-    # Words without diacritics
-    "oraz", "jest", "lub", "albo", "tylko", "wszystkie", "dla", "przez",
-    "podczas", "powinien", "powinna", "naszej", "naszego", "rozwoju",
-    "pracy", "stanowisku", "firmie", "wymagania", "kandydat", "osoby",
-})
+_PL_STOPWORDS = frozenset(
+    {
+        # Diacritic forms
+        "się",
+        "który",
+        "która",
+        "które",
+        "którego",
+        "której",
+        "których",
+        "być",
+        "także",
+        "również",
+        "zespołu",
+        # Diacritic-free forms (same words)
+        "sie",
+        "ktory",
+        "ktora",
+        "ktore",
+        "ktorego",
+        "ktorej",
+        "ktorych",
+        "byc",
+        "takze",
+        "rowniez",
+        "zespolu",
+        # Words without diacritics
+        "oraz",
+        "jest",
+        "lub",
+        "albo",
+        "tylko",
+        "wszystkie",
+        "dla",
+        "przez",
+        "podczas",
+        "powinien",
+        "powinna",
+        "naszej",
+        "naszego",
+        "rozwoju",
+        "pracy",
+        "stanowisku",
+        "firmie",
+        "wymagania",
+        "kandydat",
+        "osoby",
+    }
+)
 
 _WORD_RE = re.compile(r"[a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ]+")
 

@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import CurrentCompany, CurrentUser
-from app.core.exceptions import NotFoundError, UnprocessableError
+from app.core.exceptions import NotFoundError
 from app.modules.companies.repository import CompanyRepository
 from app.modules.companies.schemas import (
     CompanyRead,
@@ -46,6 +46,7 @@ async def update_company(
 # Each endpoint stores the file under uploads/<subdir>/, sets the
 # matching column on the company, and returns the refreshed company
 # row so the dashboard editor can show the new URL immediately.
+
 
 @router.post("/upload/logo", response_model=CompanyRead)
 async def upload_logo(

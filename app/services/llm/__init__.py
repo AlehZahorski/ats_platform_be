@@ -6,6 +6,7 @@ Public API:
         LLMResult,
     )
 """
+
 from app.services.llm.base import BaseLLMService, LLMResult
 from app.services.llm.cv_enricher import CVEnricher
 from app.services.llm.job_analyzer import JobAnalyzer

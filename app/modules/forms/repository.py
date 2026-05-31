@@ -13,7 +13,9 @@ from app.modules.forms.schemas import FormFieldCreate, FormTemplateCreate, FormT
 class FormRepository(BaseRepository[FormTemplate]):
     model = FormTemplate
 
-    async def create_template(self, company_id: uuid.UUID, data: FormTemplateCreate) -> FormTemplate:
+    async def create_template(
+        self, company_id: uuid.UUID, data: FormTemplateCreate
+    ) -> FormTemplate:
         template = FormTemplate(company_id=company_id, name=data.name)
         self.db.add(template)
         await self.db.flush()
@@ -24,7 +26,9 @@ class FormRepository(BaseRepository[FormTemplate]):
         await self.db.flush()
         return await self._load(template.id)
 
-    async def get_by_id_and_company(self, template_id: uuid.UUID, company_id: uuid.UUID) -> FormTemplate | None:
+    async def get_by_id_and_company(
+        self, template_id: uuid.UUID, company_id: uuid.UUID
+    ) -> FormTemplate | None:
         return await self._load(template_id, company_id)
 
     async def list_by_company(self, company_id: uuid.UUID) -> list[FormTemplate]:
@@ -50,7 +54,9 @@ class FormRepository(BaseRepository[FormTemplate]):
         result = await self.db.execute(select(FormField).where(FormField.id == field_id))
         return result.scalar_one_or_none()
 
-    async def _load(self, template_id: uuid.UUID, company_id: uuid.UUID | None = None) -> FormTemplate | None:
+    async def _load(
+        self, template_id: uuid.UUID, company_id: uuid.UUID | None = None
+    ) -> FormTemplate | None:
         query = (
             select(FormTemplate)
             .where(FormTemplate.id == template_id)

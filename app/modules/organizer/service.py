@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import uuid
 from collections import defaultdict
-from datetime import UTC, date as date_t, datetime, timedelta
+from datetime import UTC, datetime, timedelta
+from datetime import date as date_t
 from typing import Literal
 
 from app.core.base_service import BaseService
@@ -38,7 +39,6 @@ def week_range(week_start: date_t) -> tuple[date_t, date_t, list[date_t]]:
 
 
 class OrganizerService(BaseService[OrganizerRepository]):
-
     # -------------------------------------------------------------------
     # Visibility
     # -------------------------------------------------------------------
@@ -152,7 +152,9 @@ class OrganizerService(BaseService[OrganizerRepository]):
                 end_time=sched_row.end_time,
                 note=sched_row.note,
                 manager_note=sched_row.manager_note,
-                updated_by=EmployeeSummary.model_validate(sched_row.editor) if sched_row.editor else None,
+                updated_by=EmployeeSummary.model_validate(sched_row.editor)
+                if sched_row.editor
+                else None,
                 updated_at=sched_row.updated_at,
             )
         else:

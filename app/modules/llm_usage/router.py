@@ -8,6 +8,7 @@ Two endpoints:
 - ``GET /summary?days=30`` — list of buckets sorted by day desc.
 - ``GET /budget`` — current rolling-24h spend and the configured budget.
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query, Request

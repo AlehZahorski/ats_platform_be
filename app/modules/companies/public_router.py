@@ -13,6 +13,7 @@ Lives in a separate router from the existing `companies/router.py` so
 the singular `/company` prefix (owner self-management) doesn't collide
 with the plural `/companies` prefix used here for the public listing.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -29,7 +30,6 @@ from app.modules.companies.models import Company
 from app.modules.companies.schemas import (
     CompanyPublicDetail,
     CompanyPublicListResponse,
-    CompanyPublicSummary,
 )
 from app.modules.jobs.models import Job
 
@@ -44,21 +44,29 @@ router = APIRouter()
 # companies.employee_count. Kept in the router because the contract is
 # part of the public API surface — UI sends these tokens verbatim.
 _SIZE_BUCKETS: dict[str, tuple[int | None, int | None]] = {
-    "1-10":    (1,    10),
-    "11-50":   (11,   50),
-    "51-200":  (51,   200),
-    "201-500": (201,  500),
-    "500+":    (501,  None),
+    "1-10": (1, 10),
+    "11-50": (11, 50),
+    "51-200": (51, 200),
+    "201-500": (201, 500),
+    "500+": (501, None),
 }
 
 
 @router.get("/public", response_model=CompanyPublicListResponse)
 async def list_public_companies(
-    q: str | None = Query(None, min_length=1, description="Free text — matched against company name and tagline."),
-    industry: list[str] | None = Query(None, description="One or more industry tokens (Fintech, SaaS, …)."),
-    size: list[str] | None = Query(None, description="Employee buckets: 1-10, 11-50, 51-200, 201-500, 500+."),
+    q: str | None = Query(
+        None, min_length=1, description="Free text — matched against company name and tagline."
+    ),
+    industry: list[str] | None = Query(
+        None, description="One or more industry tokens (Fintech, SaaS, …)."
+    ),
+    size: list[str] | None = Query(
+        None, description="Employee buckets: 1-10, 11-50, 51-200, 201-500, 500+."
+    ),
     location: str | None = Query(None, description="Substring match on HQ location."),
-    work_mode: list[str] | None = Query(None, description="remote / hybrid / office — derived from remote_percentage."),
+    work_mode: list[str] | None = Query(
+        None, description="remote / hybrid / office — derived from remote_percentage."
+    ),
     verified_only: bool = Query(False),
     sort: str = Query("newest", pattern="^(newest|jobs|name)$"),
     skip: int = Query(0, ge=0),
@@ -102,9 +110,12 @@ async def list_public_companies(
             if high is None:
                 size_clauses.append(Company.employee_count >= low)
             else:
-                size_clauses.append((Company.employee_count >= low) & (Company.employee_count <= high))
+                size_clauses.append(
+                    (Company.employee_count >= low) & (Company.employee_count <= high)
+                )
         if size_clauses:
             from sqlalchemy import or_
+
             base = base.where(or_(*size_clauses))
 
     if work_mode:
@@ -112,19 +123,26 @@ async def list_public_companies(
         # three options, mapped here:
         #   remote → >= 80%   hybrid → 20–79%   office → <= 19%
         from sqlalchemy import or_
+
         mode_clauses = []
         if "remote" in work_mode:
             mode_clauses.append(Company.remote_percentage >= 80)
         if "hybrid" in work_mode:
-            mode_clauses.append((Company.remote_percentage >= 20) & (Company.remote_percentage < 80))
+            mode_clauses.append(
+                (Company.remote_percentage >= 20) & (Company.remote_percentage < 80)
+            )
         if "office" in work_mode:
-            mode_clauses.append((Company.remote_percentage.is_(None)) | (Company.remote_percentage < 20))
+            mode_clauses.append(
+                (Company.remote_percentage.is_(None)) | (Company.remote_percentage < 20)
+            )
         if mode_clauses:
             base = base.where(or_(*mode_clauses))
 
     # Sort
     if sort == "jobs":
-        base = base.order_by(func.coalesce(jobs_count.c.open_jobs_count, 0).desc(), Company.created_at.desc())
+        base = base.order_by(
+            func.coalesce(jobs_count.c.open_jobs_count, 0).desc(), Company.created_at.desc()
+        )
     elif sort == "name":
         base = base.order_by(Company.name.asc())
     else:  # newest
@@ -141,6 +159,7 @@ async def list_public_companies(
 # Detail
 # ──────────────────────────────────────────────────────────────────────
 
+
 @router.get("/public/{slug}", response_model=CompanyPublicDetail)
 async def get_public_company(slug: str, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     jobs_count = (
@@ -150,9 +169,11 @@ async def get_public_company(slug: str, db: AsyncSession = Depends(get_db)) -> d
         .scalar_subquery()
     )
 
-    row = (await db.execute(
-        select(Company, jobs_count.label("open_jobs_count")).where(Company.slug == slug)
-    )).first()
+    row = (
+        await db.execute(
+            select(Company, jobs_count.label("open_jobs_count")).where(Company.slug == slug)
+        )
+    ).first()
     if not row:
         raise NotFoundError("Firma nie została znaleziona.")
 
@@ -163,6 +184,7 @@ async def get_public_company(slug: str, db: AsyncSession = Depends(get_db)) -> d
 # ──────────────────────────────────────────────────────────────────────
 # Jobs of one company
 # ──────────────────────────────────────────────────────────────────────
+
 
 @router.get("/public/{slug}/jobs")
 async def list_public_company_jobs(
@@ -215,6 +237,7 @@ async def list_public_company_jobs(
 # Response shaping helpers
 # ──────────────────────────────────────────────────────────────────────
 
+
 def _summary(company: Company, open_jobs_count: int) -> dict[str, Any]:
     return {
         "id": company.id,
@@ -237,12 +260,12 @@ def _summary(company: Company, open_jobs_count: int) -> dict[str, Any]:
 def _detail(company: Company, open_jobs_count: int) -> dict[str, Any]:
     return {
         **_summary(company, open_jobs_count),
-        "description":         company.description,
-        "website":             company.website,
-        "how_we_work":         company.how_we_work or [],
-        "benefits":            company.benefits or [],
+        "description": company.description,
+        "website": company.website,
+        "how_we_work": company.how_we_work or [],
+        "benefits": company.benefits or [],
         "recruitment_process": company.recruitment_process or [],
-        "timeline":            company.timeline or [],
-        "faq":                 company.faq or [],
-        "gallery":             company.gallery or [],
+        "timeline": company.timeline or [],
+        "faq": company.faq or [],
+        "gallery": company.gallery or [],
     }

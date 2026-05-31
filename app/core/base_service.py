@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Generic, TypeVar
+from typing import TypeVar
 
 from app.core.base_repository import BaseRepository
 
@@ -10,7 +10,7 @@ RepoT = TypeVar("RepoT", bound=BaseRepository)
 # M8 (audit_backend_code): dropped `ABC` — there was no `@abstractmethod`, so
 # `ABC` only added metaclass overhead without enforcing any contract. The
 # base is purely a typed Generic holder for the primary repository.
-class BaseService(Generic[RepoT]):
+class BaseService[RepoT: BaseRepository]:
     """Generic base for all domain services.
 
     Subclasses declare their primary repository via __init__ and may

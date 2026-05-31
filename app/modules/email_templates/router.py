@@ -1,5 +1,5 @@
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
@@ -25,7 +25,7 @@ def _get_service(db: AsyncSession = Depends(get_db)) -> EmailTemplateService:
 
 
 class PreviewRequest(BaseModel):
-    variables: Optional[dict[str, Any]] = None
+    variables: dict[str, Any] | None = None
 
 
 @router.post("", response_model=EmailTemplateRead, status_code=201)
@@ -43,8 +43,8 @@ async def create_template(
 async def list_templates(
     company: CurrentCompany,
     _user: CurrentUser,
-    language: Optional[str] = Query(None),
-    type: Optional[str] = Query(None),
+    language: str | None = Query(None),
+    type: str | None = Query(None),
     service: EmailTemplateService = Depends(_get_service),
 ) -> list[EmailTemplateRead]:
     templates = await service.list(company.id, language=language, type=type)

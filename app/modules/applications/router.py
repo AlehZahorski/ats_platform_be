@@ -1,7 +1,16 @@
 import uuid
-from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, Request, Response, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+)
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,6 +18,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import CurrentCompany, CurrentUser
 from app.core.exceptions import DuplicateDetectedError
+from app.core.i18n import detect_language
 from app.core.rate_limit import rate_limit
 from app.modules.applications.duplicate_service import DuplicateCheckService
 from app.modules.applications.repository import ApplicationRepository
@@ -18,12 +28,12 @@ from app.modules.applications.schemas import (
     ApplicationTrackingRead,
     BulkAction,
     BulkResult,
+    CandidateJobMatchRead,
     # L1/M5 (audit_backend_code): CVParseConfirmPayload removed from this
     # import — the corresponding endpoint was never wired. The service method
     # `confirm_cv_parse` still exists for a planned "review-required" flow;
     # the schema stays available in `applications.schemas`.
     CVParseJobRead,
-    CandidateJobMatchRead,
     DuplicateCheckRequest,
     DuplicateCheckResponse,
     ScoreCreate,
@@ -32,7 +42,6 @@ from app.modules.applications.schemas import (
 from app.modules.applications.service import ApplicationService
 from app.modules.audit.service import AuditService
 from app.modules.pipeline.repository import PipelineRepository
-from app.core.i18n import detect_language
 
 router = APIRouter()
 
@@ -65,9 +74,9 @@ async def apply(
     first_name: str = Form(...),
     last_name: str = Form(...),
     email: str = Form(...),
-    phone: Optional[str] = Form(None),
-    answers: Optional[str] = Form(None),
-    cv_file: Optional[UploadFile] = File(None),
+    phone: str | None = Form(None),
+    answers: str | None = Form(None),
+    cv_file: UploadFile | None = File(None),
     ignore_duplicate_warning: bool = Form(False),
     # F-02 / audit_ai F-02 + audit_ai_ethics: explicit consent for AI profiling.
     # Default False — when the candidate did not tick the box, the backend
@@ -171,9 +180,9 @@ async def track_application(
 async def list_applications(
     company: CurrentCompany,
     _user: CurrentUser,
-    job_id: Optional[uuid.UUID] = Query(None),
-    stage_id: Optional[uuid.UUID] = Query(None),
-    search: Optional[str] = Query(None),
+    job_id: uuid.UUID | None = Query(None),
+    stage_id: uuid.UUID | None = Query(None),
+    search: str | None = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     service: ApplicationService = Depends(_get_service),
@@ -220,8 +229,9 @@ async def retry_cv_parse(
     _user: CurrentUser,
     service: ApplicationService = Depends(_get_service),
 ) -> CVParseJobRead:
-    return await service.retry_cv_parse(application_id, background_tasks, language=detect_language(request))
-
+    return await service.retry_cv_parse(
+        application_id, background_tasks, language=detect_language(request)
+    )
 
 
 # ──────────────────────────────────────────────

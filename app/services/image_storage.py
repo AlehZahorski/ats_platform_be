@@ -8,7 +8,6 @@ from fastapi import UploadFile
 from app.core.config import settings
 from app.core.exceptions import UnprocessableError
 
-
 _ALLOWED_IMAGE_TYPES = {
     "image/png",
     "image/jpeg",
@@ -77,7 +76,7 @@ class ImageStorageService:
         if not url or not url.startswith("/uploads/"):
             return
         # Strip the URL prefix to get a filesystem path under upload_dir.
-        relative = url[len("/uploads/"):]
+        relative = url[len("/uploads/") :]
         path = Path(settings.upload_dir) / relative
         if path.exists():
             path.unlink(missing_ok=True)

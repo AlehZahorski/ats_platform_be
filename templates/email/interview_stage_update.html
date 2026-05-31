@@ -1,42 +1,39 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Interview details - {{ app_name }}</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #f4f4f5; margin: 0; padding: 40px 0; }
-    .card { background: #fff; max-width: 560px; margin: 0 auto; border-radius: 8px;
-            padding: 40px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-    h1 { font-size: 22px; color: #111; }
-    p  { color: #555; line-height: 1.6; }
-    .details { margin: 20px 0; padding: 16px; background: #eff6ff; border-radius: 8px; }
-    .details strong { color: #111; }
-    .btn { display: inline-block; margin-top: 18px; padding: 14px 28px;
-           background: #2563eb; color: #fff; text-decoration: none;
-           border-radius: 6px; font-weight: 600; }
-    .secondary { display: inline-block; margin-top: 12px; color: #2563eb; text-decoration: none; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>Your interview has been scheduled</h1>
-    <p>Hi {{ candidate_name }},</p>
-    <p>Your application for <strong>{{ job_title }}</strong> has moved to the interview stage. Here are your meeting details:</p>
-
-    <div class="details">
-      <p><strong>Date:</strong> {{ interview_date }}</p>
-      <p><strong>Time:</strong> {{ interview_time }}</p>
-      {% if duration_minutes %}
-      <p><strong>Duration:</strong> {{ duration_minutes }} minutes</p>
-      {% endif %}
-      <p><strong>Meeting link:</strong> <a href="{{ interview_url }}">{{ interview_url }}</a></p>
-      {% if notes %}
-      <p><strong>Additional notes:</strong> {{ notes }}</p>
-      {% endif %}
-    </div>
-
-    <a href="{{ interview_url }}" class="btn">Join interview</a><br />
-    <a href="{{ tracking_url }}" class="secondary">View application timeline</a>
-  </div>
-</body>
-</html>
+{% extends "base.html" %}
+{% block title %}Zaproszenie na rozmowę{% endblock %}
+{% block preheader %}Zaproszenie na rozmowę w sprawie {{ job_title }} — {{ interview_date }} {{ interview_time }}.{% endblock %}
+{% block content %}
+  <h2 style="margin:0 0 16px;color:#18181b;font-size:20px;">Zaproszenie na rozmowę 🎉</h2>
+  <p style="margin:0 0 16px;color:#3f3f46;font-size:15px;line-height:1.6;">
+    Cześć {{ candidate_name }},
+  </p>
+  <p style="margin:0 0 16px;color:#3f3f46;font-size:15px;line-height:1.6;">
+    Dobra wiadomość — zostałeś zaproszony na rozmowę w sprawie stanowiska
+    <strong>{{ job_title }}</strong>.
+  </p>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:#f9fafb;border-radius:8px;">
+    <tr><td style="padding:16px 20px;">
+      <p style="margin:4px 0;color:#3f3f46;font-size:14px;"><strong>Data:</strong> {{ interview_date }}</p>
+      <p style="margin:4px 0;color:#3f3f46;font-size:14px;"><strong>Godzina:</strong> {{ interview_time }}</p>
+      {% if duration_minutes %}<p style="margin:4px 0;color:#3f3f46;font-size:14px;"><strong>Czas trwania:</strong> {{ duration_minutes }} min</p>{% endif %}
+    </td></tr>
+  </table>
+  {% if interview_url %}
+  <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 16px;">
+    <tr>
+      <td style="border-radius:8px;background:#fbbf24;">
+        <a href="{{ interview_url }}" style="display:inline-block;padding:14px 28px;color:#18181b;font-size:15px;font-weight:600;text-decoration:none;">
+          Dołącz do rozmowy
+        </a>
+      </td>
+    </tr>
+  </table>
+  {% endif %}
+  {% if notes %}
+  <p style="margin:0 0 16px;color:#3f3f46;font-size:15px;line-height:1.6;">{{ notes }}</p>
+  {% endif %}
+  <p style="margin:16px 0 0;color:#71717a;font-size:13px;line-height:1.6;">
+    Śledź swoją aplikację w dowolnym momencie:<br>
+    <a href="{{ tracking_url }}" style="color:#2563eb;word-break:break-all;">{{ tracking_url }}</a>
+  </p>
+{% endblock %}
+{% block footer_note %}Otrzymujesz tę wiadomość, ponieważ złożyłeś aplikację przez wakanta.pl.{% endblock %}

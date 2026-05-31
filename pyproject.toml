@@ -1,0 +1,32 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+# seeds/* are one-off data scripts (not app code); alembic is generated.
+extend-exclude = ["alembic/versions", "seeds", "venv", ".venv"]
+
+[tool.ruff.lint]
+# E/F: pyflakes+pycodestyle, I: isort, UP: pyupgrade, B: bugbear,
+# C4: comprehensions, SIM: simplify. Pragmatic core set — not noisy.
+select = ["E", "F", "I", "UP", "B", "C4", "SIM"]
+ignore = [
+    "E501",  # line length handled by the formatter, not the linter
+    "B008",  # FastAPI uses `Depends()` as a default arg by design
+    "E402",  # services place `logger = getLogger(__name__)` before imports by design
+]
+
+[tool.ruff.lint.per-file-ignores]
+# SQLAlchemy models use forward-ref strings in Mapped[...] annotations that
+# ruff can't resolve (real classes, resolved at mapper-config time).
+"app/modules/**/models.py" = ["F821"]
+# Tests favour readability over lint purity (long asserts, blind raises).
+"tests/**" = ["B011", "B017", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+# Lenient to start — the codebase isn't fully typed. Tighten incrementally
+# (e.g. add `disallow_untyped_defs = true` per-module) as coverage grows.
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+exclude = ["alembic/", "seeds/", "venv/", "tests/"]

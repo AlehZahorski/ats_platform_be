@@ -30,5 +30,5 @@ class ApplicationEvent(BaseModel):
     metadata_: Mapped[dict | None] = mapped_column("metadata", JSON)
 
     # relationships
-    application: Mapped["Application"] = relationship()  # noqa: F821
-    company: Mapped["Company | None"] = relationship()  # noqa: F821
+    application: Mapped[Application] = relationship()  # noqa: F821
+    company: Mapped[Company | None] = relationship()  # noqa: F821

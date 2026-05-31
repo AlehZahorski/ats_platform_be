@@ -1,4 +1,5 @@
 """Generates job offer content (HTML + plain text fields) from basic metadata via Claude."""
+
 from __future__ import annotations
 
 from typing import Any

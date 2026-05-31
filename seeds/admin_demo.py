@@ -10,6 +10,7 @@ Run inside the backend container:
     docker compose exec backend python seeds/admin_demo.py
     ADMIN_SEED_EMAIL=ja@wakanta.pl ADMIN_SEED_PASSWORD=tajne docker compose exec ...
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -20,9 +21,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 sys.path.insert(0, ".")
-from app.core.config import settings
-from app.core.security import hash_password
-
 # Need every model so cross-module relationships resolve at flush time.
 import app.modules.admins.models  # noqa: F401
 import app.modules.applications.models  # noqa: F401
@@ -44,7 +42,8 @@ import app.modules.reviews.models  # noqa: F401
 import app.modules.tags.models  # noqa: F401
 import app.modules.tasks.models  # noqa: F401
 import app.modules.users.models  # noqa: F401
-
+from app.core.config import settings
+from app.core.security import hash_password
 from app.modules.admins.models import Admin
 
 
@@ -57,7 +56,9 @@ async def main() -> None:
     Session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with Session() as db:
-        existing = (await db.execute(select(Admin).where(Admin.email == email))).scalar_one_or_none()
+        existing = (
+            await db.execute(select(Admin).where(Admin.email == email))
+        ).scalar_one_or_none()
         if existing:
             # Re-running rotates the password — handy if dev forgets it.
             existing.password_hash = hash_password(password)

@@ -1,4 +1,5 @@
 """Tests for the authentication module."""
+
 from __future__ import annotations
 
 import pytest

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 import uuid
-from typing import Any, Optional
+from typing import Any
 
 from app.core.base_service import BaseService
 from app.core.exceptions import NotFoundError
@@ -27,15 +27,14 @@ DEFAULT_VARIABLES: dict[str, str] = {
 
 
 class EmailTemplateService(BaseService[EmailTemplateRepository]):
-
     async def create(self, company_id: uuid.UUID, data: EmailTemplateCreate) -> EmailTemplate:
         return await self.repository.create(company_id, data)
 
     async def list(
         self,
         company_id: uuid.UUID,
-        language: Optional[str] = None,
-        type: Optional[str] = None,
+        language: str | None = None,
+        type: str | None = None,
     ) -> list[EmailTemplate]:
         return await self.repository.list_by_company(company_id, language=language, type=type)
 
@@ -59,7 +58,7 @@ class EmailTemplateService(BaseService[EmailTemplateRepository]):
         self,
         template_id: uuid.UUID,
         company_id: uuid.UUID,
-        variables: Optional[dict[str, Any]] = None,
+        variables: dict[str, Any] | None = None,
     ) -> EmailTemplatePreview:
         template = await self.get(template_id, company_id)
         merged = {**DEFAULT_VARIABLES, **(variables or {})}
@@ -80,6 +79,7 @@ class EmailTemplateService(BaseService[EmailTemplateRepository]):
             def replacer(match: re.Match) -> str:
                 key = match.group(1).strip()
                 return str(variables.get(key, f"{{{{{key}}}}}"))
+
             return re.sub(r"\{\{(\w+)\}\}", replacer, text)
 
         return replace(subject), replace(body)

@@ -61,7 +61,14 @@ class MailService:
     @staticmethod
     def _render(template_name: str, context: dict) -> str:
         template = MailService._jinja_env.get_template(template_name)
-        return template.render(**context)
+        # Globals every template's header/footer needs, injected centrally so
+        # individual callers don't repeat them. Caller context wins on conflict.
+        base_context: dict = {
+            "site_url": settings.frontend_url.rstrip("/"),
+            "year": datetime.now().year,
+        }
+        base_context.update(context)
+        return template.render(**base_context)
 
     def _enqueue(
         self,

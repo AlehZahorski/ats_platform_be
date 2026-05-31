@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="x-apple-disable-message-reformatting">
+  <title>{% block title %}wakanta.pl{% endblock %}</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <!-- Preheader: short summary shown in inbox preview, hidden in the body. -->
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">{% block preheader %}{% endblock %}</div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:24px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;max-width:600px;width:100%;">
+
+          <!-- ── Header ─────────────────────────────────────────────── -->
+          <tr>
+            <td style="background:#18181b;padding:28px 40px;text-align:center;">
+              <a href="{{ site_url }}" style="text-decoration:none;">
+                <span style="color:#fbbf24;font-size:24px;font-weight:700;letter-spacing:-0.5px;">wakanta</span><span style="color:#ffffff;font-size:24px;font-weight:700;">.pl</span>
+              </a>
+            </td>
+          </tr>
+
+          <!-- ── Body ───────────────────────────────────────────────── -->
+          <tr>
+            <td style="padding:40px;">
+              {% block content %}{% endblock %}
+            </td>
+          </tr>
+
+          <!-- ── Footer ─────────────────────────────────────────────── -->
+          <tr>
+            <td style="background:#fafafa;padding:24px 40px;border-top:1px solid #e4e4e7;">
+              <p style="margin:0 0 8px;color:#a1a1aa;font-size:12px;line-height:1.6;text-align:center;">
+                {% block footer_note %}Otrzymujesz tę wiadomość w związku z korzystaniem z platformy wakanta.pl.{% endblock %}
+              </p>
+              <p style="margin:0;color:#a1a1aa;font-size:12px;line-height:1.6;text-align:center;">
+                <a href="{{ site_url }}" style="color:#71717a;text-decoration:none;">wakanta.pl</a>
+                &nbsp;·&nbsp;
+                <a href="{{ site_url }}/o-nas" style="color:#71717a;text-decoration:none;">O nas</a>
+                &nbsp;·&nbsp;
+                <a href="{{ site_url }}/ai-info" style="color:#71717a;text-decoration:none;">AI</a>
+                <br>
+                © {{ year }} wakanta.pl — polski portal pracy i system ATS
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

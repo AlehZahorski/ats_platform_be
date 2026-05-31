@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -15,11 +14,11 @@ class ConsentCreate(BaseModel):
 
 
 class ConsentUpdate(BaseModel):
-    name: Optional[str] = None
-    content: Optional[str] = None
-    language: Optional[str] = None
-    required: Optional[bool] = None
-    is_active: Optional[bool] = None
+    name: str | None = None
+    content: str | None = None
+    language: str | None = None
+    required: bool | None = None
+    is_active: bool | None = None
 
 
 class ConsentRead(BaseModel):
@@ -47,11 +46,11 @@ class ApplicationConsentRead(BaseModel):
     consent_id: uuid.UUID
     accepted: bool
     accepted_at: datetime
-    consent: Optional[ConsentRead] = None
+    consent: ConsentRead | None = None
 
 
 class DataRetentionUpdate(BaseModel):
-    data_retention_until: Optional[datetime] = None
+    data_retention_until: datetime | None = None
 
 
 class AnonymizeResult(BaseModel):

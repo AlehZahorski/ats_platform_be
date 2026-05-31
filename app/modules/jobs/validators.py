@@ -3,6 +3,7 @@
 Both validators are stateless. They accept either an ORM `Job` instance or a
 plain dict (e.g. merged update state), thanks to the `_attr` helper.
 """
+
 from __future__ import annotations
 
 import re
@@ -33,27 +34,28 @@ def _html_has_content(value: Any) -> bool:
 
 def _publish_requirements() -> dict[str, str]:
     return {
-        "role_summary":      t("jobs.publish.role_summary_required"),
-        "role_purpose":      t("jobs.publish.role_purpose_required"),
-        "responsibilities":  t("jobs.publish.responsibilities_required"),
-        "must_haves":        t("jobs.publish.must_haves_required"),
-        "nice_to_haves":     t("jobs.publish.nice_to_haves_required"),
-        "tech_stack":        t("jobs.publish.tech_stack_required"),
-        "seniority":         t("jobs.publish.seniority_required"),
-        "team_context":      t("jobs.publish.team_context_required"),
-        "benefits":          t("jobs.publish.benefits_required"),
-        "salary":            t("jobs.publish.salary_required"),
-        "work_mode":         t("jobs.publish.work_mode_required"),
-        "contract_type":     t("jobs.publish.contract_type_required"),
-        "location_clarity":  t("jobs.publish.location_clarity_required"),
+        "role_summary": t("jobs.publish.role_summary_required"),
+        "role_purpose": t("jobs.publish.role_purpose_required"),
+        "responsibilities": t("jobs.publish.responsibilities_required"),
+        "must_haves": t("jobs.publish.must_haves_required"),
+        "nice_to_haves": t("jobs.publish.nice_to_haves_required"),
+        "tech_stack": t("jobs.publish.tech_stack_required"),
+        "seniority": t("jobs.publish.seniority_required"),
+        "team_context": t("jobs.publish.team_context_required"),
+        "benefits": t("jobs.publish.benefits_required"),
+        "salary": t("jobs.publish.salary_required"),
+        "work_mode": t("jobs.publish.work_mode_required"),
+        "contract_type": t("jobs.publish.contract_type_required"),
+        "location_clarity": t("jobs.publish.location_clarity_required"),
         "value_proposition": t("jobs.publish.value_proposition_required"),
-        "hiring_process":    t("jobs.publish.hiring_process_required"),
+        "hiring_process": t("jobs.publish.hiring_process_required"),
     }
 
 
 # ───────────────────────────────────────────────────────────────────────────
 # Publish validator — checks if a job is ready to go from draft → open
 # ───────────────────────────────────────────────────────────────────────────
+
 
 class PublishValidator:
     """Validates that a job offer meets all requirements for publication.
@@ -159,6 +161,7 @@ class PublishValidator:
 # Status transition validator — gates draft → open behind PublishValidator
 # ───────────────────────────────────────────────────────────────────────────
 
+
 class StatusTransitionValidator:
     """Validates that a status transition is allowed.
 
@@ -175,7 +178,9 @@ class StatusTransitionValidator:
 
         issues = PublishValidator.validate(next_state)
         if issues:
-            raise UnprocessableError({
-                "message": t("jobs.not_ready"),
-                "issues": issues,
-            })
+            raise UnprocessableError(
+                {
+                    "message": t("jobs.not_ready"),
+                    "issues": issues,
+                }
+            )

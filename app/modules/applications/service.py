@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ from app.modules.applications.duplicate_service import (
     normalize_email,
     normalize_phone,
 )
-from app.modules.applications.models import Application, CVParseJob, CandidateScore
+from app.modules.applications.models import Application, CVParseJob
 from app.modules.applications.repository import ApplicationRepository
 from app.modules.applications.schemas import (
     AnswerInput,
@@ -33,9 +33,9 @@ from app.modules.applications.schemas import (
     ApplicationTrackingRead,
     BulkAction,
     BulkResult,
+    CandidateProfileRead,
     CVParseConfirmPayload,
     CVParseJobRead,
-    CandidateProfileRead,
     DuplicateCheckRequest,
     DuplicateCheckResponse,
     ScoreCreate,
@@ -59,7 +59,6 @@ class ApplicationSubmitResult:
 
 
 class ApplicationService(BaseService[ApplicationRepository]):
-
     def __init__(
         self,
         repository: ApplicationRepository,
@@ -94,9 +93,7 @@ class ApplicationService(BaseService[ApplicationRepository]):
     ) -> ApplicationSubmitResult:
         from app.modules.jobs.models import Job
 
-        result = await self.db.execute(
-            select(Job).where(Job.id == job_id, Job.status == "open")
-        )
+        result = await self.db.execute(select(Job).where(Job.id == job_id, Job.status == "open"))
         job = result.scalar_one_or_none()
         if not job:
             raise NotFoundError(t("jobs.not_accepting"))
@@ -137,13 +134,17 @@ class ApplicationService(BaseService[ApplicationRepository]):
         # parse — `cv_parsing.run` reads this flag to decide on PII redaction
         # and whether to call the matcher.
         if ai_profiling_consent:
-            from datetime import UTC, datetime as _dt
+            from datetime import UTC
+            from datetime import datetime as _dt
+
             application.ai_profiling_consented_at = _dt.now(UTC)
             await self.db.flush()
 
         parse_job: CVParseJob | None = None
         if cv_url:
-            parse_job = await self.repository.create_cv_parse_job(application.id, cv_url, language=language)
+            parse_job = await self.repository.create_cv_parse_job(
+                application.id, cv_url, language=language
+            )
             background_tasks.add_task(run_cv_parse_job, parse_job.id)
 
         if duplicate_check.has_duplicates:
@@ -203,7 +204,9 @@ class ApplicationService(BaseService[ApplicationRepository]):
         (Anthropic side is out of our control), but it stops all future
         matcher / enrichment calls for this application.
         """
-        from datetime import UTC, datetime as _dt
+        from datetime import UTC
+        from datetime import datetime as _dt
+
         application = await self.repository.get_by_token(token)
         if not application:
             raise NotFoundError(t("applications.not_found"))
@@ -261,7 +264,9 @@ class ApplicationService(BaseService[ApplicationRepository]):
             raise NotFoundError(t("applications.not_found"))
         if not application.cv_url:
             raise UnprocessableError(t("applications.no_cv"))
-        parse_job = await self.repository.create_cv_parse_job(application_id, application.cv_url, language=language)
+        parse_job = await self.repository.create_cv_parse_job(
+            application_id, application.cv_url, language=language
+        )
         background_tasks.add_task(run_cv_parse_job, parse_job.id)
         return CVParseJobRead.model_validate(parse_job)
 
@@ -324,8 +329,8 @@ class ApplicationService(BaseService[ApplicationRepository]):
         frontend_url: str,
         company_name: str,
     ) -> BulkResult:
-        from app.modules.jobs.models import Job
         from app.modules.interviews.repository import InterviewRepository
+        from app.modules.jobs.models import Job
         from app.modules.pipeline.models import PipelineStage
         from app.modules.tags.models import ApplicationTag
 
@@ -353,20 +358,27 @@ class ApplicationService(BaseService[ApplicationRepository]):
 
                     interview = None
                     if stage.name.strip().lower() == "interview":
-                        interview = await InterviewRepository(self.db).get_stage_ready_interview(app.id)
+                        interview = await InterviewRepository(self.db).get_stage_ready_interview(
+                            app.id
+                        )
                         if not interview:
                             failed += 1
                             continue
 
                     app.stage_id = stage_id
-                    self.db.add(ApplicationStageHistory(
-                        application_id=app_id,
-                        stage_id=stage_id,
-                        changed_by=user_id,
-                    ))
+                    self.db.add(
+                        ApplicationStageHistory(
+                            application_id=app_id,
+                            stage_id=stage_id,
+                            changed_by=user_id,
+                        )
+                    )
 
                     if data.payload.get("notify_candidate"):
-                        from app.services.candidate_notifications import send_stage_change_notification
+                        from app.services.candidate_notifications import (
+                            send_stage_change_notification,
+                        )
+
                         job_result = await self.db.execute(select(Job).where(Job.id == app.job_id))
                         job = job_result.scalar_one_or_none()
                         await send_stage_change_notification(
@@ -383,7 +395,9 @@ class ApplicationService(BaseService[ApplicationRepository]):
                             interview_at=interview.scheduled_at if interview else None,
                             interview_url=interview.meeting_url if interview else None,
                             interview_notes=interview.notes if interview else None,
-                            interview_duration_minutes=interview.duration_minutes if interview else None,
+                            interview_duration_minutes=interview.duration_minutes
+                            if interview
+                            else None,
                         )
 
                 elif data.action == BulkActionType.reject:
@@ -393,15 +407,22 @@ class ApplicationService(BaseService[ApplicationRepository]):
                     rejected_stage = res.scalar_one_or_none()
                     if rejected_stage:
                         app.stage_id = rejected_stage.id
-                        self.db.add(ApplicationStageHistory(
-                            application_id=app_id,
-                            stage_id=rejected_stage.id,
-                            changed_by=user_id,
-                        ))
+                        self.db.add(
+                            ApplicationStageHistory(
+                                application_id=app_id,
+                                stage_id=rejected_stage.id,
+                                changed_by=user_id,
+                            )
+                        )
 
                         if data.payload.get("notify_candidate"):
-                            from app.services.candidate_notifications import send_stage_change_notification
-                            job_result = await self.db.execute(select(Job).where(Job.id == app.job_id))
+                            from app.services.candidate_notifications import (
+                                send_stage_change_notification,
+                            )
+
+                            job_result = await self.db.execute(
+                                select(Job).where(Job.id == app.job_id)
+                            )
                             job = job_result.scalar_one_or_none()
                             await send_stage_change_notification(
                                 db=self.db,
@@ -427,13 +448,15 @@ class ApplicationService(BaseService[ApplicationRepository]):
                     if not existing.scalar_one_or_none():
                         self.db.add(ApplicationTag(application_id=app_id, tag_id=tag_id))
 
-                self.db.add(ApplicationEvent(
-                    application_id=app_id,
-                    company_id=company_id,
-                    event_type="bulk_action",
-                    event_value=data.action,
-                    metadata_={"payload": data.payload, "user_id": str(user_id)},
-                ))
+                self.db.add(
+                    ApplicationEvent(
+                        application_id=app_id,
+                        company_id=company_id,
+                        event_type="bulk_action",
+                        event_value=data.action,
+                        metadata_={"payload": data.payload, "user_id": str(user_id)},
+                    )
+                )
                 updated += 1
 
             except Exception:
@@ -443,18 +466,25 @@ class ApplicationService(BaseService[ApplicationRepository]):
                 # accurate; logger gives ops the trace.
                 logger.exception(
                     "bulk_action item failed: action=%s app_id=%s",
-                    data.action, app_id,
+                    data.action,
+                    app_id,
                 )
                 failed += 1
                 continue
 
-        self.db.add(AuditLog(
-            company_id=company_id,
-            user_id=user_id,
-            action="bulk_action",
-            entity_type="application",
-            metadata_={"action": data.action, "count": updated, "ids": [str(i) for i in data.application_ids]},
-        ))
+        self.db.add(
+            AuditLog(
+                company_id=company_id,
+                user_id=user_id,
+                action="bulk_action",
+                entity_type="application",
+                metadata_={
+                    "action": data.action,
+                    "count": updated,
+                    "ids": [str(i) for i in data.application_ids],
+                },
+            )
+        )
 
         return BulkResult(updated=updated, failed=failed, action=data.action)
 
@@ -465,14 +495,16 @@ class ApplicationService(BaseService[ApplicationRepository]):
     def _build_application_read(application: Application) -> ApplicationRead:
         result = ApplicationRead.model_validate(application)
         result.answers = []
-        for ans in (application.answers or []):
+        for ans in application.answers or []:
             answer = AnswerRead.model_validate(ans)
             if hasattr(ans, "field") and ans.field:
                 answer.field_label = ans.field.label
                 answer.field_type = ans.field.field_type
             result.answers.append(answer)
         if application.candidate_profile:
-            result.candidate_profile = CandidateProfileRead.model_validate(application.candidate_profile)
+            result.candidate_profile = CandidateProfileRead.model_validate(
+                application.candidate_profile
+            )
         latest_parse_job = application.cv_parse_jobs[0] if application.cv_parse_jobs else None
         if latest_parse_job:
             result.latest_cv_parse_job = CVParseJobRead.model_validate(latest_parse_job)

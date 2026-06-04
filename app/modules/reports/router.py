@@ -9,8 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import CurrentCompany, CurrentUser
 from app.modules.applications.models import Application
-from app.modules.pipeline.models import ApplicationStageHistory, PipelineStage
 from app.modules.jobs.models import Job
+from app.modules.pipeline.models import ApplicationStageHistory, PipelineStage
 from app.modules.reports.schemas import (
     ApplicationsOverTimeReport,
     JobApplicationsReport,

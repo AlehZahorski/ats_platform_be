@@ -6,6 +6,7 @@ from app.core.base_service import BaseService
 from app.core.enums.interviews import InterviewStatus
 from app.core.exceptions import NotFoundError, UnprocessableError
 from app.core.i18n import t
+from app.core.ownership import ensure_application_in_company
 from app.modules.application_events.models import ApplicationEvent
 from app.modules.audit.service import AuditService
 from app.modules.interviews.models import Interview
@@ -25,6 +26,7 @@ class InterviewService(BaseService[InterviewRepository]):
         user_id: uuid.UUID,
         data: InterviewCreate,
     ) -> Interview:
+        await ensure_application_in_company(self.repository.db, application_id, company_id)
         self._validate_meeting_url(data.meeting_url, data.status)
         interview = await self.repository.create(application_id, data)
 
@@ -52,11 +54,19 @@ class InterviewService(BaseService[InterviewRepository]):
             raise NotFoundError(t("interviews.not_found"))
         return interview
 
-    async def list_by_application(self, application_id: uuid.UUID) -> list[Interview]:
+    async def list_by_application(
+        self, application_id: uuid.UUID, company_id: uuid.UUID
+    ) -> list[Interview]:
+        await ensure_application_in_company(self.repository.db, application_id, company_id)
         return await self.repository.list_by_application(application_id)
 
-    async def update(self, interview_id: uuid.UUID, data: InterviewUpdate) -> Interview:
+    async def update(
+        self, interview_id: uuid.UUID, company_id: uuid.UUID, data: InterviewUpdate
+    ) -> Interview:
         interview = await self.get(interview_id)
+        await ensure_application_in_company(
+            self.repository.db, interview.application_id, company_id
+        )
         next_status = data.status or interview.status
         next_url = data.meeting_url if data.meeting_url is not None else interview.meeting_url
         self._validate_meeting_url(next_url, next_status)
@@ -66,6 +76,9 @@ class InterviewService(BaseService[InterviewRepository]):
         self, interview_id: uuid.UUID, company_id: uuid.UUID, user_id: uuid.UUID
     ) -> None:
         interview = await self.get(interview_id)
+        await ensure_application_in_company(
+            self.repository.db, interview.application_id, company_id
+        )
         await self.audit.log(
             company_id=company_id,
             user_id=user_id,

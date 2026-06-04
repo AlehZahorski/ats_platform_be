@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import uuid
 from datetime import UTC, datetime
 
@@ -8,6 +9,7 @@ from sqlalchemy import select
 from app.core.base_service import BaseService
 from app.core.exceptions import NotFoundError
 from app.core.i18n import t
+from app.core.ownership import ensure_application_in_company
 from app.modules.consents.models import ApplicationConsent, Consent
 from app.modules.consents.repository import ConsentRepository
 from app.modules.consents.schemas import (
@@ -52,11 +54,15 @@ class ConsentService(BaseService[ConsentRepository]):
 
     # ── Application consents ──────────────────────────────────────────────────
     async def record_application_consent(
-        self, application_id: uuid.UUID, data: ApplicationConsentCreate
+        self, application_id: uuid.UUID, company_id: uuid.UUID, data: ApplicationConsentCreate
     ) -> ApplicationConsent:
+        await ensure_application_in_company(self.repository.db, application_id, company_id)
         return await self.repository.record_consent(application_id, data)
 
-    async def get_application_consents(self, application_id: uuid.UUID) -> list[ApplicationConsent]:
+    async def get_application_consents(
+        self, application_id: uuid.UUID, company_id: uuid.UUID
+    ) -> list[ApplicationConsent]:
+        await ensure_application_in_company(self.repository.db, application_id, company_id)
         return await self.repository.get_application_consents(application_id)
 
     # ── GDPR: data retention ──────────────────────────────────────────────────
@@ -120,12 +126,10 @@ class ConsentService(BaseService[ConsentRepository]):
 
         # 1. Delete the CV file from disk BEFORE we drop the URL on the row.
         if app.cv_url:
-            try:
+            # Best-effort — disk failure here must not block the legal
+            # obligation to anonymize the database row.
+            with contextlib.suppress(Exception):
                 file_storage.delete_cv(app.cv_url)
-            except Exception:
-                # Best-effort — disk failure here must not block the legal
-                # obligation to anonymize the database row.
-                pass
 
         # 2. Overwrite the identifying columns on the application itself.
         app.first_name = "Anonymized"

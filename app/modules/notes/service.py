@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 
 from app.core.base_service import BaseService
+from app.core.ownership import ensure_application_in_company
 from app.modules.audit.service import AuditService
 from app.modules.notes.models import Note
 from app.modules.notes.repository import NoteRepository
@@ -21,6 +22,7 @@ class NoteService(BaseService[NoteRepository]):
         company_id: uuid.UUID,
         data: NoteCreate,
     ) -> Note:
+        await ensure_application_in_company(self.repository.db, application_id, company_id)
         note = await self.repository.create(application_id, author_id, data)
         await self.audit.log(
             company_id=company_id,
@@ -31,5 +33,8 @@ class NoteService(BaseService[NoteRepository]):
         )
         return note
 
-    async def list_by_application(self, application_id: uuid.UUID) -> list[Note]:
+    async def list_by_application(
+        self, application_id: uuid.UUID, company_id: uuid.UUID
+    ) -> list[Note]:
+        await ensure_application_in_company(self.repository.db, application_id, company_id)
         return await self.repository.list_by_application(application_id)

@@ -3,6 +3,7 @@ import secrets
 from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import CurrentUser
 from app.core.exceptions import UnauthorizedError
@@ -94,8 +95,19 @@ async def me(current_user: CurrentUser) -> UserRead:
 
 
 @router.get("/google")
-async def google_login() -> dict:
+async def google_login(response: Response) -> dict:
     state = secrets.token_urlsafe(16)
+    # CSRF (double-submit): remember the state in an HttpOnly cookie so the
+    # callback can verify the value Google echoes back is the one we issued.
+    response.set_cookie(
+        "oauth_state",
+        state,
+        max_age=600,
+        httponly=True,
+        samesite="lax",
+        secure=settings.is_production,
+        path="/api/v1/auth",
+    )
     return {"url": get_google_auth_url(state), "state": state}
 
 
@@ -110,8 +122,15 @@ async def google_callback(
     code: str,
     state: str,
     response: Response,
+    oauth_state: str | None = Cookie(default=None),
     service: AuthService = Depends(_get_service),
 ) -> MessageResponse:
+    # CSRF: the state echoed back by Google must match the one we set on the
+    # browser when /google was called. Missing or mismatched => reject before
+    # exchanging the code (audit_security C3).
+    if not oauth_state or not secrets.compare_digest(oauth_state, state):
+        raise UnauthorizedError(t("auth.oauth_state_invalid"))
+    response.delete_cookie("oauth_state", path="/api/v1/auth")
     result = await service.google_callback(code, response)
     return MessageResponse(**result)
 

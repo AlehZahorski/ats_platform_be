@@ -77,11 +77,11 @@ async def delete_consent(
 async def record_consent(
     application_id: uuid.UUID,
     data: ApplicationConsentCreate,
-    _company: CurrentCompany,
+    company: CurrentCompany,
     _user: CurrentUser,
     service: ConsentService = Depends(_get_service),
 ) -> dict:
-    await service.record_application_consent(application_id, data)
+    await service.record_application_consent(application_id, company.id, data)
     return {"recorded": True}
 
 
@@ -91,11 +91,11 @@ async def record_consent(
 )
 async def get_application_consents(
     application_id: uuid.UUID,
-    _company: CurrentCompany,
+    company: CurrentCompany,
     _user: CurrentUser,
     service: ConsentService = Depends(_get_service),
 ) -> list[ApplicationConsentRead]:
-    records = await service.get_application_consents(application_id)
+    records = await service.get_application_consents(application_id, company.id)
     return [ApplicationConsentRead.model_validate(r) for r in records]
 
 

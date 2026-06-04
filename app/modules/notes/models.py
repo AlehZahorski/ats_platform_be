@@ -22,6 +22,12 @@ class Note(BaseModel):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    # RESERVED (Faza 2): there is currently NO candidate-facing read path for
+    # notes — both /notes endpoints require an authenticated HR user, and the
+    # public /track/{token} response (ApplicationTrackingRead) never includes
+    # notes. This flag is kept for a future candidate-visible-notes feature; if
+    # such a path is added it MUST filter on visible_to_candidate. Guarded by
+    # tests/test_data_consistency.py::test_track_does_not_leak_notes.
     visible_to_candidate: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     application: Mapped[Application] = relationship(back_populates="notes")  # noqa: F821

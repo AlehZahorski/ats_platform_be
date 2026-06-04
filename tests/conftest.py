@@ -1,71 +1,138 @@
-"""
-Pytest configuration and shared test fixtures.
+"""Pytest configuration and shared test fixtures.
+
+Faza 0 (plan-naprawy): tests run against a REAL PostgreSQL 16, not in-memory
+SQLite. This removes the ``@compiles(JSONB, "sqlite")`` shim and the whole
+class of "green on SQLite, red on Postgres" bugs (JSONB, CHECK constraints,
+trigram/GIN indexes, cascades behave for real). See docs/adr/0001-*.md.
+
+Database resolution (in order):
+  1. ``TEST_DATABASE_URL`` env var (preferred in CI — a ``postgres:16``
+     service container), or
+  2. ``DATABASE_URL`` env var if it already points at Postgres, or
+  3. an ephemeral ``postgres:16-alpine`` started via testcontainers
+     (local-dev fallback — requires a running Docker daemon).
+
+Schema is built once per session via ``alembic upgrade head`` (so migrations
+themselves are exercised). Per-test isolation uses a connection-bound outer
+transaction rolled back after each test (``join_transaction_mode=
+"create_savepoint"`` lets the app's own ``commit()`` calls run as savepoints),
+plus a TRUNCATE safety net that clears any rows committed out-of-band by
+background tasks using the app's own engine.
 """
 
 from __future__ import annotations
 
 import asyncio
+import atexit
+import os
+import subprocess
+import sys
 from collections.abc import AsyncGenerator
-
-import pytest
-import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.ext.compiler import compiles
-
-from app.core.database import Base, get_db
-from app.main import app
-
+from pathlib import Path
 
 # ---------------------------------------------------------------------------
-# Postgres JSONB on SQLite — models use the PG-specific JSONB type, but the
-# test engine is SQLite, whose compiler has no `visit_JSONB` and bails out of
-# `create_all` with a CompileError. Teach the SQLite dialect to render JSONB
-# as plain JSON (functionally equivalent for our test assertions) so the
-# schema can be created. Production still uses real Postgres JSONB.
+# Resolve the test database URL and export it BEFORE importing the app — the
+# app builds its async engine at import time from ``settings.database_url``,
+# so it must already point at the test database for background-task sessions
+# (which use the app engine) to hit the same place as the test session.
 # ---------------------------------------------------------------------------
-@compiles(JSONB, "sqlite")
-def _compile_jsonb_as_json_on_sqlite(type_, compiler, **kw):  # noqa: ANN001
-    return "JSON"
+_BACKEND_DIR = Path(__file__).resolve().parent.parent
 
+_pg_container = None
+_test_db_url = os.getenv("TEST_DATABASE_URL") or os.getenv("DATABASE_URL")
 
-# ---------------------------------------------------------------------------
-# In-memory SQLite for tests (swap to test PG if needed)
-# ---------------------------------------------------------------------------
-TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
+if not _test_db_url or "postgresql" not in _test_db_url:
+    # Local-dev fallback: spin up a throwaway Postgres 16 via testcontainers.
+    from testcontainers.postgres import PostgresContainer
 
-test_engine = create_async_engine(TEST_DB_URL, echo=False)
-TestSessionLocal = async_sessionmaker(bind=test_engine, class_=AsyncSession, expire_on_commit=False)
+    _pg_container = PostgresContainer("postgres:16-alpine", driver="asyncpg")
+    _pg_container.start()
+    atexit.register(_pg_container.stop)
+    _test_db_url = _pg_container.get_connection_url()
+
+os.environ["DATABASE_URL"] = _test_db_url
+# The app's Settings require these; provide deterministic test defaults so a
+# bare ``pytest`` (no .env) still imports cleanly.
+os.environ.setdefault("SECRET_KEY", "test-secret-key-not-for-production")
+os.environ.setdefault("JWT_SECRET", "test-jwt-secret-not-for-production")
+
+import pytest  # noqa: E402
+import pytest_asyncio  # noqa: E402
+from httpx import ASGITransport, AsyncClient  # noqa: E402
+from sqlalchemy import text  # noqa: E402
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine  # noqa: E402
+
+from app.core.database import Base, get_db  # noqa: E402
+from app.main import app  # noqa: E402
+
+# Dedicated engine for the test fixtures (separate pool from the app engine,
+# same database).
+test_engine = create_async_engine(_test_db_url, echo=False, future=True)
 
 
 @pytest.fixture(scope="session")
 def event_loop():
+    # One shared loop for the whole session so asyncpg connections (which are
+    # event-loop-bound) created in session-scoped fixtures stay usable in
+    # function-scoped fixtures and tests.
     loop = asyncio.new_event_loop()
     yield loop
     loop.close()
 
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
-async def setup_db():
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+async def _setup_schema():
+    """Build the schema once per session by running the real migrations."""
+    env = os.environ.copy()
+    env["DATABASE_URL"] = _test_db_url
+    result = subprocess.run(
+        [sys.executable, "-m", "alembic", "upgrade", "head"],
+        cwd=str(_BACKEND_DIR),
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            "alembic upgrade head failed during test setup:\n"
+            f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+        )
     yield
+    await test_engine.dispose()
+
+
+# All app tables, child-before-parent order reversed by TRUNCATE ... CASCADE.
+_ALL_TABLES = ", ".join(f'"{t.name}"' for t in Base.metadata.sorted_tables)
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _truncate_after():
+    """Safety net: wipe any rows committed outside the per-test transaction.
+
+    The per-test ``db_session`` rolls back its own transaction, so data created
+    through it never persists. But code paths that open their own
+    ``AsyncSessionLocal`` (e.g. background CV-parse / automation tasks) commit
+    on the app engine and would leak across tests. TRUNCATE ... CASCADE after
+    each test guarantees a clean slate regardless.
+    """
+    yield
+    if not _ALL_TABLES:
+        return
     async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+        await conn.execute(text(f"TRUNCATE {_ALL_TABLES} RESTART IDENTITY CASCADE"))
 
 
 @pytest.fixture(autouse=True)
 def _isolate_external_effects():
     """Keep tests off real external systems.
 
-    1. SMTP — mailer._smtp_send short-circuits when settings.smtp_host is empty
-       (see its docstring). Blanking it makes every send_* helper a no-op, so
-       auth flows that send verification emails don't raise SMTPDataError
-       against whatever host .env points at.
-    2. Rate limiter — disable slowapi for tests. The installed slowapi/limits
-       pair raises AttributeError ('RateLimitItemPerMinute' has no 'key_for')
-       on hit(); rate limiting is not what these tests exercise, so turn it off.
+    1. SMTP — mailer._send_smtp short-circuits when settings.smtp_host is empty,
+       so every send_* helper becomes a no-op and auth flows that send a
+       verification email don't raise against whatever host .env points at.
+    2. Rate limiter — disable slowapi; rate limiting is not what these tests
+       exercise.
+    3. app_env — pinned to "staging" so the real email-verification gate is
+       exercised (development auto-verifies new signups).
     """
     from app.core.config import settings
     from app.core.rate_limit import limiter
@@ -75,9 +142,6 @@ def _isolate_external_effects():
     original_env = settings.app_env
     settings.smtp_host = ""
     limiter.enabled = False
-    # app_env defaults to "development", which auto-verifies new signups
-    # (see AuthService.signup_company). Tests must exercise the real verify
-    # gate, so pin a non-dev env for the suite.
     settings.app_env = "staging"
     yield
     settings.smtp_host = original_host
@@ -87,8 +151,24 @@ def _isolate_external_effects():
 
 @pytest_asyncio.fixture
 async def db_session() -> AsyncGenerator[AsyncSession, None]:
-    async with TestSessionLocal() as session:
+    """A session bound to a single connection wrapped in a transaction that is
+    always rolled back, so each test starts from a clean state. The app's own
+    ``commit()`` calls run as savepoints inside the outer transaction.
+    """
+    conn = await test_engine.connect()
+    trans = await conn.begin()
+    session = AsyncSession(
+        bind=conn,
+        expire_on_commit=False,
+        join_transaction_mode="create_savepoint",
+    )
+    try:
         yield session
+    finally:
+        await session.close()
+        if trans.is_active:
+            await trans.rollback()
+        await conn.close()
 
 
 @pytest_asyncio.fixture

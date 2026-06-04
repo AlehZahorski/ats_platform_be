@@ -74,6 +74,7 @@ async def create_token(
             break
     row = PartnerAccessToken(
         label=data.label,
+        deck=data.deck,
         token=code,
         note=data.note,
         expires_at=data.expires_at,

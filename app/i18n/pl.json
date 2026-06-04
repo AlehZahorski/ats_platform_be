@@ -9,6 +9,7 @@
   "errors.duplicate_candidate": "Wykryto zduplikowanego kandydata.",
 
   "auth.credentials_invalid": "Nie można zweryfikować poświadczeń",
+  "auth.oauth_state_invalid": "Nieprawidłowy lub brakujący parametr OAuth state",
   "auth.email_not_verified_dep": "Adres e-mail nie został zweryfikowany",
   "auth.company_not_found": "Firma nie została znaleziona",
   "auth.role_not_permitted": "Rola '{role}' nie ma uprawnień do tej operacji",

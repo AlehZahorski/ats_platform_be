@@ -6,6 +6,7 @@ from app.core.base_service import BaseService
 from app.core.enums.users import UserRole
 from app.core.exceptions import ForbiddenError, NotFoundError
 from app.core.i18n import t
+from app.core.ownership import ensure_application_in_company
 from app.modules.tasks.models import Task
 from app.modules.tasks.repository import TaskRepository
 from app.modules.tasks.schemas import TaskCreate, TaskUpdate
@@ -26,6 +27,10 @@ class TaskService(BaseService[TaskRepository]):
     async def create(self, company_id: uuid.UUID, actor: User, data: TaskCreate) -> Task:
         if not self._can_assign(actor, data.assigned_to):
             raise ForbiddenError(t("auth.role_not_permitted", role=actor.role))
+        if data.application_id is not None:
+            await ensure_application_in_company(
+                self.repository.db, data.application_id, company_id
+            )
         return await self.repository.create(company_id, actor.id, data)
 
     async def get(self, task_id: uuid.UUID, company_id: uuid.UUID) -> Task:
@@ -58,6 +63,10 @@ class TaskService(BaseService[TaskRepository]):
             and data.assigned_to != task.assigned_to
         ) and not self._can_assign(actor, data.assigned_to):
             raise ForbiddenError(t("auth.role_not_permitted", role=actor.role))
+        if data.application_id is not None:
+            await ensure_application_in_company(
+                self.repository.db, data.application_id, company_id
+            )
         return await self.repository.update(task, data)
 
     async def delete(self, task_id: uuid.UUID, company_id: uuid.UUID) -> None:

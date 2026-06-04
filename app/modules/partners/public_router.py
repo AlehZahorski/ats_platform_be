@@ -52,6 +52,7 @@ async def access_presentation(
     # can't be raced past by parallel requests beyond the commit boundary.
     row.view_count += 1
     row.last_viewed_at = datetime.now(UTC)
+    deck = row.deck  # capture before commit expires the instance
     await db.commit()
 
-    return PresentationAccessResponse(html=load_presentation_html())
+    return PresentationAccessResponse(html=load_presentation_html(deck))

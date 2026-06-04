@@ -281,15 +281,20 @@ class CVProfileParser:
                 lowered = part.lower()
                 if lowered in SKILL_KEYWORDS and _format_skill(part) not in seen:
                     seen.append(_format_skill(part))
-                elif 1 <= len(part.split()) <= 4 and any(char.isalpha() for char in part):
-                    if lowered not in {
+                elif (
+                    1 <= len(part.split()) <= 4
+                    and any(char.isalpha() for char in part)
+                    and lowered
+                    not in {
                         "mother tongue(s)",
                         "communication",
                         "management",
-                    } and _looks_like_skill(part, SKILL_KEYWORDS):
-                        formatted = _format_skill(part)
-                        if formatted not in seen:
-                            seen.append(formatted)
+                    }
+                    and _looks_like_skill(part, SKILL_KEYWORDS)
+                ):
+                    formatted = _format_skill(part)
+                    if formatted not in seen:
+                        seen.append(formatted)
         return seen[:20]
 
     # ── Experience / education extraction ─────────────────────────────────────

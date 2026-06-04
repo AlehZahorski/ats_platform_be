@@ -19,6 +19,7 @@ from app.core.database import get_db
 from app.core.dependencies import CurrentCompany, CurrentUser
 from app.core.exceptions import DuplicateDetectedError
 from app.core.i18n import detect_language
+from app.core.ownership import ensure_application_in_company
 from app.core.rate_limit import rate_limit
 from app.modules.applications.duplicate_service import DuplicateCheckService
 from app.modules.applications.repository import ApplicationRepository
@@ -203,21 +204,21 @@ async def list_applications(
 @router.get("/{application_id}", response_model=ApplicationRead)
 async def get_application(
     application_id: uuid.UUID,
-    _company: CurrentCompany,
+    company: CurrentCompany,
     _user: CurrentUser,
     service: ApplicationService = Depends(_get_service),
 ) -> ApplicationRead:
-    return await service.get_application_detail(application_id)
+    return await service.get_application_detail(application_id, company.id)
 
 
 @router.get("/{application_id}/cv-parse", response_model=CVParseJobRead | None)
 async def get_cv_parse_status(
     application_id: uuid.UUID,
-    _company: CurrentCompany,
+    company: CurrentCompany,
     _user: CurrentUser,
     service: ApplicationService = Depends(_get_service),
 ) -> CVParseJobRead | None:
-    return await service.get_cv_parse_status(application_id)
+    return await service.get_cv_parse_status(application_id, company.id)
 
 
 @router.post("/{application_id}/cv-parse/retry", response_model=CVParseJobRead)
@@ -225,12 +226,12 @@ async def retry_cv_parse(
     request: Request,
     application_id: uuid.UUID,
     background_tasks: BackgroundTasks,
-    _company: CurrentCompany,
+    company: CurrentCompany,
     _user: CurrentUser,
     service: ApplicationService = Depends(_get_service),
 ) -> CVParseJobRead:
     return await service.retry_cv_parse(
-        application_id, background_tasks, language=detect_language(request)
+        application_id, company.id, background_tasks, language=detect_language(request)
     )
 
 
@@ -240,10 +241,11 @@ async def retry_cv_parse(
 @router.get("/{application_id}/matches", response_model=list[CandidateJobMatchRead])
 async def get_job_matches(
     application_id: uuid.UUID,
-    _company: CurrentCompany,
+    company: CurrentCompany,
     _user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ) -> list[CandidateJobMatchRead]:
+    await ensure_application_in_company(db, application_id, company.id)
     repo = ApplicationRepository(db)
     matches = await repo.get_job_matches(application_id)
     return [CandidateJobMatchRead.model_validate(m) for m in matches]
@@ -256,11 +258,11 @@ async def get_job_matches(
 async def score_application(
     application_id: uuid.UUID,
     data: ScoreCreate,
-    _company: CurrentCompany,
+    company: CurrentCompany,
     user: CurrentUser,
     service: ApplicationService = Depends(_get_service),
 ) -> ScoreRead:
-    return await service.score_application(application_id, user.id, data)
+    return await service.score_application(application_id, company.id, user.id, data)
 
 
 # ──────────────────────────────────────────────

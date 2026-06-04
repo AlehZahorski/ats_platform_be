@@ -44,7 +44,7 @@ async def get_current_admin(
         if not admin_id:
             raise creds_exc
     except JWTError:
-        raise creds_exc
+        raise creds_exc from None
 
     result = await db.execute(select(Admin).where(Admin.id == uuid.UUID(admin_id)))
     admin = result.scalar_one_or_none()

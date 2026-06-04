@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wakanta.pl — Dołącz jako współzałożyciel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Playfair+Display:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --amber:#FFB800; --amber-d:#E0A000; --amber-soft:rgba(255,184,0,.12);
+    --emerald:#10b981; --rose:#E85555;
+    --bg:#0F1419; --bg-2:#0A0E17; --card:#151B28; --card-2:#1A2230;
+    --ink:#E8ECEF; --ink-soft:#D4D6DC; --muted:#8A93A6;
+    --line:#242E3E; --line-soft:#1F2737; --radius:14px;
+    --sans:"DM Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --display:"Playfair Display",Georgia,serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:var(--sans);background:var(--bg);color:var(--ink);overflow:hidden;-webkit-font-smoothing:antialiased}
+
+  .mesh{position:fixed;inset:0;z-index:0;overflow:hidden;background:radial-gradient(120% 120% at 50% 0%,#131A26 0%,#0F1419 55%,#0A0E17 100%)}
+  .blob{position:absolute;border-radius:50%;filter:blur(110px)}
+  .b1{width:620px;height:620px;background:radial-gradient(circle,#FFB800,transparent 70%);top:-180px;left:-140px;opacity:.14;animation:drift1 22s ease-in-out infinite}
+  .b2{width:540px;height:540px;background:radial-gradient(circle,#FFB800,transparent 70%);bottom:-200px;right:-140px;opacity:.09;animation:drift2 26s ease-in-out infinite}
+  .b4{width:420px;height:420px;background:radial-gradient(circle,#FFB800,transparent 70%);bottom:6%;left:20%;opacity:.06;animation:drift1 34s ease-in-out infinite reverse}
+  @keyframes drift1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(90px,60px) scale(1.12)}}
+  @keyframes drift2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-80px,-50px) scale(1.1)}}
+  .grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.022;background-image:radial-gradient(rgba(255,255,255,.6) 1px,transparent 1px);background-size:3px 3px}
+
+  .deck{position:fixed;inset:0;z-index:2}
+  .slide{position:absolute;inset:0;display:none;padding:60px 84px 92px;flex-direction:column}
+  .slide.active{display:flex}
+
+  h1{font-family:var(--display);font-size:68px;line-height:1.05;letter-spacing:-.02em;font-weight:800;margin:20px 0;color:#fff}
+  h2{font-family:var(--display);font-size:46px;line-height:1.1;letter-spacing:-.015em;font-weight:800;margin:10px 0 4px;color:#fff}
+  h3{font-family:var(--display);font-size:21px;font-weight:700;letter-spacing:-.005em;color:#fff}
+  p{font-size:18px;line-height:1.6;color:var(--muted)}
+  .lead{font-size:23px;line-height:1.5;color:var(--ink-soft);max-width:64ch;font-weight:400}
+  .grad{color:var(--amber)}
+  .em{font-weight:600;color:#fff}
+
+  .kicker{display:inline-flex;align-items:center;gap:12px;font-family:var(--sans);font-size:13px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--amber)}
+  .kicker .dot{width:9px;height:9px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 4px rgba(255,184,0,.14);animation:pulse 2.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 4px rgba(255,184,0,.14)}50%{box-shadow:0 0 0 7px rgba(255,184,0,.05)}}
+
+  .body{display:flex;flex-direction:column;justify-content:center;flex:1;min-height:0;margin-top:30px;gap:24px}
+
+  [data-anim]{opacity:0}
+  .slide.run [data-anim]{animation:rise .7s cubic-bezier(.16,.84,.3,1) forwards}
+  @keyframes rise{from{opacity:0;transform:translateY(30px) scale(.975)}to{opacity:1;transform:none}}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+
+  /* title */
+  .logo{display:inline-flex;align-items:center;gap:14px;font-family:var(--display);font-weight:800;font-size:30px;letter-spacing:-.01em;color:#fff}
+  .logo .mark{width:54px;height:54px;border-radius:14px;background:var(--amber);display:grid;place-items:center;color:#0D1B29;font-family:var(--display);font-size:28px;font-weight:800;box-shadow:0 8px 24px rgba(255,184,0,.3)}
+  .title-wrap{margin:auto 0;max-width:66ch}
+  .title-tag{display:inline-flex;align-items:center;gap:8px;margin-bottom:26px;padding:9px 18px;border:1px solid var(--line);border-radius:999px;font-size:14px;font-weight:500;color:var(--amber);background:var(--amber-soft)}
+  .title-tag::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--amber)}
+  .title-meta{display:flex;gap:14px;margin-top:44px;flex-wrap:wrap}
+  .title-meta .m{padding:18px 22px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card);min-width:160px}
+  .title-meta b{display:block;font-family:var(--display);font-size:22px;font-weight:800;color:#fff}
+  .title-meta span{display:block;font-size:12.5px;color:var(--muted);letter-spacing:.02em;margin-top:3px}
+
+  .grid{display:grid;gap:20px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g4{grid-template-columns:repeat(4,1fr)}
+
+  .card{position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:26px;display:flex;flex-direction:column;gap:11px;transition:transform .3s cubic-bezier(.2,.7,.3,1),border-color .3s;overflow:hidden}
+  .card:hover{transform:translateY(-4px);border-color:rgba(255,184,0,.45)}
+  .card p{font-size:15.5px;color:var(--muted)}
+  .card .ico{width:50px;height:50px;border-radius:12px;display:grid;place-items:center;font-size:24px;margin-bottom:2px;background:var(--amber-soft);border:1px solid rgba(255,184,0,.25);animation:float 5.5s ease-in-out infinite}
+
+  .flist{list-style:none;display:flex;flex-direction:column;gap:16px}
+  .flist li{display:flex;gap:14px;align-items:flex-start;font-size:17.5px;color:var(--ink-soft);line-height:1.45}
+  .flist .chk{flex:none;width:28px;height:28px;border-radius:9px;background:var(--amber);color:#0D1B29;display:grid;place-items:center;font-size:14px;font-weight:800;margin-top:1px}
+  .flist li b{color:#fff}
+
+  /* role cards */
+  .roles{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;flex:1;min-height:0}
+  .role{position:relative;border-radius:18px;padding:30px 26px;display:flex;flex-direction:column;border:1px solid var(--line);background:var(--card);transition:transform .35s,border-color .35s;overflow:hidden}
+  .role:hover{transform:translateY(-6px);border-color:rgba(255,184,0,.45)}
+  .role::after{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--amber);opacity:.85}
+  .role .rico{width:58px;height:58px;border-radius:15px;display:grid;place-items:center;font-size:28px;background:var(--amber-soft);border:1px solid rgba(255,184,0,.3);margin-bottom:14px}
+  .role h3{font-size:24px;margin-bottom:2px}
+  .role .rtag{font-size:13px;font-weight:700;color:var(--amber);margin-bottom:14px}
+  .role ul{list-style:none;display:flex;flex-direction:column;gap:10px;margin-top:auto}
+  .role li{font-size:14.5px;line-height:1.4;display:flex;gap:9px;color:var(--ink-soft)}
+  .role li::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:var(--amber);margin-top:7px}
+
+  /* steps */
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;flex:1;align-items:stretch}
+  .step{position:relative;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px;display:flex;flex-direction:column;gap:8px;transition:transform .3s,border-color .3s}
+  .step:hover{transform:translateY(-4px);border-color:rgba(255,184,0,.4)}
+  .step .stepnum{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:15px;background:var(--amber);color:#0D1B29}
+  .step.cur{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber),0 16px 40px rgba(255,184,0,.15)}
+  .step .now{display:inline-block;margin-top:6px;font-size:11px;font-weight:800;letter-spacing:.03em;padding:3px 9px;border-radius:999px;background:rgba(16,185,129,.16);color:#34d399;border:1px solid rgba(16,185,129,.3);width:max-content}
+
+  /* split */
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:24px;flex:1;min-height:0}
+  .panel{position:relative;border-radius:18px;padding:32px;display:flex;flex-direction:column;gap:18px;border:1px solid var(--line);background:var(--card)}
+  .panel.bad{border-color:rgba(232,85,85,.3)}
+  .panel.good{border-color:rgba(16,185,129,.3)}
+  .panel .ptitle{display:flex;align-items:center;gap:12px;font-family:var(--display);font-weight:800;font-size:21px}
+  .panel.bad .ptitle{color:#f88}
+  .panel.good .ptitle{color:#34d399}
+  .panel ul{list-style:none;display:flex;flex-direction:column;gap:16px}
+  .panel li{display:flex;gap:13px;font-size:17px;line-height:1.45;color:var(--ink-soft)}
+  .panel li b{color:#fff}
+  .panel .b{flex:none;font-size:19px}
+
+  /* offer (what you get) */
+  .tv{display:grid;grid-template-columns:1fr 1fr;gap:44px;flex:1;align-items:center}
+  .todo{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;letter-spacing:.04em;padding:3px 9px;border-radius:999px;background:var(--amber-soft);color:var(--amber);border:1px solid rgba(255,184,0,.35)}
+  .ph{color:#6b7588;font-style:italic;font-weight:500}
+
+  .pill{display:inline-flex;padding:8px 15px;border-radius:999px;font-size:13.5px;font-weight:600;background:var(--amber-soft);color:var(--amber);border:1px solid rgba(255,184,0,.3)}
+
+  .ask{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .cta-row{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-top:6px}
+  .cta-btn{display:inline-flex;align-items:center;gap:10px;background:var(--amber);color:#0D1B29;font-weight:700;font-size:18px;padding:16px 30px;border-radius:12px;box-shadow:0 10px 30px rgba(255,184,0,.25);transition:transform .25s,box-shadow .25s;cursor:pointer}
+  .cta-btn:hover{transform:translateY(-2px);box-shadow:0 14px 36px rgba(255,184,0,.35)}
+  .contact{font-size:16px;color:var(--muted)}
+  .contact b{color:#fff}
+  .avail{display:inline-flex;align-items:center;gap:12px;padding:13px 20px;border-radius:12px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);font-size:15.5px;color:var(--ink-soft);font-weight:500;margin-bottom:6px;width:max-content}
+  .avail .d{width:11px;height:11px;border-radius:50%;background:#34d399;box-shadow:0 0 0 4px rgba(16,185,129,.18);animation:pulse 2.2s ease-in-out infinite}
+  .avail b{color:#34d399}
+
+  /* footer / nav */
+  .footer{position:fixed;left:0;right:0;bottom:0;height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 84px;font-size:13px;color:var(--muted);z-index:40;pointer-events:none}
+  .brand-foot{font-family:var(--display);font-weight:800;letter-spacing:-.01em;color:var(--amber)}
+  .nav{position:fixed;bottom:13px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;z-index:50}
+  .nav button{pointer-events:auto;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:17px;cursor:pointer;display:grid;place-items:center;transition:.2s}
+  .nav button:hover{border-color:var(--amber);color:var(--amber)}
+  .dots{display:flex;gap:7px;margin:0 10px}
+  .dots i{width:8px;height:8px;border-radius:50%;background:var(--line);cursor:pointer;transition:.3s}
+  .dots i.on{background:var(--amber);width:26px;border-radius:5px}
+  .progress{position:fixed;top:0;left:0;height:3px;background:var(--amber);z-index:60;transition:width .4s ease}
+  .hint{position:fixed;top:18px;right:24px;font-size:12px;color:var(--muted);z-index:50;background:var(--card);border:1px solid var(--line);padding:7px 13px;border-radius:999px}
+
+  /* modal */
+  .modal-overlay{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:rgba(7,10,16,.75);backdrop-filter:blur(8px);padding:24px}
+  .modal-overlay.open{display:flex;animation:ovfade .3s ease}
+  @keyframes ovfade{from{opacity:0}to{opacity:1}}
+  .modal{width:min(640px,100%);max-height:92vh;overflow:auto;position:relative;border-radius:18px;padding:40px;background:var(--card);border:1px solid var(--line);box-shadow:0 50px 140px rgba(0,0,0,.65);animation:modalin .45s cubic-bezier(.16,.84,.3,1)}
+  @keyframes modalin{from{opacity:0;transform:translateY(40px) scale(.95)}to{opacity:1;transform:none}}
+  .modal .x{position:absolute;top:20px;right:20px;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--bg-2);color:var(--muted);font-size:20px;cursor:pointer;display:grid;place-items:center;transition:.2s}
+  .modal .x:hover{border-color:var(--amber);color:var(--amber)}
+  .modal h3{font-family:var(--display);font-size:28px;letter-spacing:-.01em;margin-bottom:8px}
+  .modal .sub{font-size:15.5px;color:var(--muted);line-height:1.5;margin-bottom:18px}
+  .field{display:flex;flex-direction:column;gap:7px;margin-bottom:15px}
+  .field label{font-size:13px;font-weight:600;color:var(--ink-soft)}
+  .field input,.field textarea,.field select{width:100%;background:var(--bg-2);border:1px solid var(--line);border-radius:10px;padding:13px 15px;color:#fff;font-size:15px;font-family:inherit;transition:.2s}
+  .field input::placeholder,.field textarea::placeholder{color:#5f6b80}
+  .field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 3px rgba(255,184,0,.18);background:var(--bg)}
+  .field textarea{min-height:100px;resize:vertical}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+  .modal .cta-btn{width:100%;justify-content:center;border:none;margin-top:6px}
+  .modal-success{text-align:center;padding:20px 0}
+  .modal-success .big{font-size:56px;margin-bottom:10px}
+  .modal-success p{font-size:15px;color:var(--muted);line-height:1.55}
+
+  @media print{.nav,.hint,.footer,.progress,.modal-overlay{display:none}.slide{display:flex!important;position:relative;page-break-after:always;height:100vh}[data-anim]{opacity:1!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="mesh"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b4"></div></div>
+<div class="grain"></div>
+<div class="progress" id="progress"></div>
+<div class="hint">← → spacja • F = pełny ekran</div>
+
+<div class="deck" id="deck">
+
+  <!-- 1 — TITLE -->
+  <section class="slide active">
+    <div class="logo" data-anim><span class="mark">W</span> Wakanta<span style="opacity:.55">.pl</span></div>
+    <div class="title-wrap">
+      <span class="title-tag" data-anim>Zaproszenie do współtworzenia · dla partnerów / współzałożycieli</span>
+      <h1 data-anim>Mam gotowy produkt.<br>Szukam <span class="grad">ludzi do jego rozwoju</span>.</h1>
+      <p class="lead" data-anim>Wakanta to dwustronna platforma rekrutacyjna z AI — <span class="em">job board + ATS</span>. Produkt jest zbudowany i działa. Teraz buduję zespół założycielski: <span class="em">sprzedaż, marketing i HR</span> — i zapraszam Cię, żebyś wszedł jako współzałożyciel z udziałami.</p>
+      <div class="title-meta">
+        <div class="m" data-anim><b>Produkt gotowy</b><span>działa, nie makieta</span></div>
+        <div class="m" data-anim><b>3 role</b><span>sprzedaż • marketing • HR</span></div>
+        <div class="m" data-anim><b>Współzałożyciel</b><span>udziały w firmie</span></div>
+        <div class="m" data-anim><b>Wczesny etap</b><span>realny wpływ na kierunek</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 — WIZJA -->
+  <section class="slide">
+    <div class="kicker" data-anim><span class="dot"></span> Wizja</div>
+    <h2 data-anim>Co budujemy <span class="grad">razem</span></h2>
+    <p class="lead" data-anim style="margin-top:8px">Nowoczesny standard rekrutacji dla polskich firm MŚP — który łączy ogłoszenia, kandydatów i sztuczną inteligencję w jednym, prostym narzędziu.</p>
+    <div class="body">
+      <div class="grid g3" style="grid-auto-rows:1fr">
+        <div class="card" data-anim><div class="ico">🔎</div><h3>Job board dla kandydatów</h3><p>Nowoczesna wyszukiwarka ofert, konto kandydata, śledzenie aplikacji — doświadczenie jak na najlepszych portalach.</p></div>
+        <div class="card" data-anim><div class="ico">🧑‍💼</div><h3>ATS dla firm</h3><p>Pełny system zarządzania rekrutacją: pipeline, AI matching, scorecards, automatyzacje — w jednym miejscu.</p></div>
+        <div class="card" data-anim><div class="ico">🇵🇱</div><h3>Pod polski rynek</h3><p>AI dostępne dla MŚP, dopasowane do realiów (UDT/SEP, PWZ, prawo jazdy), zgodne z RODO i EU AI Act.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 — CO JUŻ JEST (ryzyko za nami) -->
+  <section class="slide">
+    <div class="kicker" data-anim><span class="dot"></span> Punkt startu</div>
+    <h2 data-anim>Nie zaczynamy od zera — <span class="grad">produkt już działa</span></h2>
+    <p class="lead" data-anim style="margin-top:8px">Najtrudniejsza, najdroższa część — zbudowanie działającej platformy — jest już za nami. Wchodzisz w gotowy produkt, nie w pomysł na kartce.</p>
+    <div class="body">
+      <div class="grid g4" style="grid-auto-rows:1fr">
+        <div class="card" data-anim><div class="ico">✅</div><h3>Działający produkt</h3><p>Pełny ATS, AI matching i job board — gotowe do pokazania i przetestowania na żywo.</p></div>
+        <div class="card" data-anim><div class="ico">🤖</div><h3>AI w środku</h3><p>Parsowanie CV i dopasowanie kandydat–oferta już działają, oparte na Claude AI.</p></div>
+        <div class="card" data-anim><div class="ico">🛡️</div><h3>Zgodność wbudowana</h3><p>RODO i EU AI Act od podstaw — gotowość na poważnych klientów.</p></div>
+        <div class="card" data-anim><div class="ico">🧪</div><h3>Środowisko demo</h3><p>25 firm i ~180 ofert — gotowe do prezentacji każdemu klientowi i partnerowi.</p></div>
+      </div>
+      <div class="card" data-anim style="margin-top:20px;flex-direction:row;align-items:center;gap:18px;background:var(--amber-soft);border-color:rgba(255,184,0,.3)">
+        <div class="ico" style="flex:none">💡</div>
+        <p style="font-size:16px;color:var(--ink-soft)"><b style="color:#fff">Co to oznacza dla Ciebie:</b> nie musisz wierzyć, że „kiedyś powstanie". Możesz to dziś otworzyć, kliknąć i ocenić sam. Ryzyko techniczne jest już zdjęte ze stołu.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 — DLACZEGO POTRZEBUJĘ PARTNERÓW -->
+  <section class="slide">
+    <div class="kicker" data-anim><span class="dot"></span> Dlaczego szukam partnerów</div>
+    <h2 data-anim>Świetny produkt to <span class="grad">dopiero połowa</span></h2>
+    <div class="body">
+      <div class="split">
+        <div class="panel good" data-anim>
+          <div class="ptitle">✅ Co mam</div>
+          <ul>
+            <li><span class="b">🛠️</span><div><b>Technologię i produkt.</b> 8 lat doświadczenia jako inżynier — zbudowałem całą platformę sam.</div></li>
+            <li><span class="b">🧠</span><div><b>Wizję i znajomość produktu.</b> Wiem, dokąd to ma iść i jak rozwijać.</div></li>
+            <li><span class="b">⚙️</span><div><b>Gotowy fundament.</b> Działająca aplikacja, na której można od razu pracować.</div></li>
+          </ul>
+        </div>
+        <div class="panel bad" data-anim>
+          <div class="ptitle">🧩 Czego potrzebuję</div>
+          <ul>
+            <li><span class="b">💼</span><div><b>Sprzedaży.</b> Ktoś, kto dotrze do firm i zamieni produkt w klientów.</div></li>
+            <li><span class="b">📣</span><div><b>Marketingu.</b> Ktoś, kto zbuduje markę, ruch i rozpoznawalność Wakanty.</div></li>
+            <li><span class="b">👥</span><div><b>Wiedzy HR.</b> Ktoś z branży, kto pozna potrzeby rekruterów i ukształtuje produkt oraz strategię.</div></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 — KOGO SZUKAM (3 role) -->
+  <section class="slide">
+    <div class="kicker" data-anim><span class="dot"></span> Kogo szukam</div>
+    <h2 data-anim>Trzech <span class="grad">współzałożycieli</span></h2>
+    <div class="body">
+      <div class="roles">
+        <div class="role" data-anim>
+          <div class="rico">💼</div>
+          <h3>Sprzedawca</h3>
+          <div class="rtag">Sprzedaż / Business Development</div>
+          <ul>
+            <li>Pozyskiwanie pierwszych firm i klientów</li>
+            <li>Relacje z MŚP i agencjami HR</li>
+            <li>Budowa procesu sprzedaży od zera</li>
+            <li>Zamiana gotowego produktu w przychód</li>
+          </ul>
+        </div>
+        <div class="role" data-anim>
+          <div class="rico">📣</div>
+          <h3>Marketingowiec</h3>
+          <div class="rtag">Marketing / Wzrost</div>
+          <ul>
+            <li>Budowa marki i rozpoznawalności Wakanty</li>
+            <li>Pozyskiwanie kandydatów i ruchu (SEO, content)</li>
+            <li>Kampanie do firm i działów HR</li>
+            <li>Strona kandydata jako kanał wzrostu</li>
+          </ul>
+        </div>
+        <div class="role" data-anim>
+          <div class="rico">👥</div>
+          <h3>Specjalista HR</h3>
+          <div class="rtag">Ekspert branżowy / Produkt</div>
+          <ul>
+            <li>Wiedza o realnych potrzebach rekruterów</li>
+            <li>Współtworzenie strategii i pozycjonowania</li>
+            <li>Kształtowanie kierunku rozwoju produktu</li>
+            <li>Wiarygodność w rozmowach z klientami</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 — CO DOSTAJESZ -->
+  <section class="slide">
+    <div class="kicker" data-anim><span class="dot"></span> Co dostajesz</div>
+    <h2 data-anim>Realny udział w <span class="grad">tym, co budujesz</span></h2>
+    <div class="body">
+      <div class="tv">
+        <ul class="flist">
+          <li data-anim><span class="chk">✓</span><div><b>Udziały w firmie</b> jako współzałożyciel — wartość rośnie razem z firmą. <span class="todo">% DO USTALENIA</span></div></li>
+          <li data-anim><span class="chk">✓</span><div><b>Wpływ na kierunek</b> — wchodzisz na tyle wcześnie, że współdecydujesz o strategii i produkcie.</div></li>
+          <li data-anim><span class="chk">✓</span><div><b>Gotowy produkt na start</b> — nie tracisz miesięcy na budowę, działasz od pierwszego dnia.</div></li>
+          <li data-anim><span class="chk">✓</span><div><b>Twój obszar = Twoja domena</b> — prowadzisz sprzedaż / marketing / HR po swojemu.</div></li>
+          <li data-anim><span class="chk">✓</span><div><b>Wspólne wyjście do inwestorów</b> — gdy zbudujemy trakcję, razem pozyskujemy kapitał.</div></li>
+        </ul>
+        <div class="grid" style="gap:18px">
+          <div class="card" data-anim style="background:var(--amber-soft);border-color:rgba(255,184,0,.35)">
+            <h3>Model współpracy</h3>
+            <p style="color:var(--ink-soft);font-size:16px">Wchodzisz jako <b style="color:#fff">współzałożyciel z udziałami (equity)</b> w firmie. Konkretny procent i warunki ustalamy indywidualnie — zależnie od roli, zaangażowania i etapu wejścia.</p>
+            <p style="margin-top:6px"><span class="todo">SZCZEGÓŁY DO USTALENIA 1:1</span></p>
+          </div>
+          <div class="card" data-anim>
+            <h3>Czego oczekuję</h3>
+            <p style="color:var(--ink-soft);font-size:16px">Realnego zaangażowania w swój obszar, samodzielności i wiary w projekt. Szukam partnerów, nie pracowników — ludzi, którzy chcą to <b style="color:#fff">współtworzyć</b>.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 — PLAN / DROGA -->
+  <section class="slide">
+    <div class="kicker" data-anim><span class="dot"></span> Plan działania</div>
+    <h2 data-anim>Jak to <span class="grad">poprowadzimy</span></h2>
+    <div class="body">
+      <div class="steps">
+        <div class="step cur" data-anim>
+          <div class="stepnum">1</div>
+          <h3>Zespół założycielski</h3>
+          <p>Zbieram partnerów: sprzedaż, marketing, HR. Ustalamy role i udziały.</p>
+          <span class="now">JESTEŚMY TUTAJ</span>
+        </div>
+        <div class="step" data-anim>
+          <div class="stepnum">2</div>
+          <h3>Strategia</h3>
+          <p>Wspólnie z HR-owcem dopracowujemy pozycjonowanie, ofertę i go-to-market.</p>
+        </div>
+        <div class="step" data-anim>
+          <div class="stepnum">3</div>
+          <h3>Pierwsi klienci</h3>
+          <p>Sprzedaż i marketing ruszają — early access za darmo, budujemy bazę i referencje.</p>
+        </div>
+        <div class="step" data-anim>
+          <div class="stepnum">4</div>
+          <h3>Inwestorzy</h3>
+          <p>Z trakcją i zespołem przygotowujemy deck inwestorski i pozyskujemy kapitał na skalę.</p>
+        </div>
+      </div>
+      <div class="card" data-anim style="margin-top:6px;flex-direction:row;align-items:center;gap:18px;background:var(--amber-soft);border-color:rgba(255,184,0,.3)">
+        <div class="ico" style="flex:none">🧭</div>
+        <p style="font-size:16px;color:var(--ink-soft)"><b style="color:#fff">Najpierw zespół, potem kapitał.</b> Świadomie najpierw buduję founding team i strategię — do inwestorów idziemy razem, jako gotowy zespół z dowodami, a nie pojedynczy founder z pomysłem.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 — ASK -->
+  <section class="slide">
+    <div class="kicker" data-anim><span class="dot"></span> Dołącz</div>
+    <h2 data-anim>Zbudujmy <span class="grad">Wakantę razem</span></h2>
+    <p class="lead" data-anim style="margin-top:8px">Jeśli czujesz, że jedna z tych ról to Ty — porozmawiajmy. Pokażę Ci produkt na żywo i opowiem o szczegółach.</p>
+    <div class="body">
+      <div class="avail" data-anim><span class="d"></span> Produkt jest <b>gotowy</b> — mogę go zaprezentować i udostępnić do przetestowania od razu.</div>
+      <div class="ask">
+        <div class="card" data-anim><div class="ico">💼</div><h3>Sprzedaż</h3><p>Lubisz domykać deale i budować relacje z firmami? To miejsce dla Ciebie.</p></div>
+        <div class="card" data-anim><div class="ico">📣</div><h3>Marketing</h3><p>Potrafisz zbudować markę i ruch od zera? Wejdź i poprowadź wzrost.</p></div>
+        <div class="card" data-anim><div class="ico">👥</div><h3>HR</h3><p>Znasz rekrutację od środka? Ukształtuj z nami produkt i strategię.</p></div>
+      </div>
+      <div class="cta-row" data-anim>
+        <a class="cta-btn" data-open-modal>Chcę dołączyć / porozmawiać →</a>
+        <div class="contact">Lub napisz wprost: <b>kontakt@wakanta.pl</b> &nbsp;•&nbsp; <b>wakanta.pl</b></div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- CONTACT MODAL -->
+<div class="modal-overlay" id="contactModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <button class="x" id="modalClose" aria-label="Zamknij">✕</button>
+    <div id="modalForm">
+      <h3 id="modalTitle">Dołącz do <span class="grad">Wakanty</span></h3>
+      <p class="sub">Napisz, która rola Cię interesuje i kilka słów o sobie. Odezwę się osobiście — pokażę produkt i pogadamy o współpracy.</p>
+      <form id="leadForm">
+        <div class="row2">
+          <div class="field"><label for="f-name">Imię i nazwisko *</label><input id="f-name" name="name" required placeholder="Jan Kowalski"></div>
+          <div class="field"><label for="f-role">Interesująca Cię rola</label>
+            <select id="f-role" name="role">
+              <option>Sprzedaż</option><option>Marketing</option><option>HR</option><option>Jeszcze nie wiem / inne</option>
+            </select>
+          </div>
+        </div>
+        <div class="field"><label for="f-mail">E-mail *</label><input id="f-mail" name="email" type="email" required placeholder="jan@email.pl"></div>
+        <div class="field"><label for="f-msg">Kilka słów o sobie *</label><textarea id="f-msg" name="message" required placeholder="Czym się zajmujesz, dlaczego Cię to interesuje, jakie masz doświadczenie…"></textarea></div>
+        <button type="submit" class="cta-btn">Wyślij zgłoszenie →</button>
+      </form>
+    </div>
+    <div class="modal-success" id="modalSuccess" style="display:none">
+      <div class="big">✅</div>
+      <h3>Dziękuję!</h3>
+      <p>Otworzyłem Twój program pocztowy z gotową wiadomością — wystarczy ją wysłać.<br>Gdyby się nie otworzył, napisz wprost na <b style="color:#fff">kontakt@wakanta.pl</b>.</p>
+    </div>
+  </div>
+</div>
+
+<div class="footer"><span class="brand-foot">Wakanta.pl</span><span class="pg"><span id="cur">1</span> / <span id="tot">8</span></span></div>
+<div class="nav"><button id="prev" title="Poprzedni (←)">‹</button><div class="dots" id="dots"></div><button id="next" title="Następny (→)">›</button></div>
+
+<script>
+  const slides=[...document.querySelectorAll('.slide')];
+  const dotsBox=document.getElementById('dots');
+  const cur=document.getElementById('cur'),tot=document.getElementById('tot'),prog=document.getElementById('progress');
+  let i=0;
+  tot.textContent=slides.length;
+  slides.forEach((_,n)=>{const d=document.createElement('i');d.onclick=()=>go(n);dotsBox.appendChild(d)});
+  const dots=[...dotsBox.children];
+  function animateChildren(slide){
+    const els=[...slide.querySelectorAll('[data-anim]')];
+    els.forEach((el,k)=>{el.style.animation='none';void el.offsetWidth;el.style.animation='';el.style.animationDelay=(k*75)+'ms'});
+  }
+  function go(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>{s.classList.toggle('active',k===i);s.classList.remove('run')});
+    dots.forEach((d,k)=>d.classList.toggle('on',k===i));
+    cur.textContent=i+1;prog.style.width=((i+1)/slides.length*100)+'%';
+    const s=slides[i];void s.offsetWidth;s.classList.add('run');animateChildren(s);
+  }
+  document.getElementById('next').onclick=()=>go(i+1);
+  document.getElementById('prev').onclick=()=>go(i-1);
+  const modal=document.getElementById('contactModal');
+  const mForm=document.getElementById('modalForm'),mSucc=document.getElementById('modalSuccess');
+  function openModal(){mForm.style.display='';mSucc.style.display='none';modal.classList.add('open');setTimeout(()=>document.getElementById('f-name').focus(),120)}
+  function closeModal(){modal.classList.remove('open')}
+  document.querySelectorAll('[data-open-modal]').forEach(b=>b.addEventListener('click',openModal));
+  document.getElementById('modalClose').addEventListener('click',closeModal);
+  modal.addEventListener('click',e=>{if(e.target===modal)closeModal()});
+  document.getElementById('leadForm').addEventListener('submit',e=>{
+    e.preventDefault();const f=e.target;
+    const name=f.name.value.trim(),role=f.role.value,email=f.email.value.trim(),message=f.message.value.trim();
+    const subject=encodeURIComponent('Zgłoszenie partnera — Wakanta.pl ('+role+')');
+    const body=encodeURIComponent('Imię i nazwisko: '+name+'\nRola: '+role+'\nE-mail: '+email+'\n\nO sobie:\n'+message);
+    window.location.href='mailto:kontakt@wakanta.pl?subject='+subject+'&body='+body;
+    mForm.style.display='none';mSucc.style.display='';f.reset();
+  });
+  document.addEventListener('keydown',e=>{
+    if(modal.classList.contains('open')){if(e.key==='Escape')closeModal();return}
+    if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;
+    if(['ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();go(i+1)}
+    else if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();go(i-1)}
+    else if(e.key==='Home')go(0);else if(e.key==='End')go(slides.length-1);
+    else if(e.key.toLowerCase()==='f'){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen()}
+  });
+  let x0=null;
+  addEventListener('touchstart',e=>x0=e.touches[0].clientX);
+  addEventListener('touchend',e=>{if(x0===null)return;const dx=e.changedTouches[0].clientX-x0;if(Math.abs(dx)>50)go(i+(dx<0?1:-1));x0=null});
+  go(0);
+</script>
+</body>
+</html>

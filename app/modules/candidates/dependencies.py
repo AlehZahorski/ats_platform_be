@@ -41,7 +41,7 @@ async def get_current_candidate(
         if not candidate_id:
             raise creds_exc
     except JWTError:
-        raise creds_exc
+        raise creds_exc from None
 
     result = await db.execute(select(Candidate).where(Candidate.id == uuid.UUID(candidate_id)))
     candidate = result.scalar_one_or_none()

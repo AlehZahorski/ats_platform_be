@@ -10,7 +10,7 @@ admin and public routes cleanly separated.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Query, Response, UploadFile, status
@@ -104,7 +104,7 @@ async def admin_create_article(
     # Auto-stamp published_at when publishing without an explicit date.
     published_at = data.published_at
     if data.is_published and not published_at:
-        published_at = datetime.now(timezone.utc)
+        published_at = datetime.now(UTC)
 
     article = Article(
         slug=data.slug,
@@ -140,9 +140,12 @@ async def admin_update_article(
     article = await _require(db, article_id)
     payload = data.model_dump(exclude_unset=True)
 
-    if "slug" in payload and payload["slug"] != article.slug:
-        if await _slug_taken(db, payload["slug"], exclude_id=article.id):
-            raise ConflictError("Artykuł o tym adresie URL już istnieje.")
+    if (
+        "slug" in payload
+        and payload["slug"] != article.slug
+        and await _slug_taken(db, payload["slug"], exclude_id=article.id)
+    ):
+        raise ConflictError("Artykuł o tym adresie URL już istnieje.")
 
     # When flipping is_published true the first time, stamp published_at
     # for the editor's convenience (they don't have to set it manually).
@@ -151,7 +154,7 @@ async def admin_update_article(
         and not article.published_at
         and "published_at" not in payload
     ):
-        payload["published_at"] = datetime.now(timezone.utc)
+        payload["published_at"] = datetime.now(UTC)
 
     for field, value in payload.items():
         setattr(article, field, value)
@@ -193,7 +196,7 @@ async def admin_toggle_publish(
     article = await _require(db, article_id)
     article.is_published = not article.is_published
     if article.is_published and not article.published_at:
-        article.published_at = datetime.now(timezone.utc)
+        article.published_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(article)
     return _admin_read(article)
@@ -220,7 +223,7 @@ async def admin_toggle_feature(
 # for a defined window. `days` = null means "remove promotion".
 # ─────────────────────────────────────────────────────────────────────
 
-from datetime import UTC, timedelta  # noqa: E402  — kept local to keep top imports tidy
+from datetime import timedelta  # noqa: E402  — kept local to keep top imports tidy
 
 
 @router.post("/{article_id}/promote", response_model=ArticleAdminRead)

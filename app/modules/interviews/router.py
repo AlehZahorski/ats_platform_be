@@ -39,11 +39,11 @@ async def schedule_interview(
 @router.get("/applications/{application_id}/interviews", response_model=list[InterviewRead])
 async def list_interviews(
     application_id: uuid.UUID,
-    _company: CurrentCompany,
+    company: CurrentCompany,
     _user: CurrentUser,
     service: InterviewService = Depends(_get_service),
 ) -> list[InterviewRead]:
-    interviews = await service.list_by_application(application_id)
+    interviews = await service.list_by_application(application_id, company.id)
     return [InterviewRead.model_validate(i) for i in interviews]
 
 
@@ -51,11 +51,11 @@ async def list_interviews(
 async def update_interview(
     interview_id: uuid.UUID,
     data: InterviewUpdate,
-    _company: CurrentCompany,
+    company: CurrentCompany,
     _user: CurrentUser,
     service: InterviewService = Depends(_get_service),
 ) -> InterviewRead:
-    interview = await service.update(interview_id, data)
+    interview = await service.update(interview_id, company.id, data)
     return InterviewRead.model_validate(interview)
 
 

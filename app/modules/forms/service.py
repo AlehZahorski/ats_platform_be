@@ -42,6 +42,9 @@ class FormService(BaseService[FormRepository]):
     ) -> None:
         await self.get_template(template_id, company_id)
         field = await self.repository.get_field_by_id(field_id)
-        if not field:
+        # Confirm the field actually belongs to this (company-owned) template —
+        # get_field_by_id loads by bare id, so without this check a field from
+        # another template/company could be deleted via a matching template_id.
+        if not field or field.template_id != template_id:
             raise NotFoundError(t("forms.field_not_found"))
         await self.repository.delete(field)

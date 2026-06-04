@@ -23,6 +23,7 @@ from app.core.enums.jobs import JobStatus
 from app.core.exceptions import NotFoundError
 from app.core.i18n import detect_language, t
 from app.core.rate_limit import rate_limit
+from app.modules.forms.repository import FormRepository
 from app.modules.forms.schemas import FormTemplateRead
 from app.modules.jobs.models import Job, JobFormTemplate, MitigationAction, RiskItem
 from app.modules.jobs.repository import JobRepository
@@ -352,6 +353,14 @@ async def assign_template(
     service: JobService = Depends(_get_service),
 ) -> JobRead:
     job = await _get_owned_job(service, job_id, company.id)
+    # Tenant isolation: the form template must belong to the caller's company,
+    # otherwise a job could be linked to another company's template.
+    if data.template_id is not None:
+        template = await FormRepository(service.repository.db).get_by_id_and_company(
+            data.template_id, company.id
+        )
+        if template is None:
+            raise NotFoundError(t("forms.template_not_found"))
     await service.repository.assign_template(job.id, data.template_id)
     refreshed = await service.repository.get_by_id_and_company(job.id, company.id)
     return JobService.serialize(refreshed)

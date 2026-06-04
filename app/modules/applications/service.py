@@ -15,6 +15,7 @@ from app.core.base_service import BaseService
 from app.core.enums.applications import BulkActionType, CVParseStatus, ParsingStatus
 from app.core.exceptions import DuplicateDetectedError, NotFoundError, UnprocessableError
 from app.core.i18n import t
+from app.core.ownership import ensure_application_in_company
 from app.modules.application_events.models import ApplicationEvent
 from app.modules.applications.duplicate_service import (
     DuplicateCheckService,
@@ -241,7 +242,10 @@ class ApplicationService(BaseService[ApplicationRepository]):
     # ------------------------------------------------------------------
     # HR: single application detail
     # ------------------------------------------------------------------
-    async def get_application_detail(self, application_id: uuid.UUID) -> ApplicationRead:
+    async def get_application_detail(
+        self, application_id: uuid.UUID, company_id: uuid.UUID
+    ) -> ApplicationRead:
+        await ensure_application_in_company(self.repository.db, application_id, company_id)
         application = await self.repository.get_by_id(application_id)
         if not application:
             raise NotFoundError(t("applications.not_found"))
@@ -250,15 +254,23 @@ class ApplicationService(BaseService[ApplicationRepository]):
     # ------------------------------------------------------------------
     # HR: CV parsing
     # ------------------------------------------------------------------
-    async def get_cv_parse_status(self, application_id: uuid.UUID) -> CVParseJobRead | None:
+    async def get_cv_parse_status(
+        self, application_id: uuid.UUID, company_id: uuid.UUID
+    ) -> CVParseJobRead | None:
+        await ensure_application_in_company(self.repository.db, application_id, company_id)
         parse_job = await self.repository.get_latest_cv_parse_job(application_id)
         if not parse_job:
             return None
         return CVParseJobRead.model_validate(parse_job)
 
     async def retry_cv_parse(
-        self, application_id: uuid.UUID, background_tasks: BackgroundTasks, language: str = "en"
+        self,
+        application_id: uuid.UUID,
+        company_id: uuid.UUID,
+        background_tasks: BackgroundTasks,
+        language: str = "en",
     ) -> CVParseJobRead:
+        await ensure_application_in_company(self.repository.db, application_id, company_id)
         application = await self.repository.get_by_id(application_id)
         if not application:
             raise NotFoundError(t("applications.not_found"))
@@ -309,11 +321,13 @@ class ApplicationService(BaseService[ApplicationRepository]):
     # HR: score
     # ------------------------------------------------------------------
     async def score_application(
-        self, application_id: uuid.UUID, user_id: uuid.UUID, data: ScoreCreate
+        self,
+        application_id: uuid.UUID,
+        company_id: uuid.UUID,
+        user_id: uuid.UUID,
+        data: ScoreCreate,
     ) -> ScoreRead:
-        application = await self.repository.get_by_id(application_id)
-        if not application:
-            raise NotFoundError(t("applications.not_found"))
+        await ensure_application_in_company(self.repository.db, application_id, company_id)
         score = await self.repository.upsert_score(application_id, user_id, data)
         return ScoreRead.model_validate(score)
 
@@ -522,7 +536,7 @@ class ApplicationService(BaseService[ApplicationRepository]):
             parsed = json.loads(raw)
         except (json.JSONDecodeError, TypeError) as exc:
             logger.warning("answers payload is not valid JSON: %s", exc)
-            raise UnprocessableError(t("applications.answers_invalid_json"))
+            raise UnprocessableError(t("applications.answers_invalid_json")) from exc
         if not isinstance(parsed, list):
             raise UnprocessableError(t("applications.answers_invalid_json"))
         try:
@@ -533,4 +547,4 @@ class ApplicationService(BaseService[ApplicationRepository]):
             ]
         except (KeyError, AttributeError, TypeError) as exc:
             logger.warning("answers payload has invalid shape: %s", exc)
-            raise UnprocessableError(t("applications.answers_invalid_json"))
+            raise UnprocessableError(t("applications.answers_invalid_json")) from exc

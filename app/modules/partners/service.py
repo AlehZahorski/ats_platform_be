@@ -10,37 +10,41 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.partners.models import PartnerAccessToken
 
-# The deck is shipped alongside this module so it stays *out* of the public
-# Next.js assets — it can only be reached after a token check.
-_PRESENTATION_PATH = Path(__file__).with_name("presentation.html")
+# Decks are shipped alongside this module so they stay *out* of the public
+# Next.js assets — reachable only after a token check. One file per audience.
+_DECK_FILES = {
+    "investor": Path(__file__).with_name("presentation.html"),
+    "partner": Path(__file__).with_name("presentation-partner.html"),
+}
 
-# mtime-keyed cache: we serve from memory but re-read whenever the file
+# mtime-keyed cache per deck: serve from memory but re-read whenever the file
 # changes on disk. In dev the module dir is volume-mounted, so syncing a new
-# deck (see scripts/sync-presentation.*) is picked up on the next request
-# with no container restart. (cached_mtime, cached_html)
-_cache: tuple[float, str] | None = None
+# deck (see scripts/sync-presentation.*) is picked up on the next request with
+# no container restart. {deck: (cached_mtime, cached_html)}
+_cache: dict[str, tuple[float, str]] = {}
 
 
-def load_presentation_html() -> str:
-    """Return the deck HTML, re-reading from disk only when it changed.
+def load_presentation_html(deck: str = "investor") -> str:
+    """Return the deck HTML for the given audience, re-reading only on change.
 
-    Keyed on the file's modification time so an updated presentation.html is
-    served immediately without a process restart, while unchanged files are
-    served from memory.
+    `deck` is "investor" or "partner". Falls back to the investor deck for any
+    unknown value so a bad DB row can never 500 the gate.
     """
-    global _cache
+    path = _DECK_FILES.get(deck, _DECK_FILES["investor"])
     try:
-        mtime = _PRESENTATION_PATH.stat().st_mtime
+        mtime = path.stat().st_mtime
     except FileNotFoundError:  # pragma: no cover - deployment guard
         return (
             "<!doctype html><meta charset='utf-8'>"
             "<p style='font-family:sans-serif;padding:2rem'>"
             "Prezentacja jest chwilowo niedostępna.</p>"
         )
-    if _cache is None or _cache[0] != mtime:
-        html = _PRESENTATION_PATH.read_text(encoding="utf-8")
-        _cache = (mtime, html)
-    return _cache[1]
+    cached = _cache.get(deck)
+    if cached is None or cached[0] != mtime:
+        html = path.read_text(encoding="utf-8")
+        _cache[deck] = (mtime, html)
+        return html
+    return cached[1]
 
 
 async def get_token_row(db: AsyncSession, token: str) -> PartnerAccessToken | None:
@@ -60,6 +64,4 @@ def token_is_valid(row: PartnerAccessToken, *, now: datetime | None = None) -> b
         return False
     if row.expires_at is not None and row.expires_at <= now:
         return False
-    if row.max_views is not None and row.view_count >= row.max_views:
-        return False
-    return True
+    return not (row.max_views is not None and row.view_count >= row.max_views)

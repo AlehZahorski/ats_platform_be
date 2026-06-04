@@ -32,9 +32,9 @@ async def add_note(
 @router.get("/applications/{application_id}/notes", response_model=list[NoteRead])
 async def list_notes(
     application_id: uuid.UUID,
-    _company: CurrentCompany,
+    company: CurrentCompany,
     _user: CurrentUser,
     service: NoteService = Depends(_get_service),
 ) -> list[NoteRead]:
-    notes = await service.list_by_application(application_id)
+    notes = await service.list_by_application(application_id, company.id)
     return [NoteRead.model_validate(n) for n in notes]

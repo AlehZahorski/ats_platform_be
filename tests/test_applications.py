@@ -139,7 +139,7 @@ async def test_list_applications(client: AsyncClient, db_session) -> None:
 
 @pytest.mark.asyncio
 async def test_score_application(client: AsyncClient, db_session) -> None:
-    authed, _, job, _ = await _authed_client(client, db_session, "score")
+    authed, company, job, _ = await _authed_client(client, db_session, "score")
 
     client.cookies.clear()
     apply_resp = await client.post(
@@ -148,10 +148,11 @@ async def test_score_application(client: AsyncClient, db_session) -> None:
     )
     app_id = apply_resp.json()["id"]
 
-    # Re-auth to score
+    # Re-auth as a user of the SAME company that owns the job (tenant isolation:
+    # a user from another company must NOT be able to score this application —
+    # see tests/test_tenant_isolation.py for the negative case).
     from app.core.security import create_access_token
 
-    company = await create_company(db_session, "Score Co")
     user = await create_verified_user(db_session, company.id, "scorer@test.com")
     await db_session.commit()
     token = create_access_token(str(user.id), {"company_id": str(company.id), "role": "owner"})

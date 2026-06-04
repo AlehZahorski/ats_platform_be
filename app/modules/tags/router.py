@@ -64,20 +64,20 @@ async def assign_tag(
 async def remove_tag(
     application_id: uuid.UUID,
     tag_id: uuid.UUID,
-    _company: CurrentCompany,
+    company: CurrentCompany,
     _user: CurrentUser,
     service: TagService = Depends(_get_service),
 ) -> Response:
-    await service.remove_tag(application_id, tag_id)
+    await service.remove_tag(application_id, tag_id, company.id)
     return Response(status_code=204)
 
 
 @router.get("/applications/{application_id}/tags", response_model=list[TagRead])
 async def get_application_tags(
     application_id: uuid.UUID,
-    _company: CurrentCompany,
+    company: CurrentCompany,
     _user: CurrentUser,
     service: TagService = Depends(_get_service),
 ) -> list[TagRead]:
-    tags = await service.get_application_tags(application_id)
+    tags = await service.get_application_tags(application_id, company.id)
     return [TagRead.model_validate(t) for t in tags]

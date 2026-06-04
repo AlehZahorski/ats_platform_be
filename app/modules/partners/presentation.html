@@ -4,43 +4,49 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Wakanta.pl — Prezentacja dla inwestorów</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Playfair+Display:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   :root{
-    --v:#7c3aed;      /* violet */
-    --v2:#a855f7;
-    --c:#06b6d4;      /* cyan */
-    --c2:#22d3ee;
-    --pink:#ec4899;
+    --amber:#FFB800;        /* brand / primary (app accent) */
+    --amber-d:#E0A000;
+    --amber-soft:rgba(255,184,0,.12);
     --emerald:#10b981;
-    --amber:#fbbf24;
-    --bg:#060814;
-    --ink:#eef1fb;
-    --muted:#94a0c4;
-    --line:rgba(255,255,255,.09);
-    --glass:rgba(255,255,255,.045);
-    --radius:20px;
-    --grad:linear-gradient(110deg,#a855f7 0%,#7c3aed 35%,#22d3ee 100%);
+    --rose:#E85555;
+    --bg:#0F1419;           /* app dark background */
+    --bg-2:#0A0E17;         /* sidebar / deepest */
+    --card:#151B28;         /* app card */
+    --card-2:#1A2230;
+    --ink:#E8ECEF;          /* foreground */
+    --ink-soft:#D4D6DC;
+    --muted:#8A93A6;        /* muted foreground */
+    --line:#242E3E;         /* border */
+    --line-soft:#1F2737;
+    --radius:14px;
+    --sans:"DM Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --display:"Playfair Display",Georgia,serif;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
   body{
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Helvetica,Arial,sans-serif;
+    font-family:var(--sans);
     background:var(--bg);color:var(--ink);overflow:hidden;
     -webkit-font-smoothing:antialiased;
   }
 
-  /* ---------- ANIMATED MESH BACKGROUND ---------- */
+  /* ---------- BACKGROUND (subtle, app-like) ---------- */
   .mesh{position:fixed;inset:0;z-index:0;overflow:hidden;background:
-     radial-gradient(120% 120% at 50% 0%,#0a0d22 0%,#060814 55%,#04050d 100%)}
-  .blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.55;mix-blend-mode:screen}
-  .b1{width:620px;height:620px;background:radial-gradient(circle,#7c3aed,transparent 70%);top:-160px;left:-120px;animation:drift1 18s ease-in-out infinite}
-  .b2{width:560px;height:560px;background:radial-gradient(circle,#06b6d4,transparent 70%);bottom:-180px;right:-120px;animation:drift2 22s ease-in-out infinite}
-  .b3{width:480px;height:480px;background:radial-gradient(circle,#ec4899,transparent 70%);top:30%;right:18%;opacity:.35;animation:drift3 26s ease-in-out infinite}
-  .b4{width:420px;height:420px;background:radial-gradient(circle,#22d3ee,transparent 70%);bottom:10%;left:22%;opacity:.3;animation:drift1 30s ease-in-out infinite reverse}
-  @keyframes drift1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(120px,80px) scale(1.15)}}
-  @keyframes drift2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-100px,-60px) scale(1.12)}}
-  @keyframes drift3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-80px,90px) scale(.9)}}
-  .grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.04;
+     radial-gradient(120% 120% at 50% 0%,#131A26 0%,#0F1419 55%,#0A0E17 100%)}
+  .blob{position:absolute;border-radius:50%;filter:blur(110px)}
+  .b1{width:620px;height:620px;background:radial-gradient(circle,#FFB800,transparent 70%);top:-180px;left:-140px;opacity:.14;animation:drift1 22s ease-in-out infinite}
+  .b2{width:540px;height:540px;background:radial-gradient(circle,#FFB800,transparent 70%);bottom:-200px;right:-140px;opacity:.09;animation:drift2 26s ease-in-out infinite}
+  .b3{width:460px;height:460px;background:radial-gradient(circle,#FFB800,transparent 70%);top:30%;right:18%;opacity:.05;animation:drift3 30s ease-in-out infinite}
+  .b4{width:420px;height:420px;background:radial-gradient(circle,#FFB800,transparent 70%);bottom:6%;left:20%;opacity:.06;animation:drift1 34s ease-in-out infinite reverse}
+  @keyframes drift1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(90px,60px) scale(1.12)}}
+  @keyframes drift2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-80px,-50px) scale(1.1)}}
+  @keyframes drift3{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-60px,70px) scale(.92)}}
+  .grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.022;
     background-image:radial-gradient(rgba(255,255,255,.6) 1px,transparent 1px);background-size:3px 3px}
 
   /* ---------- DECK ---------- */
@@ -52,38 +58,37 @@
   }
   .slide.active{display:flex}
 
-  h1{font-size:72px;line-height:1.02;letter-spacing:-.03em;font-weight:850;margin:20px 0}
-  h2{font-size:46px;line-height:1.05;letter-spacing:-.025em;font-weight:850;margin:10px 0 4px}
-  h3{font-size:21px;font-weight:750;letter-spacing:-.01em;color:#fff}
+  h1{font-family:var(--display);font-size:70px;line-height:1.05;letter-spacing:-.02em;font-weight:800;margin:20px 0;color:#fff}
+  h2{font-family:var(--display);font-size:46px;line-height:1.1;letter-spacing:-.015em;font-weight:800;margin:10px 0 4px;color:#fff}
+  h3{font-family:var(--display);font-size:21px;font-weight:700;letter-spacing:-.005em;color:#fff}
   p{font-size:18px;line-height:1.6;color:var(--muted)}
-  .lead{font-size:24px;line-height:1.5;color:#c4cce6;max-width:62ch;font-weight:420}
-  .grad{background:var(--grad);background-size:220% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:gradmove 6s linear infinite}
-  @keyframes gradmove{to{background-position:220% center}}
-  .em{font-weight:750;color:#fff}
+  .lead{font-size:23px;line-height:1.5;color:var(--ink-soft);max-width:62ch;font-weight:400}
+  .grad{color:var(--amber)}
+  .em{font-weight:600;color:#fff}
 
-  .kicker{display:inline-flex;align-items:center;gap:12px;font-size:13px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:#c4b5fd}
-  .kicker .dot{width:9px;height:9px;border-radius:50%;background:var(--c2);box-shadow:0 0 0 4px rgba(34,211,238,.16),0 0 16px var(--c2);animation:pulse 2.4s ease-in-out infinite}
-  @keyframes pulse{0%,100%{box-shadow:0 0 0 4px rgba(34,211,238,.16),0 0 12px var(--c2)}50%{box-shadow:0 0 0 7px rgba(34,211,238,.06),0 0 22px var(--c2)}}
+  .kicker{display:inline-flex;align-items:center;gap:12px;font-family:var(--sans);font-size:13px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--amber)}
+  .kicker .dot{width:9px;height:9px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 4px rgba(255,184,0,.14);animation:pulse 2.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 4px rgba(255,184,0,.14)}50%{box-shadow:0 0 0 7px rgba(255,184,0,.05)}}
 
   /* body fills remaining space and vertically centers content */
   .body{display:flex;flex-direction:column;justify-content:center;flex:1;min-height:0;margin-top:30px;gap:24px}
 
   /* ---------- ENTRY ANIMATIONS (sequential) ---------- */
   [data-anim]{opacity:0}
-  .slide.run [data-anim]{animation:rise .75s cubic-bezier(.16,.84,.3,1) forwards}
-  @keyframes rise{from{opacity:0;transform:translateY(38px) scale(.96);filter:blur(8px)}to{opacity:1;transform:none;filter:blur(0)}}
-  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+  .slide.run [data-anim]{animation:rise .7s cubic-bezier(.16,.84,.3,1) forwards}
+  @keyframes rise{from{opacity:0;transform:translateY(30px) scale(.975)}to{opacity:1;transform:none}}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
 
   /* ---------- TITLE ---------- */
-  .logo{display:inline-flex;align-items:center;gap:14px;font-weight:850;font-size:30px;letter-spacing:-.02em}
-  .logo .mark{width:54px;height:54px;border-radius:15px;background:var(--grad);display:grid;place-items:center;color:#fff;font-size:27px;font-weight:850;box-shadow:0 12px 40px rgba(124,58,237,.6),inset 0 0 20px rgba(255,255,255,.25)}
+  .logo{display:inline-flex;align-items:center;gap:14px;font-family:var(--display);font-weight:800;font-size:30px;letter-spacing:-.01em;color:#fff}
+  .logo .mark{width:54px;height:54px;border-radius:14px;background:var(--amber);display:grid;place-items:center;color:#0D1B29;font-family:var(--display);font-size:28px;font-weight:800;box-shadow:0 8px 24px rgba(255,184,0,.3)}
   .title-wrap{margin:auto 0;max-width:64ch}
-  .title-tag{display:inline-flex;align-items:center;gap:8px;margin-bottom:26px;padding:9px 18px;border:1px solid rgba(168,85,247,.4);border-radius:999px;font-size:14px;font-weight:600;color:#ddd6fe;background:rgba(124,58,237,.12);backdrop-filter:blur(8px)}
-  .title-tag::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c2);box-shadow:0 0 10px var(--c2)}
+  .title-tag{display:inline-flex;align-items:center;gap:8px;margin-bottom:26px;padding:9px 18px;border:1px solid var(--line);border-radius:999px;font-size:14px;font-weight:500;color:var(--amber);background:var(--amber-soft)}
+  .title-tag::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--amber)}
   .title-meta{display:flex;gap:14px;margin-top:44px;flex-wrap:wrap}
-  .title-meta .m{padding:18px 22px;border:1px solid var(--line);border-radius:16px;background:var(--glass);backdrop-filter:blur(10px);min-width:150px}
-  .title-meta b{display:block;font-size:24px;font-weight:850;color:#fff}
-  .title-meta span{display:block;font-size:12.5px;color:var(--muted);letter-spacing:.04em;margin-top:3px}
+  .title-meta .m{padding:18px 22px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card);min-width:150px}
+  .title-meta b{display:block;font-family:var(--display);font-size:24px;font-weight:800;color:#fff}
+  .title-meta span{display:block;font-size:12.5px;color:var(--muted);letter-spacing:.02em;margin-top:3px}
 
   /* ---------- GRIDS / CARDS ---------- */
   .grid{display:grid;gap:20px}
@@ -92,130 +97,121 @@
   .g4{grid-template-columns:repeat(4,1fr)}
 
   .card{
-    position:relative;background:var(--glass);border:1px solid var(--line);border-radius:var(--radius);
-    padding:26px;display:flex;flex-direction:column;gap:11px;backdrop-filter:blur(12px);
-    transition:transform .35s cubic-bezier(.2,.7,.3,1),border-color .35s,box-shadow .35s;
+    position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:26px;display:flex;flex-direction:column;gap:11px;
+    transition:transform .3s cubic-bezier(.2,.7,.3,1),border-color .3s;
     overflow:hidden;
   }
-  .card::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;
-    background:linear-gradient(140deg,rgba(168,85,247,.5),transparent 40%,transparent 60%,rgba(34,211,238,.4));
-    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
-    -webkit-mask-composite:xor;mask-composite:exclude;opacity:0;transition:opacity .35s}
-  .card:hover{transform:translateY(-6px);border-color:transparent;box-shadow:0 24px 60px rgba(124,58,237,.25),0 0 0 1px rgba(168,85,247,.15)}
-  .card:hover::before{opacity:1}
-  .card p{font-size:15.5px;color:#aab4d6}
-  .card .ico{width:50px;height:50px;border-radius:14px;display:grid;place-items:center;font-size:24px;margin-bottom:2px;background:linear-gradient(140deg,rgba(168,85,247,.22),rgba(34,211,238,.14));border:1px solid rgba(168,85,247,.25);box-shadow:0 8px 24px rgba(124,58,237,.2)}
+  .card:hover{transform:translateY(-4px);border-color:rgba(255,184,0,.45)}
+  .card p{font-size:15.5px;color:var(--muted)}
+  .card .ico{width:50px;height:50px;border-radius:12px;display:grid;place-items:center;font-size:24px;margin-bottom:2px;background:var(--amber-soft);border:1px solid rgba(255,184,0,.25)}
 
   /* feature list */
   .flist{list-style:none;display:flex;flex-direction:column;gap:16px}
-  .flist li{display:flex;gap:14px;align-items:flex-start;font-size:17.5px;color:#c7d0ea;line-height:1.45}
-  .flist .chk{flex:none;width:28px;height:28px;border-radius:9px;background:linear-gradient(140deg,var(--v),var(--c));color:#fff;display:grid;place-items:center;font-size:14px;font-weight:800;margin-top:1px;box-shadow:0 6px 18px rgba(124,58,237,.4)}
+  .flist li{display:flex;gap:14px;align-items:flex-start;font-size:17.5px;color:var(--ink-soft);line-height:1.45}
+  .flist .chk{flex:none;width:28px;height:28px;border-radius:9px;background:var(--amber);color:#0D1B29;display:grid;place-items:center;font-size:14px;font-weight:800;margin-top:1px}
   .flist li b{color:#fff}
 
   /* pillars */
   .pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;flex:1;min-height:0}
   .pillars-2{grid-template-columns:repeat(2,1fr);max-width:1080px;margin:0 auto;width:100%}
-  .pillar{position:relative;border-radius:24px;padding:32px 28px;display:flex;flex-direction:column;color:#fff;overflow:hidden;border:1px solid rgba(255,255,255,.1);background:var(--glass);backdrop-filter:blur(12px);transition:transform .4s}
-  .pillar:hover{transform:translateY(-8px)}
-  .pillar::after{content:"";position:absolute;inset:0;opacity:.9;z-index:0}
-  .pillar.p1::after{background:radial-gradient(130% 100% at 0% 0%,rgba(168,85,247,.35),transparent 60%)}
-  .pillar.p2::after{background:radial-gradient(130% 100% at 0% 0%,rgba(34,211,238,.32),transparent 60%)}
-  .pillar.p3::after{background:radial-gradient(130% 100% at 0% 0%,rgba(236,72,153,.3),transparent 60%)}
+  .pillar{position:relative;border-radius:18px;padding:32px 28px;display:flex;flex-direction:column;color:#fff;overflow:hidden;border:1px solid var(--line);background:var(--card);transition:transform .35s,border-color .35s}
+  .pillar:hover{transform:translateY(-6px);border-color:rgba(255,184,0,.45)}
+  .pillar::after{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--amber);opacity:.85}
   .pillar>*{position:relative;z-index:1}
-  .pillar .num{font-size:12.5px;font-weight:800;letter-spacing:.24em;color:#c4b5fd}
+  .pillar .num{font-family:var(--sans);font-size:12.5px;font-weight:800;letter-spacing:.2em;color:var(--amber)}
   .pillar h3{font-size:27px;margin:10px 0 3px}
-  .pillar .who{font-size:13.5px;color:#aeb9de;margin-bottom:18px;font-weight:600}
+  .pillar .who{font-size:13.5px;color:var(--muted);margin-bottom:18px;font-weight:500}
   .pillar ul{list-style:none;display:flex;flex-direction:column;gap:12px;margin-top:auto}
-  .pillar li{font-size:15px;line-height:1.4;display:flex;gap:10px;color:#dde3f5}
-  .pillar li::before{content:"";flex:none;width:7px;height:7px;border-radius:50%;background:var(--c2);box-shadow:0 0 8px var(--c2);margin-top:7px}
-  .pillar .bigico{position:absolute;top:20px;right:24px;font-size:42px;opacity:.5;z-index:1}
+  .pillar li{font-size:15px;line-height:1.4;display:flex;gap:10px;color:var(--ink-soft)}
+  .pillar li::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:var(--amber);margin-top:7px}
+  .pillar .bigico{position:absolute;top:20px;right:24px;font-size:42px;opacity:.4;z-index:1}
 
   /* stats */
   .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
-  .stat{position:relative;background:var(--glass);border:1px solid var(--line);border-radius:var(--radius);padding:28px;backdrop-filter:blur(12px);overflow:hidden}
-  .stat::after{content:"";position:absolute;top:-40px;right:-40px;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,.35),transparent 70%)}
-  .stat b{display:block;font-size:54px;font-weight:850;letter-spacing:-.035em;line-height:1;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;position:relative}
-  .stat span{display:block;margin-top:12px;font-size:15px;color:#aab4d6;line-height:1.35;position:relative}
+  .stat{position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:28px;overflow:hidden}
+  .stat b{display:block;font-family:var(--display);font-size:52px;font-weight:800;letter-spacing:-.02em;line-height:1;color:var(--amber)}
+  .stat span{display:block;margin-top:12px;font-size:15px;color:var(--muted);line-height:1.35}
 
   /* split panels */
   .split{display:grid;grid-template-columns:1fr 1fr;gap:24px;flex:1;min-height:0}
-  .panel{position:relative;border-radius:22px;padding:32px;display:flex;flex-direction:column;gap:18px;border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(12px);overflow:hidden}
-  .panel.bad::after{content:"";position:absolute;inset:0;background:radial-gradient(120% 90% at 100% 0%,rgba(244,63,94,.16),transparent 55%)}
-  .panel.good::after{content:"";position:absolute;inset:0;background:radial-gradient(120% 90% at 0% 0%,rgba(16,185,129,.16),transparent 55%)}
+  .panel{position:relative;border-radius:18px;padding:32px;display:flex;flex-direction:column;gap:18px;border:1px solid var(--line);background:var(--card);overflow:hidden}
+  .panel.bad{border-color:rgba(232,85,85,.3)}
+  .panel.good{border-color:rgba(16,185,129,.3)}
   .panel>*{position:relative;z-index:1}
-  .panel .ptitle{display:flex;align-items:center;gap:12px;font-weight:800;font-size:21px}
-  .panel.bad .ptitle{color:#fb7185}
+  .panel .ptitle{display:flex;align-items:center;gap:12px;font-family:var(--display);font-weight:800;font-size:21px}
+  .panel.bad .ptitle{color:#f88}
   .panel.good .ptitle{color:#34d399}
   .panel ul{list-style:none;display:flex;flex-direction:column;gap:16px}
-  .panel li{display:flex;gap:13px;font-size:17px;line-height:1.45;color:#c7d0ea}
+  .panel li{display:flex;gap:13px;font-size:17px;line-height:1.45;color:var(--ink-soft)}
   .panel li b{color:#fff}
   .panel .b{flex:none;font-size:19px}
 
   /* AI orbit */
   .ai-wrap{display:grid;grid-template-columns:1.05fr 1fr;gap:34px;flex:1;align-items:center}
   .ai-list{display:flex;flex-direction:column;gap:14px}
-  .ai-item{display:flex;gap:16px;background:var(--glass);border:1px solid var(--line);border-radius:16px;padding:17px 19px;backdrop-filter:blur(10px);transition:.3s}
-  .ai-item:hover{border-color:rgba(168,85,247,.4);transform:translateX(6px)}
-  .ai-item .ico{flex:none;width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:22px;background:linear-gradient(140deg,rgba(168,85,247,.25),rgba(34,211,238,.16));border:1px solid rgba(168,85,247,.3)}
+  .ai-item{display:flex;gap:16px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:17px 19px;transition:.3s}
+  .ai-item:hover{border-color:rgba(255,184,0,.45);transform:translateX(5px)}
+  .ai-item .ico{flex:none;width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:22px;background:var(--amber-soft);border:1px solid rgba(255,184,0,.25)}
   .ai-item h3{font-size:17px;margin-bottom:3px}
-  .ai-item p{font-size:14px;color:#9aa6c8}
+  .ai-item p{font-size:14px;color:var(--muted)}
   .ai-orbit{position:relative;height:420px;display:grid;place-items:center}
-  .ai-core{width:170px;height:170px;border-radius:50%;background:var(--grad);display:grid;place-items:center;text-align:center;color:#fff;font-weight:850;font-size:19px;z-index:3;box-shadow:0 0 0 16px rgba(124,58,237,.1),0 0 0 34px rgba(124,58,237,.05),0 0 80px rgba(124,58,237,.7);animation:corepulse 3.5s ease-in-out infinite}
-  @keyframes corepulse{0%,100%{box-shadow:0 0 0 16px rgba(124,58,237,.1),0 0 0 34px rgba(124,58,237,.05),0 0 70px rgba(124,58,237,.6)}50%{box-shadow:0 0 0 22px rgba(34,211,238,.08),0 0 0 44px rgba(34,211,238,.04),0 0 100px rgba(34,211,238,.6)}}
-  .ai-core small{display:block;font-size:12px;font-weight:600;opacity:.85;margin-top:5px}
-  .ai-ring{position:absolute;border:1.5px dashed rgba(168,180,252,.25);border-radius:50%}
+  .ai-core{width:170px;height:170px;border-radius:50%;background:var(--amber);display:grid;place-items:center;text-align:center;color:#0D1B29;font-family:var(--display);font-weight:800;font-size:19px;z-index:3;box-shadow:0 0 0 14px rgba(255,184,0,.08),0 0 0 30px rgba(255,184,0,.04),0 16px 50px rgba(255,184,0,.25);animation:corepulse 3.6s ease-in-out infinite}
+  @keyframes corepulse{0%,100%{box-shadow:0 0 0 14px rgba(255,184,0,.08),0 0 0 30px rgba(255,184,0,.04),0 16px 50px rgba(255,184,0,.22)}50%{box-shadow:0 0 0 20px rgba(255,184,0,.06),0 0 0 40px rgba(255,184,0,.03),0 16px 60px rgba(255,184,0,.3)}}
+  .ai-core small{display:block;font-family:var(--sans);font-size:12px;font-weight:600;opacity:.8;margin-top:5px}
+  .ai-ring{position:absolute;border:1.5px dashed rgba(255,184,0,.22);border-radius:50%}
   .ai-ring.r1{width:270px;height:270px;animation:spin 40s linear infinite}
   .ai-ring.r2{width:400px;height:400px;animation:spin 60s linear infinite reverse}
   @keyframes spin{to{transform:rotate(360deg)}}
-  .chip{position:absolute;background:rgba(255,255,255,.07);border:1px solid rgba(168,85,247,.3);backdrop-filter:blur(8px);color:#e8edf7;font-size:12.5px;font-weight:600;padding:8px 14px;border-radius:999px;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+  .chip{position:absolute;background:var(--card-2);border:1px solid var(--line);color:var(--ink);font-size:12.5px;font-weight:600;padding:8px 14px;border-radius:999px;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.35)}
 
   /* roadmap */
   .road{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;flex:1;align-items:stretch}
-  .phase{position:relative;border-radius:20px;padding:26px 24px;border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(12px);display:flex;flex-direction:column;gap:6px;overflow:hidden;transition:transform .35s}
-  .phase:hover{transform:translateY(-6px)}
+  .phase{position:relative;border-radius:14px;padding:26px 24px;border:1px solid var(--line);background:var(--card);display:flex;flex-direction:column;gap:6px;overflow:hidden;transition:transform .3s,border-color .3s}
+  .phase:hover{transform:translateY(-5px);border-color:rgba(255,184,0,.4)}
   .phase::before{content:"";position:absolute;top:0;left:0;right:0;height:4px}
-  .phase.done::before{background:linear-gradient(90deg,#10b981,#22d3ee)}
-  .phase.prog::before{background:linear-gradient(90deg,#fbbf24,#f59e0b)}
-  .phase.next::before{background:linear-gradient(90deg,#a855f7,#06b6d4)}
-  .phase.future::before{background:linear-gradient(90deg,#64748b,#94a3b8)}
-  .phase .ph-h{font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-top:6px}
+  .phase.done::before{background:var(--emerald)}
+  .phase.prog::before{background:var(--amber)}
+  .phase.next::before{background:#5b9bd5}
+  .phase.future::before{background:#64748b}
+  .phase .ph-h{font-family:var(--display);font-size:14px;font-weight:800;letter-spacing:.02em;margin-top:6px}
   .phase ul{list-style:none;display:flex;flex-direction:column;gap:10px;margin-top:8px}
-  .phase li{font-size:14px;line-height:1.35;color:#aeb9de;display:flex;gap:8px}
-  .phase li .s{flex:none;color:var(--c2)}
+  .phase li{font-size:14px;line-height:1.35;color:var(--muted);display:flex;gap:8px}
+  .phase li .s{flex:none;color:var(--amber)}
   .badge{display:inline-flex;width:max-content;font-size:11px;font-weight:800;padding:5px 11px;border-radius:999px;letter-spacing:.04em}
   .badge.b-done{background:rgba(16,185,129,.16);color:#34d399}
-  .badge.b-prog{background:rgba(245,158,11,.18);color:#fbbf24}
-  .badge.b-next{background:rgba(168,85,247,.18);color:#c4b5fd}
+  .badge.b-prog{background:rgba(255,184,0,.16);color:var(--amber)}
+  .badge.b-next{background:rgba(91,155,213,.18);color:#8fc1f0}
   .badge.b-future{background:rgba(148,163,184,.16);color:#cbd5e1}
 
   /* market bars */
   .tv{display:grid;grid-template-columns:1fr 1fr;gap:44px;flex:1;align-items:center}
   .bars{display:flex;flex-direction:column;gap:18px}
   .bar-row{display:flex;align-items:center;gap:16px}
-  .bar-row .lab{width:180px;font-size:15px;font-weight:600;color:#c7d0ea;text-align:right}
-  .bar-track{flex:1;height:38px;border-radius:11px;background:rgba(255,255,255,.06);overflow:hidden;border:1px solid var(--line)}
-  .bar-fill{height:100%;border-radius:11px;display:flex;align-items:center;padding-left:16px;color:#fff;font-weight:700;font-size:14px;width:0;transition:width 1.1s cubic-bezier(.2,.8,.2,1);box-shadow:0 0 24px rgba(124,58,237,.5)}
-  .pill{display:inline-flex;padding:8px 15px;border-radius:999px;font-size:13.5px;font-weight:700;background:rgba(168,85,247,.14);color:#ddd6fe;border:1px solid rgba(168,85,247,.3)}
+  .bar-row .lab{width:180px;font-size:15px;font-weight:600;color:var(--ink-soft);text-align:right}
+  .bar-track{flex:1;height:38px;border-radius:10px;background:var(--bg-2);overflow:hidden;border:1px solid var(--line)}
+  .bar-fill{height:100%;border-radius:10px;display:flex;align-items:center;padding-left:16px;color:#0D1B29;font-weight:700;font-size:14px;width:0;transition:width 1.1s cubic-bezier(.2,.8,.2,1)}
+  .pill{display:inline-flex;padding:8px 15px;border-radius:999px;font-size:13.5px;font-weight:600;background:var(--amber-soft);color:var(--amber);border:1px solid rgba(255,184,0,.3)}
 
   /* ask */
   .ask{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
   .cta-row{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-top:6px}
-  .cta-btn{display:inline-flex;align-items:center;gap:10px;background:var(--grad);color:#fff;font-weight:800;font-size:18px;padding:17px 30px;border-radius:15px;box-shadow:0 18px 50px rgba(124,58,237,.5);transition:transform .3s}
-  .cta-btn:hover{transform:translateY(-3px) scale(1.02)}
-  .contact{font-size:16px;color:#aab4d6}
+  .cta-btn{display:inline-flex;align-items:center;gap:10px;background:var(--amber);color:#0D1B29;font-weight:700;font-size:18px;padding:16px 30px;border-radius:12px;box-shadow:0 10px 30px rgba(255,184,0,.25);transition:transform .25s,box-shadow .25s}
+  .cta-btn:hover{transform:translateY(-2px);box-shadow:0 14px 36px rgba(255,184,0,.35)}
+  .contact{font-size:16px;color:var(--muted)}
   .contact b{color:#fff}
 
   /* footer / nav */
   .footer{position:fixed;left:0;right:0;bottom:0;height:58px;display:flex;align-items:center;justify-content:space-between;padding:0 84px;font-size:13px;color:var(--muted);z-index:40;pointer-events:none}
-  .brand-foot{font-weight:850;letter-spacing:-.01em;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .brand-foot{font-family:var(--display);font-weight:800;letter-spacing:-.01em;color:var(--amber)}
   .nav{position:fixed;bottom:13px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;z-index:50}
-  .nav button{pointer-events:auto;width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--ink);font-size:17px;cursor:pointer;display:grid;place-items:center;backdrop-filter:blur(10px);transition:.2s}
-  .nav button:hover{border-color:var(--v2);color:#fff;box-shadow:0 0 20px rgba(124,58,237,.5)}
+  .nav button{pointer-events:auto;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:17px;cursor:pointer;display:grid;place-items:center;transition:.2s}
+  .nav button:hover{border-color:var(--amber);color:var(--amber)}
   .dots{display:flex;gap:7px;margin:0 10px}
-  .dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.22);cursor:pointer;transition:.3s}
-  .dots i.on{background:var(--grad);width:26px;border-radius:5px;box-shadow:0 0 12px rgba(124,58,237,.6)}
-  .progress{position:fixed;top:0;left:0;height:3px;background:var(--grad);z-index:60;transition:width .4s ease;box-shadow:0 0 12px rgba(124,58,237,.7)}
-  .hint{position:fixed;top:18px;right:24px;font-size:12px;color:var(--muted);z-index:50;background:rgba(255,255,255,.05);border:1px solid var(--line);padding:7px 13px;border-radius:999px;backdrop-filter:blur(8px)}
+  .dots i{width:8px;height:8px;border-radius:50%;background:var(--line);cursor:pointer;transition:.3s}
+  .dots i.on{background:var(--amber);width:26px;border-radius:5px}
+  .progress{position:fixed;top:0;left:0;height:3px;background:var(--amber);z-index:60;transition:width .4s ease}
+  .hint{position:fixed;top:18px;right:24px;font-size:12px;color:var(--muted);z-index:50;background:var(--card);border:1px solid var(--line);padding:7px 13px;border-radius:999px}
 
   /* floating micro-motion */
   .card .ico{animation:float 5.5s ease-in-out infinite}
@@ -226,74 +222,171 @@
   .val{display:grid;grid-template-columns:.92fr 1.08fr;gap:40px;flex:1;align-items:center}
   .val-list{display:flex;flex-direction:column;gap:16px}
   .val-list .vrow{display:flex;gap:15px;align-items:flex-start}
-  .val-list .vico{flex:none;width:46px;height:46px;border-radius:13px;display:grid;place-items:center;font-size:22px;background:linear-gradient(140deg,rgba(168,85,247,.25),rgba(34,211,238,.16));border:1px solid rgba(168,85,247,.3);box-shadow:0 8px 24px rgba(124,58,237,.25)}
+  .val-list .vico{flex:none;width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:22px;background:var(--amber-soft);border:1px solid rgba(255,184,0,.25)}
   .val-list h3{font-size:18px;margin-bottom:3px}
-  .val-list p{font-size:14.5px;color:#aab4d6;line-height:1.45}
-  .soon{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:800;letter-spacing:.04em;padding:4px 10px;border-radius:999px;background:linear-gradient(140deg,rgba(251,191,36,.2),rgba(236,72,153,.15));color:#fcd34d;border:1px solid rgba(251,191,36,.35);margin-left:8px;vertical-align:middle}
-  .dist-cap{margin-top:18px;font-size:14px;color:#9aa6c8;text-align:center}
+  .val-list p{font-size:14.5px;color:var(--muted);line-height:1.45}
+  .soon{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:800;letter-spacing:.04em;padding:4px 10px;border-radius:999px;background:var(--amber-soft);color:var(--amber);border:1px solid rgba(255,184,0,.35);margin-left:8px;vertical-align:middle}
+  .dist-cap{margin-top:18px;font-size:14px;color:var(--muted);text-align:center}
 
   .dist{position:relative;width:560px;height:460px;margin:auto}
   .dist-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
-  .dist-svg line{stroke:url(#flowg);stroke-width:2.5;stroke-dasharray:7 11;opacity:.75;animation:flow 1s linear infinite}
-  @keyframes flow{to{stroke-dashoffset:-36}}
-  .dist-hub{position:absolute;left:280px;top:230px;transform:translate(-50%,-50%);width:158px;height:158px;border-radius:50%;background:var(--grad);display:grid;place-items:center;text-align:center;color:#fff;z-index:3;box-shadow:0 0 0 14px rgba(124,58,237,.1),0 0 80px rgba(124,58,237,.7);animation:corepulse 3.5s ease-in-out infinite}
-  .dist-hub b{font-size:22px;font-weight:850;letter-spacing:-.02em;display:block}
-  .dist-hub small{font-size:12px;font-weight:600;opacity:.9;display:block;margin-top:3px}
-  .dist-hub .one{position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);background:#fff;color:#5b21b6;font-size:11px;font-weight:850;padding:4px 12px;border-radius:999px;white-space:nowrap;box-shadow:0 8px 20px rgba(0,0,0,.3)}
-  .j-node{position:absolute;transform:translate(-50%,-50%);background:rgba(255,255,255,.07);border:1px solid var(--line);backdrop-filter:blur(8px);padding:12px 17px;border-radius:13px;font-size:14.5px;font-weight:750;color:#fff;white-space:nowrap;box-shadow:0 12px 34px rgba(0,0,0,.4);z-index:2;animation:float 5s ease-in-out infinite}
+  .dist-svg line{stroke:var(--amber);stroke-width:2;stroke-dasharray:6 10;opacity:.6;animation:flow 1s linear infinite}
+  @keyframes flow{to{stroke-dashoffset:-32}}
+  .dist-hub{position:absolute;left:280px;top:230px;transform:translate(-50%,-50%);width:158px;height:158px;border-radius:50%;background:var(--amber);display:grid;place-items:center;text-align:center;color:#0D1B29;z-index:3;box-shadow:0 0 0 12px rgba(255,184,0,.08),0 16px 50px rgba(255,184,0,.25);animation:corepulse 3.6s ease-in-out infinite}
+  .dist-hub b{font-family:var(--display);font-size:22px;font-weight:800;letter-spacing:-.01em;display:block}
+  .dist-hub small{font-size:12px;font-weight:600;opacity:.85;display:block;margin-top:3px}
+  .dist-hub .one{position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);background:var(--card);color:var(--amber);font-size:11px;font-weight:800;padding:4px 12px;border-radius:999px;white-space:nowrap;border:1px solid var(--line);box-shadow:0 8px 20px rgba(0,0,0,.3)}
+  .j-node{position:absolute;transform:translate(-50%,-50%);background:var(--card-2);border:1px solid var(--line);padding:12px 17px;border-radius:12px;font-size:14.5px;font-weight:700;color:#fff;white-space:nowrap;box-shadow:0 12px 30px rgba(0,0,0,.4);z-index:2;animation:float 5s ease-in-out infinite}
   .j-node span{font-size:16px}
 
   /* ---------- CONTACT MODAL ---------- */
-  .modal-overlay{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:rgba(4,5,13,.72);backdrop-filter:blur(12px);padding:24px}
+  .modal-overlay{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;background:rgba(7,10,16,.75);backdrop-filter:blur(8px);padding:24px}
   .modal-overlay.open{display:flex;animation:ovfade .3s ease}
   @keyframes ovfade{from{opacity:0}to{opacity:1}}
-  .modal{width:min(640px,100%);max-height:92vh;overflow:auto;position:relative;border-radius:26px;padding:40px;
-    background:linear-gradient(165deg,rgba(26,21,58,.96),rgba(8,10,24,.98));
-    border:1px solid rgba(168,85,247,.35);
-    box-shadow:0 50px 140px rgba(0,0,0,.65),0 0 60px rgba(124,58,237,.2);
-    animation:modalin .5s cubic-bezier(.16,.84,.3,1)}
+  .modal{width:min(640px,100%);max-height:92vh;overflow:auto;position:relative;border-radius:18px;padding:40px;
+    background:var(--card);
+    border:1px solid var(--line);
+    box-shadow:0 50px 140px rgba(0,0,0,.65);
+    animation:modalin .45s cubic-bezier(.16,.84,.3,1)}
   @keyframes modalin{from{opacity:0;transform:translateY(40px) scale(.95)}to{opacity:1;transform:none}}
-  .modal .x{position:absolute;top:20px;right:20px;width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:#cbd5e1;font-size:20px;cursor:pointer;display:grid;place-items:center;transition:.2s}
-  .modal .x:hover{border-color:var(--pink);color:#fff}
-  .modal h3{font-size:28px;letter-spacing:-.02em;margin-bottom:8px}
-  .modal .sub{font-size:15.5px;color:#aab4d6;line-height:1.5;margin-bottom:18px}
-  .demo-banner{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:14px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);margin-bottom:22px}
-  .demo-banner .d{width:10px;height:10px;border-radius:50%;background:#34d399;box-shadow:0 0 0 4px rgba(16,185,129,.2),0 0 14px #34d399;margin-top:5px;flex:none;animation:pulse 2.2s ease-in-out infinite}
-  .demo-banner p{font-size:14px;color:#c7d0ea;line-height:1.45}
-  .demo-banner b{color:#6ee7b7}
+  .modal .x{position:absolute;top:20px;right:20px;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--bg-2);color:var(--muted);font-size:20px;cursor:pointer;display:grid;place-items:center;transition:.2s}
+  .modal .x:hover{border-color:var(--amber);color:var(--amber)}
+  .modal h3{font-family:var(--display);font-size:28px;letter-spacing:-.01em;margin-bottom:8px}
+  .modal .sub{font-size:15.5px;color:var(--muted);line-height:1.5;margin-bottom:18px}
+  .demo-banner{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:12px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);margin-bottom:22px}
+  .demo-banner .d{width:10px;height:10px;border-radius:50%;background:#34d399;box-shadow:0 0 0 4px rgba(16,185,129,.18);margin-top:5px;flex:none;animation:pulse 2.2s ease-in-out infinite}
+  .demo-banner p{font-size:14px;color:var(--ink-soft);line-height:1.45}
+  .demo-banner b{color:#34d399}
   .field{display:flex;flex-direction:column;gap:7px;margin-bottom:15px}
-  .field label{font-size:13px;font-weight:700;color:#c7d0ea}
-  .field input,.field textarea{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:12px;padding:13px 15px;color:#fff;font-size:15px;font-family:inherit;transition:.2s}
-  .field input::placeholder,.field textarea::placeholder{color:#6b769a}
-  .field input:focus,.field textarea:focus{outline:none;border-color:var(--v2);box-shadow:0 0 0 3px rgba(124,58,237,.28);background:rgba(255,255,255,.07)}
+  .field label{font-size:13px;font-weight:600;color:var(--ink-soft)}
+  .field input,.field textarea{width:100%;background:var(--bg-2);border:1px solid var(--line);border-radius:10px;padding:13px 15px;color:#fff;font-size:15px;font-family:inherit;transition:.2s}
+  .field input::placeholder,.field textarea::placeholder{color:#5f6b80}
+  .field input:focus,.field textarea:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 3px rgba(255,184,0,.18);background:var(--bg)}
   .field textarea{min-height:110px;resize:vertical}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:15px}
   .modal .cta-btn{width:100%;justify-content:center;border:none;cursor:pointer;margin-top:6px}
   .modal-success{text-align:center;padding:20px 0}
   .modal-success .big{font-size:56px;margin-bottom:10px}
   .modal-success h3{margin-bottom:8px}
-  .modal-success p{font-size:15px;color:#aab4d6;line-height:1.55}
+  .modal-success p{font-size:15px;color:var(--muted);line-height:1.55}
 
   /* demo availability banner on ask slide */
-  .avail{display:inline-flex;align-items:center;gap:12px;padding:13px 20px;border-radius:14px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);font-size:15.5px;color:#c7d0ea;font-weight:600;margin-bottom:6px;width:max-content}
-  .avail .d{width:11px;height:11px;border-radius:50%;background:#34d399;box-shadow:0 0 0 4px rgba(16,185,129,.2),0 0 14px #34d399;animation:pulse 2.2s ease-in-out infinite}
-  .avail b{color:#6ee7b7}
+  .avail{display:inline-flex;align-items:center;gap:12px;padding:13px 20px;border-radius:12px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);font-size:15.5px;color:var(--ink-soft);font-weight:500;margin-bottom:6px;width:max-content}
+  .avail .d{width:11px;height:11px;border-radius:50%;background:#34d399;box-shadow:0 0 0 4px rgba(16,185,129,.18);animation:pulse 2.2s ease-in-out infinite}
+  .avail b{color:#34d399}
 
   /* ---------- BUSINESS MODEL SLIDE ---------- */
   .streams{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
-  .mtag{display:inline-flex;align-items:center;font-size:10px;font-weight:800;letter-spacing:.04em;padding:3px 8px;border-radius:999px;background:rgba(16,185,129,.16);color:#6ee7b7;border:1px solid rgba(16,185,129,.35);margin-left:6px;vertical-align:middle}
+  .mtag{display:inline-flex;align-items:center;font-size:10px;font-weight:800;letter-spacing:.04em;padding:3px 8px;border-radius:999px;background:rgba(16,185,129,.16);color:#34d399;border:1px solid rgba(16,185,129,.3);margin-left:6px;vertical-align:middle}
   .tiers{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
-  .tier{position:relative;background:var(--glass);border:1px solid var(--line);border-radius:18px;padding:22px;backdrop-filter:blur(12px);display:flex;flex-direction:column;gap:3px;transition:transform .35s,box-shadow .35s}
-  .tier:hover{transform:translateY(-6px)}
-  .tier .pname{font-size:13px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#c4b5fd}
-  .tier .price{font-size:29px;font-weight:850;letter-spacing:-.02em;background:var(--grad);background-size:220% auto;-webkit-background-clip:text;background-clip:text;color:transparent;margin-top:5px;line-height:1.05;animation:gradmove 6s linear infinite}
+  .tier{position:relative;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:3px;transition:transform .3s,border-color .3s}
+  .tier:hover{transform:translateY(-5px);border-color:rgba(255,184,0,.4)}
+  .tier .pname{font-size:13px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .tier .price{font-family:var(--display);font-size:29px;font-weight:800;letter-spacing:-.01em;color:var(--amber);margin-top:5px;line-height:1.05}
   .tier .per{font-size:12px;color:var(--muted);margin-bottom:9px}
   .tier ul{list-style:none;display:flex;flex-direction:column;gap:8px;margin-top:4px}
-  .tier li{font-size:13px;color:#aab4d6;display:flex;gap:8px;line-height:1.3}
-  .tier li::before{content:"✓";color:#34d399;font-weight:800;flex:none}
-  .tier.pop{border-color:transparent;box-shadow:0 0 0 1px rgba(168,85,247,.45),0 22px 55px rgba(124,58,237,.32)}
-  .tier.pop::after{content:"NAJPOPULARNIEJSZY";position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--grad);color:#fff;font-size:10px;font-weight:800;letter-spacing:.06em;padding:4px 13px;border-radius:999px;white-space:nowrap;box-shadow:0 8px 20px rgba(124,58,237,.5)}
-  .model-note{margin-top:14px;font-size:13px;color:#8a96ba;text-align:center}
+  .tier li{font-size:13px;color:var(--muted);display:flex;gap:8px;line-height:1.3}
+  .tier li::before{content:"✓";color:var(--amber);font-weight:800;flex:none}
+  .tier.pop,.tier.ea{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber),0 16px 40px rgba(255,184,0,.15)}
+  .tier.pop::after{content:"NAJPOPULARNIEJSZY";position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--amber);color:#0D1B29;font-size:10px;font-weight:800;letter-spacing:.06em;padding:4px 13px;border-radius:999px;white-space:nowrap}
+  .tier.ea::after{content:"START TUTAJ";position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--amber);color:#0D1B29;font-size:10px;font-weight:800;letter-spacing:.06em;padding:4px 13px;border-radius:999px;white-space:nowrap}
+  .model-note{margin-top:14px;font-size:13px;color:var(--muted);text-align:center}
+  .ea-banner{display:flex;align-items:center;gap:16px;padding:16px 22px;border-radius:14px;background:var(--amber-soft);border:1px solid rgba(255,184,0,.4)}
+  .ea-banner .ea-ico{flex:none;width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:24px;background:var(--amber);color:#0D1B29}
+  .ea-banner b{color:#fff;font-weight:700}
+  .ea-banner .ea-tag{margin-left:auto;flex:none;font-family:var(--display);font-weight:800;font-size:17px;color:var(--amber);white-space:nowrap}
+  .freebadge{display:inline-block;margin-top:7px;font-size:11px;font-weight:800;letter-spacing:.03em;padding:3px 9px;border-radius:999px;background:rgba(16,185,129,.16);color:#34d399;border:1px solid rgba(16,185,129,.3)}
+
+  /* ---------- MARKET (TAM/SAM/SOM) ---------- */
+  .market{display:grid;grid-template-columns:1fr 1fr;gap:40px;flex:1;align-items:center}
+  .funnel{display:flex;flex-direction:column;gap:14px}
+  .frow{position:relative;border-radius:14px;padding:20px 24px;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:16px;border:1px solid var(--line)}
+  .frow.t1{background:rgba(255,184,0,.92);color:#0D1B29;width:100%}
+  .frow.t2{background:rgba(255,184,0,.5);color:#0D1B29;width:82%}
+  .frow.t3{background:var(--amber-soft);color:#fff;width:64%}
+  .frow .lab{font-size:13px;font-weight:800;letter-spacing:.1em;opacity:.9}
+  .frow .val{font-family:var(--display);font-size:26px;font-weight:800;letter-spacing:-.01em}
+  .frow .desc{font-size:12.5px;opacity:.85;margin-top:2px;font-weight:500}
+  .market-note{margin-top:16px;font-size:12.5px;color:var(--muted)}
+
+  /* ---------- COMPETITION TABLE ---------- */
+  .vstab{width:100%;border-collapse:separate;border-spacing:0 8px}
+  .vstab th{font-size:12.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;padding:8px 14px;text-align:center}
+  .vstab th:first-child{text-align:left}
+  .vstab td{background:var(--card);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:14px;font-size:14.5px;text-align:center;color:var(--ink-soft)}
+  .vstab td:first-child{border-left:1px solid var(--line);border-radius:12px 0 0 12px;text-align:left;font-weight:600}
+  .vstab td:last-child{border-right:1px solid var(--line);border-radius:0 12px 12px 0}
+  .vstab tr.us td{background:var(--amber-soft);border-color:rgba(255,184,0,.4)}
+  .vstab tr.us td:first-child{color:#fff;font-weight:800}
+  .vstab .yes{color:#34d399;font-weight:800}
+  .vstab .no{color:#e8888c;opacity:.85}
+  .vstab .col-us{color:var(--amber);font-weight:800}
+
+  /* ---------- TRACTION ---------- */
+  .traction{display:flex;flex-direction:column;gap:22px;flex:1;justify-content:center}
+  .todo{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;letter-spacing:.04em;padding:3px 9px;border-radius:999px;background:var(--amber-soft);color:var(--amber);border:1px solid rgba(255,184,0,.35)}
+  .ph{color:#6b7588;font-style:italic;font-weight:500}
+
+  /* ---------- TEAM ---------- */
+  .team{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .member{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+  .avatar{width:64px;height:64px;border-radius:16px;display:grid;place-items:center;font-size:28px;background:var(--amber-soft);border:1px solid rgba(255,184,0,.3);margin-bottom:4px}
+
+  /* ---------- GTM steps ---------- */
+  .gtm{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;flex:1;align-items:stretch}
+  .step{position:relative;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px;display:flex;flex-direction:column;gap:8px;transition:transform .3s,border-color .3s}
+  .step:hover{transform:translateY(-4px);border-color:rgba(255,184,0,.4)}
+  .step .stepnum{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:15px;background:var(--amber);color:#0D1B29}
+
+  /* ---------- USE OF FUNDS ---------- */
+  .funds{display:grid;grid-template-columns:1fr 1fr;gap:44px;flex:1;align-items:center}
+  .fbars{display:flex;flex-direction:column;gap:18px}
+  .fbar-row .ftop{display:flex;justify-content:space-between;font-size:15px;margin-bottom:7px}
+  .fbar-row .ftop b{color:#fff;font-weight:700}
+  .fbar-row .ftop .pct{color:var(--amber);font-weight:800}
+  .fbar-track{height:14px;border-radius:8px;background:var(--bg-2);overflow:hidden;border:1px solid var(--line)}
+  .fbar-fill{height:100%;border-radius:8px;width:0;transition:width 1.1s cubic-bezier(.2,.8,.2,1)}
+
+  /* ---------- CHARTS ---------- */
+  .charts{display:grid;grid-template-columns:1.15fr 1fr;gap:30px;flex:1;align-items:stretch;min-height:0}
+  .chart-card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px 26px;display:flex;flex-direction:column;min-height:0}
+  .chart-card .ch-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:4px}
+  .chart-card h3{font-size:19px}
+  .chart-card .ch-sub{font-size:12.5px;color:var(--muted)}
+  .chart-card .ch-kpi{font-family:var(--display);font-size:22px;font-weight:800;color:var(--amber);white-space:nowrap}
+  .chart-wrap{flex:1;min-height:0;margin-top:14px;position:relative}
+  .chart-wrap svg{width:100%;height:100%;display:block;overflow:visible}
+  .axis{stroke:var(--line);stroke-width:1}
+  .gridline{stroke:var(--line-soft);stroke-width:1;stroke-dasharray:3 5}
+  .xlab{fill:var(--muted);font-size:12px;font-family:var(--sans);text-anchor:middle}
+  .ylab{fill:var(--muted);font-size:11px;font-family:var(--sans);text-anchor:end}
+  .barv{fill:var(--amber);rx:4;transform-box:fill-box;transform-origin:bottom;transform:scaleY(0);animation:growbar .9s cubic-bezier(.2,.8,.2,1) forwards}
+  .barlbl{fill:#fff;font-family:var(--display);font-size:14px;font-weight:800;text-anchor:middle;opacity:0;animation:fadein .5s ease forwards}
+  @keyframes growbar{to{transform:scaleY(1)}}
+  @keyframes fadein{to{opacity:1}}
+  .linepath{fill:none;stroke:var(--amber);stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1000;stroke-dashoffset:1000;animation:draw 1.6s ease forwards}
+  .linearea{fill:url(#areaGrad);opacity:0;animation:fadein .9s ease .5s forwards}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  .dot{fill:var(--amber);stroke:var(--bg);stroke-width:2;opacity:0;animation:fadein .4s ease forwards}
+  .dot-val{fill:#fff;font-family:var(--sans);font-size:11.5px;font-weight:700;text-anchor:middle;opacity:0;animation:fadein .4s ease forwards}
+
+  /* unit economics + KPI */
+  .ue{display:grid;grid-template-columns:1fr 1fr;gap:30px;flex:1;align-items:center}
+  .ue-bars{display:flex;align-items:flex-end;justify-content:center;gap:60px;height:300px;padding:0 20px}
+  .ue-col{display:flex;flex-direction:column;align-items:center;gap:14px;height:100%;justify-content:flex-end}
+  .ue-bar{width:120px;border-radius:10px 10px 0 0;display:flex;align-items:flex-start;justify-content:center;padding-top:14px;font-family:var(--display);font-weight:800;font-size:22px;color:#0D1B29;transform-origin:bottom;transform:scaleY(0);animation:growbar 1s cubic-bezier(.2,.8,.2,1) forwards}
+  .ue-bar.cac{background:#5b9bd5;color:#06243d}
+  .ue-bar.ltv{background:var(--amber)}
+  .ue-cap{font-size:14px;font-weight:600;color:var(--ink-soft);text-align:center}
+  .ue-cap small{display:block;color:var(--muted);font-weight:400;font-size:12px;margin-top:2px}
+  .ratio-badge{display:inline-flex;flex-direction:column;align-items:center;padding:24px 30px;border-radius:16px;background:var(--amber-soft);border:1px solid rgba(255,184,0,.35)}
+  .ratio-badge b{font-family:var(--display);font-size:52px;font-weight:800;color:var(--amber);line-height:1}
+  .ratio-badge span{font-size:14px;color:var(--ink-soft);margin-top:6px}
+  .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
+  .kpi b{display:block;font-family:var(--display);font-size:30px;font-weight:800;color:var(--amber);line-height:1}
+  .kpi span{display:block;font-size:13px;color:var(--muted);margin-top:7px;line-height:1.3}
+  .assume{margin-top:14px;font-size:12px;color:var(--muted);text-align:center}
 
   @media print{.nav,.hint,.footer,.progress,.modal-overlay{display:none}.slide{display:flex!important;position:relative;page-break-after:always;height:100vh}[data-anim]{opacity:1!important;animation:none!important}}
 </style>
@@ -310,9 +403,9 @@
   <section class="slide active">
     <div class="logo" data-anim><span class="mark">W</span> Wakanta<span style="opacity:.55">.pl</span></div>
     <div class="title-wrap">
-      <span class="title-tag" data-anim>Prezentacja dla inwestorów i partnerów biznesowych</span>
+      <span class="title-tag" data-anim>Przed startem · badanie rynku · poszukiwanie partnerów i inwestorów</span>
       <h1 data-anim>Rekrutacja w Polsce,<br>napędzana <span class="grad">sztuczną inteligencją</span>.</h1>
-      <p class="lead" data-anim>Dwustronna platforma łącząca <span class="em">job board dla kandydatów</span> i <span class="em">system ATS dla działów HR</span> — z AI w samym sercu procesu rekrutacji.</p>
+      <p class="lead" data-anim>Dwustronna platforma łącząca <span class="em">job board dla kandydatów</span> i <span class="em">system ATS dla działów HR</span> — z AI w samym sercu procesu rekrutacji. <span class="em">Produkt jest gotowy — przed oficjalnym startem szukam partnerów do wspólnego rozwoju lub inwestorów.</span></p>
       <div class="title-meta">
         <div class="m" data-anim><b>2-w-1</b><span>Job board + ATS</span></div>
         <div class="m" data-anim><b>AI-native</b><span>CV parsing & matching</span></div>
@@ -436,7 +529,7 @@
           <div class="dist" data-anim>
             <svg class="dist-svg" viewBox="0 0 560 460" preserveAspectRatio="none" aria-hidden="true">
               <defs><linearGradient id="flowg" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stop-color="#a855f7"/><stop offset="1" stop-color="#22d3ee"/>
+                <stop offset="0" stop-color="#FFB800"/><stop offset="1" stop-color="#FFB800"/>
               </linearGradient></defs>
               <line x1="280" y1="230" x2="280" y2="40"/>
               <line x1="280" y1="230" x2="480" y2="120"/>
@@ -539,7 +632,7 @@
         </div>
         <div class="phase next" data-anim>
           <span class="badge b-next">🔵 NASTĘPNE</span>
-          <div class="ph-h" style="color:#c4b5fd">Faza 3 — Enterprise</div>
+          <div class="ph-h" style="color:#8fc1f0">Faza 3 — Enterprise</div>
           <ul><li><span class="s">•</span>Compliance / RODO ✅</li><li><span class="s">•</span>Role i uprawnienia</li><li><span class="s">•</span>Merge kandydatów</li><li><span class="s">•</span>Rozbudowany audyt</li></ul>
         </div>
         <div class="phase future" data-anim>
@@ -547,6 +640,82 @@
           <div class="ph-h" style="color:#cbd5e1">Faza 4 — Wyróżniki</div>
           <ul><li><span class="s">•</span>Branding stron karier</li><li><span class="s">•</span>Self-scheduling rozmów</li><li><span class="s">•</span>Integracje kalendarzy</li><li><span class="s">•</span>Import/eksport danych</li></ul>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MARKET -->
+  <section class="slide">
+    <div class="kicker" data-anim><span class="dot"></span> Rynek</div>
+    <h2 data-anim>Duży i rosnący rynek <span class="grad">HR-tech w Polsce</span></h2>
+    <div class="body">
+      <div class="market">
+        <div class="funnel">
+          <div class="frow t1" data-anim>
+            <div><div class="lab">TAM</div><div class="desc">Cyfrowa rekrutacja i HR-tech w Polsce</div></div>
+            <div class="val">~2,5 mld zł</div>
+          </div>
+          <div class="frow t2" data-anim>
+            <div><div class="lab">SAM</div><div class="desc">MŚP rekrutujące online — job boardy + ATS SaaS</div></div>
+            <div class="val">~600 mln zł</div>
+          </div>
+          <div class="frow t3" data-anim>
+            <div><div class="lab">SOM</div><div class="desc">Realny cel na 3 lata — AI-ATS dla MŚP</div></div>
+            <div class="val">~30 mln zł</div>
+          </div>
+        </div>
+        <div>
+          <ul class="flist">
+            <li data-anim><span class="chk">✓</span><div><b>2,37 mln aktywnych firm</b> w Polsce, z czego <b>99,8% to MŚP</b> — większość wciąż rekrutuje na mailu i w Excelu. <sup>1</sup></div></li>
+            <li data-anim><span class="chk">✓</span><div><b>Sam lider job boardów</b> (Grupa Pracuj) generuje <b>540 mln zł</b> przychodu rocznie tylko w Polsce. <sup>2</sup></div></li>
+            <li data-anim><span class="chk">✓</span><div><b>77% działów HR</b> używa już narzędzi technologicznych, a rynek wchodzi w fazę inwestycji w AI. <sup>3</sup></div></li>
+          </ul>
+          <div class="market-note" data-anim>Źródła: <sup>1</sup> GUS / PARP, Raport o stanie MŚP 2024–2025 · <sup>2</sup> Grupa Pracuj, wyniki 2024 · <sup>3</sup> Polskie Forum HR, „HR Tech Changer 2025". TAM/SAM/SOM — szacunki własne na bazie tych danych.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPETITION -->
+  <section class="slide">
+    <div class="kicker" data-anim><span class="dot"></span> Konkurencja</div>
+    <h2 data-anim>Dlaczego <span class="grad">Wakanta wygrywa</span></h2>
+    <div class="body">
+      <table class="vstab">
+        <thead>
+          <tr data-anim>
+            <th>Cecha</th>
+            <th class="col-us">Wakanta</th>
+            <th>Portale pracy<br><span style="font-weight:400;text-transform:none;font-size:11px">(Pracuj, OLX)</span></th>
+            <th>ATS-y<br><span style="font-weight:400;text-transform:none;font-size:11px">(eRecruiter, Traffit)</span></th>
+            <th>Arkusze<br><span style="font-weight:400;text-transform:none;font-size:11px">+ mail</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="us" data-anim><td>Job board + ATS w jednym</td><td class="yes">✓</td><td class="no">tylko board</td><td class="no">tylko ATS</td><td class="no">✕</td></tr>
+          <tr class="us" data-anim><td>AI: parsing CV + matching</td><td class="yes">✓</td><td class="no">✕</td><td>częściowo</td><td class="no">✕</td></tr>
+          <tr class="us" data-anim><td>Dostępne cenowo dla MŚP</td><td class="yes">✓</td><td>drogie ogł.</td><td class="no">enterprise</td><td class="yes">tanie</td></tr>
+          <tr class="us" data-anim><td>Pod polski rynek (UDT/SEP/PWZ)</td><td class="yes">✓</td><td class="no">✕</td><td class="no">✕</td><td class="no">✕</td></tr>
+          <tr class="us" data-anim><td>RODO + EU AI Act od podstaw</td><td class="yes">✓</td><td>częściowo</td><td>częściowo</td><td class="no">✕</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- STATUS / STAGE -->
+  <section class="slide">
+    <div class="kicker" data-anim><span class="dot"></span> Na jakim jesteśmy etapie</div>
+    <h2 data-anim>Produkt gotowy, <span class="grad">przed oficjalnym startem</span></h2>
+    <p class="lead" data-anim style="margin-top:8px">Mówię wprost: projekt jeszcze nie wystartował komercyjnie. Platforma jest w pełni zbudowana, a ja jestem na etapie <b style="color:#fff">badania rynku</b> — sprawdzam, czy są partnerzy chętni rozwijać go ze mną lub inwestorzy gotowi w niego wejść.</p>
+    <div class="body">
+      <div class="grid g3" style="grid-auto-rows:1fr">
+        <div class="card" data-anim><div class="ico">✅</div><h3>Co już jest</h3><p>W pełni działający produkt — ATS, AI matching i job board. Nie makieta, lecz gotowa aplikacja z RODO i EU AI Act od podstaw.</p></div>
+        <div class="card" data-anim><div class="ico">🔍</div><h3>Gdzie jestem teraz</h3><p>Badanie rynku i walidacja. Pierwsze firmy w pilotażu i kandydaci — <b style="color:#fff">w trakcie pozyskiwania</b>. Jeszcze bez przychodów — to świadomy, wczesny etap.</p></div>
+        <div class="card" data-anim><div class="ico">🎯</div><h3>Czego szukam</h3><p>Partnera do wspólnego rozwoju <i>albo</i> inwestora. Sprawdzam zainteresowanie i ustalam, na jakich warunkach ruszamy.</p></div>
+      </div>
+      <div class="card" data-anim style="margin-top:20px;flex-direction:row;align-items:center;gap:18px;background:var(--amber-soft);border-color:rgba(255,184,0,.3)">
+        <div class="ico" style="flex:none">🚀</div>
+        <p style="font-size:16px;color:#c7d0ea"><b style="color:#fff">Dlaczego to dobry moment dla Ciebie:</b> wchodzisz na samym początku, z gotowym produktem i bez ryzyka „czy uda się zbudować" — to ryzyko jest już za nami. Zostaje wspólne wyjście na rynek.</p>
       </div>
     </div>
   </section>
@@ -564,10 +733,10 @@
           </div>
         </div>
         <div class="bars">
-          <div class="bar-row" data-anim><span class="lab">Gotowość produktu</span><div class="bar-track"><div class="bar-fill" data-w="80" style="background:linear-gradient(90deg,#a855f7,#7c3aed)">MVP+</div></div></div>
-          <div class="bar-row" data-anim><span class="lab">Pokrycie AI</span><div class="bar-track"><div class="bar-fill" data-w="90" style="background:linear-gradient(90deg,#7c3aed,#06b6d4)">Core procesu</div></div></div>
-          <div class="bar-row" data-anim><span class="lab">Compliance</span><div class="bar-track"><div class="bar-fill" data-w="85" style="background:linear-gradient(90deg,#06b6d4,#22d3ee)">RODO + AI Act</div></div></div>
-          <div class="bar-row" data-anim><span class="lab">Skalowalność</span><div class="bar-track"><div class="bar-fill" data-w="88" style="background:linear-gradient(90deg,#ec4899,#a855f7)">Modułowa</div></div></div>
+          <div class="bar-row" data-anim><span class="lab">Gotowość produktu</span><div class="bar-track"><div class="bar-fill" data-w="80" style="background:var(--amber)">MVP+</div></div></div>
+          <div class="bar-row" data-anim><span class="lab">Pokrycie AI</span><div class="bar-track"><div class="bar-fill" data-w="90" style="background:var(--amber)">Core procesu</div></div></div>
+          <div class="bar-row" data-anim><span class="lab">Compliance</span><div class="bar-track"><div class="bar-fill" data-w="85" style="background:var(--amber)">RODO + AI Act</div></div></div>
+          <div class="bar-row" data-anim><span class="lab">Skalowalność</span><div class="bar-track"><div class="bar-fill" data-w="88" style="background:var(--amber)">Modułowa</div></div></div>
         </div>
       </div>
     </div>
@@ -579,51 +748,235 @@
     <h2 data-anim>Jak Wakanta <span class="grad">zarabia</span></h2>
     <div class="body">
       <div class="streams">
-        <div class="card" data-anim><div class="ico">🔁</div><h3>Subskrypcja ATS</h3><p>Rdzeń przychodu — stały, przewidywalny <b style="color:#fff">MRR</b> za panel HR w pakietach abonamentowych.</p></div>
+        <div class="card" data-anim><div class="ico">🔁</div><h3>Subskrypcja ATS</h3><p>Rdzeń przychodu — stały <b style="color:#fff">MRR</b> za panel HR. Darmowo na czas rozwoju (do 2026), płatne plany od 2027.</p></div>
         <div class="card" data-anim><div class="ico">⭐</div><h3>Promowane oferty <span class="mtag">WYSOKA MARŻA</span></h3><p>Dopłata za wyróżnienie ogłoszenia na liście i w newsletterze — niemal czysty zysk.</p></div>
         <div class="card" data-anim><div class="ico">🚀</div><h3>Multi-distribution <span class="mtag">MARŻA</span></h3><p>Publikacja na wiele portali jednym kliknięciem — markup na pakietach lub opłata za dystrybucję.</p></div>
         <div class="card" data-anim><div class="ico">🤖</div><h3>Kredyty AI</h3><p>Parsowanie CV i matching ponad limit pakietu — model pay-as-you-go z marżą nad kosztem API.</p></div>
       </div>
+      <div class="ea-banner" data-anim>
+        <div class="ea-ico">🎁</div>
+        <div><b>Early access:</b> do <b>10 ofert za darmo</b> przez cały okres rozwoju — <b>bezpłatnie do końca 2026 roku</b>. Pierwsi klienci budują platformę razem ze mną, w zamian za darmowy dostęp i wpływ na produkt.</div>
+        <div class="ea-tag">0 zł do 2026</div>
+      </div>
       <div class="tiers">
-        <div class="tier" data-anim>
-          <div class="pname">Free</div>
-          <div class="price">0 zł</div><div class="per">na start / do testów</div>
-          <ul><li>1 aktywna oferta</li><li>Podstawowy pipeline</li><li>Job board publiczny</li></ul>
+        <div class="tier ea" data-anim>
+          <div class="pname">Early access</div>
+          <div class="price">0 zł</div><div class="per">do końca 2026</div>
+          <ul><li>Do 10 aktywnych ofert</li><li>Pełny pipeline + AI matching</li><li>Parsowanie CV</li><li>Job board publiczny</li></ul>
+          <span class="freebadge">DOSTĘPNE TERAZ</span>
         </div>
         <div class="tier" data-anim>
           <div class="pname">Start</div>
-          <div class="price">od 299 zł</div><div class="per">miesięcznie</div>
-          <ul><li>Do 5 ofert</li><li>Parsowanie CV</li><li>1–2 użytkowników</li></ul>
+          <div class="price">od 299 zł</div><div class="per">miesięcznie · od 2027</div>
+          <ul><li>Do 10 ofert</li><li>Parsowanie CV</li><li>1–2 użytkowników</li></ul>
         </div>
-        <div class="tier pop" data-anim>
+        <div class="tier" data-anim>
           <div class="pname">Pro</div>
-          <div class="price">od 899 zł</div><div class="per">miesięcznie</div>
+          <div class="price">od 899 zł</div><div class="per">miesięcznie · od 2027</div>
           <ul><li>Bez limitu ofert</li><li>AI matching + scorecards</li><li>Multi-distribution</li><li>Zespół + automatyzacje</li></ul>
         </div>
         <div class="tier" data-anim>
           <div class="pname">Agencja</div>
-          <div class="price">indywidualnie</div><div class="per">enterprise</div>
+          <div class="price">indywidualnie</div><div class="per">enterprise · od 2027</div>
           <ul><li>Multi-klient</li><li>Role, audyt, SLA</li><li>Dostęp API</li></ul>
         </div>
       </div>
-      <div class="model-note" data-anim>Ceny przykładowe, do walidacji z rynkiem • Kandydat zawsze za darmo — napędza efekt sieciowy</div>
+      <div class="model-note" data-anim>Strategia: darmowy dostęp na czas rozwoju (do 2026) buduje bazę klientów i referencje → płatne plany od 2027 • Ceny przykładowe, do walidacji • Kandydat zawsze za darmo — napędza efekt sieciowy</div>
+    </div>
+  </section>
+
+  <!-- FINANCIAL PROJECTION -->
+  <section class="slide">
+    <div class="kicker" data-anim><span class="dot"></span> Projekcja finansowa</div>
+    <h2 data-anim>Ścieżka do <span class="grad">powtarzalnego przychodu</span></h2>
+    <div class="body">
+      <div class="charts">
+        <!-- ARR bars -->
+        <div class="chart-card" data-anim>
+          <div class="ch-h">
+            <div><h3>Prognoza ARR</h3><div class="ch-sub">roczny przychód powtarzalny (tys. zł)</div></div>
+            <div class="ch-kpi">→ 2,4 mln zł</div>
+          </div>
+          <div class="chart-wrap">
+            <svg viewBox="0 0 520 260" preserveAspectRatio="none" aria-hidden="true">
+              <!-- gridlines -->
+              <line class="gridline" x1="56" y1="30" x2="510" y2="30"/>
+              <line class="gridline" x1="56" y1="90" x2="510" y2="90"/>
+              <line class="gridline" x1="56" y1="150" x2="510" y2="150"/>
+              <line class="axis" x1="56" y1="210" x2="510" y2="210"/>
+              <!-- y labels -->
+              <text class="ylab" x="48" y="34">2,4M</text>
+              <text class="ylab" x="48" y="154">600k</text>
+              <text class="ylab" x="48" y="214">0</text>
+              <!-- bars: 2026=0 (free), 2027=300k, 2028=900k, 2029=2400k → heights of 180px max -->
+              <rect class="barv" x="80"  y="206" width="62" height="4"   style="animation-delay:.1s"/>
+              <text class="barlbl" x="111" y="198" style="animation-delay:.7s">0</text>
+              <rect class="barv" x="190" y="188" width="62" height="22"  style="animation-delay:.25s"/>
+              <text class="barlbl" x="221" y="180" style="animation-delay:.85s">~0,3M</text>
+              <rect class="barv" x="300" y="143" width="62" height="67"  style="animation-delay:.4s"/>
+              <text class="barlbl" x="331" y="135" style="animation-delay:1s">~0,9M</text>
+              <rect class="barv" x="410" y="30"  width="62" height="180" style="animation-delay:.55s"/>
+              <text class="barlbl" x="441" y="22" style="animation-delay:1.15s">~2,4M</text>
+              <!-- x labels -->
+              <text class="xlab" x="111" y="230">2026</text>
+              <text class="xlab" x="221" y="230">2027</text>
+              <text class="xlab" x="331" y="230">2028</text>
+              <text class="xlab" x="441" y="230">2029</text>
+            </svg>
+          </div>
+        </div>
+        <!-- customers line -->
+        <div class="chart-card" data-anim>
+          <div class="ch-h">
+            <div><h3>Liczba klientów</h3><div class="ch-sub">płacące firmy (skumulowane)</div></div>
+            <div class="ch-kpi">→ ~600</div>
+          </div>
+          <div class="chart-wrap">
+            <svg viewBox="0 0 460 260" preserveAspectRatio="none" aria-hidden="true">
+              <defs><linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#FFB800" stop-opacity=".35"/>
+                <stop offset="1" stop-color="#FFB800" stop-opacity="0"/>
+              </linearGradient></defs>
+              <line class="axis" x1="40" y1="210" x2="450" y2="210"/>
+              <!-- points: 2026 ~10 (pilot), 2027 ~80, 2028 ~250, 2029 ~600 -->
+              <path class="linearea" d="M55,205 L185,188 L315,150 L445,55 L445,210 L55,210 Z"/>
+              <path class="linepath" d="M55,205 L185,188 L315,150 L445,55"/>
+              <circle class="dot" cx="55"  cy="205" r="5" style="animation-delay:1.2s"/>
+              <circle class="dot" cx="185" cy="188" r="5" style="animation-delay:1.4s"/>
+              <circle class="dot" cx="315" cy="150" r="5" style="animation-delay:1.6s"/>
+              <circle class="dot" cx="445" cy="55"  r="6" style="animation-delay:1.8s"/>
+              <text class="dot-val" x="55"  y="196" style="animation-delay:1.3s">~10</text>
+              <text class="dot-val" x="185" y="179" style="animation-delay:1.5s">~80</text>
+              <text class="dot-val" x="315" y="141" style="animation-delay:1.7s">~250</text>
+              <text class="dot-val" x="430" y="46" style="animation-delay:1.9s">~600</text>
+              <text class="xlab" x="55"  y="230">2026</text>
+              <text class="xlab" x="185" y="230">2027</text>
+              <text class="xlab" x="315" y="230">2028</text>
+              <text class="xlab" x="445" y="230">2029</text>
+            </svg>
+          </div>
+        </div>
+      </div>
+      <div class="assume" data-anim>⚠️ Projekcja ilustracyjna — założenia: free do końca 2026 → monetyzacja od 2027, śr. przychód ~150 zł/firma/mc rosnący z miksem pakietów. Do walidacji po pierwszych klientach.</div>
+    </div>
+  </section>
+
+  <!-- UNIT ECONOMICS -->
+  <section class="slide">
+    <div class="kicker" data-anim><span class="dot"></span> Ekonomia jednostkowa</div>
+    <h2 data-anim>Model, który <span class="grad">się spina</span></h2>
+    <div class="body">
+      <div class="ue">
+        <div>
+          <div class="ue-bars">
+            <div class="ue-col">
+              <div class="ue-bar cac" style="height:70px;animation-delay:.2s">~400 zł</div>
+              <div class="ue-cap">CAC<small>koszt pozyskania klienta</small></div>
+            </div>
+            <div class="ue-col">
+              <div class="ue-bar ltv" style="height:250px;animation-delay:.35s">~3 600 zł</div>
+              <div class="ue-cap">LTV<small>wartość życiowa klienta</small></div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:22px">
+          <div style="display:flex;align-items:center;gap:20px">
+            <div class="ratio-badge" data-anim><b>9×</b><span>LTV / CAC</span></div>
+            <p style="font-size:16px;color:var(--ink-soft)" data-anim>Zdrowy SaaS celuje w <b style="color:#fff">LTV/CAC &gt; 3×</b>. Niski koszt pozyskania (job board + SEO) i wysoka retencja B2B dają mocną ekonomię jednostkową.</p>
+          </div>
+          <div class="kpi-grid">
+            <div class="kpi" data-anim><b>~85%</b><span>marża SaaS (software, wysoka skalowalność)</span></div>
+            <div class="kpi" data-anim><b>&lt; 12 mies.</b><span>zwrot kosztu pozyskania klienta</span></div>
+            <div class="kpi" data-anim><b>~24 mies.</b><span>śr. czas życia klienta B2B</span></div>
+            <div class="kpi" data-anim><b>2 źródła</b><span>przychód + dopalacze marży (promowane, AI)</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="assume" data-anim>⚠️ Wartości docelowe / benchmarki — do potwierdzenia danymi z pierwszych kohort klientów.</div>
+    </div>
+  </section>
+
+  <!-- TEAM -->
+  <section class="slide">
+    <div class="kicker" data-anim><span class="dot"></span> Zespół</div>
+    <h2 data-anim>Kto stoi za <span class="grad">Wakantą</span></h2>
+    <p class="lead" data-anim style="margin-top:8px">Łączymy kompetencje technologiczne z rozumieniem rynku rekrutacji w Polsce.</p>
+    <div class="body">
+      <div class="team">
+        <div class="member card" data-anim>
+          <div class="avatar">👨‍💻</div>
+          <h3>Aleh Zahorski</h3>
+          <p style="color:var(--amber);font-weight:700;font-size:14px">Founder, WEBuilding · Product &amp; Tech</p>
+          <p>8 lat doświadczenia jako inżynier oprogramowania. Wykształcenie: inżynier baz danych oraz magister zarządzania procesami i projektami. Twórca całej platformy — backend, frontend i integracja AI.</p>
+        </div>
+        <div class="member card" data-anim>
+          <div class="avatar">➕</div>
+          <h3 class="ph">Do pozyskania</h3>
+          <p style="color:var(--amber);font-weight:700;font-size:14px">Sprzedaż / Rozwój biznesu</p>
+          <p class="ph">Rola do obsadzenia po rundzie — sprzedaż B2B, relacje z agencjami HR.</p>
+        </div>
+        <div class="member card" data-anim>
+          <div class="avatar">🤝</div>
+          <h3 class="ph">Partner / Doradca</h3>
+          <p style="color:var(--amber);font-weight:700;font-size:14px">Branża HR / inwestor</p>
+          <p class="ph">Miejsce dla partnera, którego szukasz — wiedza branżowa, dostęp do rynku, kapitał.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GO-TO-MARKET -->
+  <section class="slide">
+    <div class="kicker" data-anim><span class="dot"></span> Strategia wejścia</div>
+    <h2 data-anim>Jak zdobędziemy <span class="grad">pierwszych klientów</span></h2>
+    <div class="body">
+      <div class="gtm">
+        <div class="step" data-anim><div class="stepnum">1</div><h3>Darmowe pilotaże</h3><p>Pierwsze firmy za feedback i case study — budujemy dowód społeczny i referencje.</p></div>
+        <div class="step" data-anim><div class="stepnum">2</div><h3>Content &amp; SEO</h3><p>Poradnik i job board przyciągają kandydatów oraz ruch organiczny — niski koszt pozyskania.</p></div>
+        <div class="step" data-anim><div class="stepnum">3</div><h3>Sprzedaż B2B</h3><p>Bezpośrednie dotarcie do MŚP i agencji HR z konkretną wartością: szybsza, tańsza rekrutacja z AI.</p></div>
+        <div class="step" data-anim><div class="stepnum">4</div><h3>Efekt sieciowy</h3><p>Multi-distribution i rosnąca baza kandydatów napędzają kolejnych pracodawców — wzrost się samonapędza.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- USE OF FUNDS -->
+  <section class="slide">
+    <div class="kicker" data-anim><span class="dot"></span> Wykorzystanie środków</div>
+    <h2 data-anim>Pozyskujemy <span class="grad">1,2 mln zł</span> na 18 miesięcy</h2>
+    <div class="body">
+      <div class="funds">
+        <div class="fbars">
+          <div class="fbar-row" data-anim><div class="ftop"><b>Sprzedaż i marketing</b><span class="pct">35% · 420 tys. zł</span></div><div class="fbar-track"><div class="fbar-fill" data-w="35" style="background:var(--amber)"></div></div></div>
+          <div class="fbar-row" data-anim><div class="ftop"><b>Produkt i technologia</b><span class="pct">30% · 360 tys. zł</span></div><div class="fbar-track"><div class="fbar-fill" data-w="30" style="background:rgba(255,184,0,.75)"></div></div></div>
+          <div class="fbar-row" data-anim><div class="ftop"><b>Zespół</b><span class="pct">25% · 300 tys. zł</span></div><div class="fbar-track"><div class="fbar-fill" data-w="25" style="background:rgba(255,184,0,.55)"></div></div></div>
+          <div class="fbar-row" data-anim><div class="ftop"><b>Operacje i rezerwa</b><span class="pct">10% · 120 tys. zł</span></div><div class="fbar-track"><div class="fbar-fill" data-w="10" style="background:rgba(255,184,0,.35)"></div></div></div>
+        </div>
+        <div>
+          <ul class="flist">
+            <li data-anim><span class="chk">✓</span><div><b>Pierwsi płacący klienci</b> — zespół sprzedaży + marketing do MŚP i agencji HR.</div></li>
+            <li data-anim><span class="chk">✓</span><div><b>Dokończenie roadmapy</b> — Faza 2 i 3: multi-distribution, raporty, role.</div></li>
+            <li data-anim><span class="chk">✓</span><div><b>Cel rundy:</b> dojście do powtarzalnego przychodu (MRR) i gotowości na rundę seed.</div></li>
+          </ul>
+          <div class="market-note" data-anim>Kwota i podział orientacyjne — do ustalenia z inwestorem zależnie od tempa i celów wzrostu.</div>
+        </div>
+      </div>
     </div>
   </section>
 
   <!-- 13 — ASK -->
   <section class="slide">
-    <div class="kicker" data-anim><span class="dot"></span> Czego szukamy</div>
-    <h2 data-anim>Szukamy partnera do <span class="grad">skalowania Wakanty</span></h2>
-    <p class="lead" data-anim style="margin-top:8px">Produkt działa i ma solidny fundament. Z właściwym partnerem przyspieszymy rozwój, sprzedaż i wejście na rynek.</p>
+    <div class="kicker" data-anim><span class="dot"></span> Czego szukam</div>
+    <h2 data-anim>Partner do rozwoju <span class="grad">albo</span> inwestor</h2>
+    <p class="lead" data-anim style="margin-top:8px">Badam rynek, zanim ruszę na pełną skalę. Otwarte są dwie ścieżki — wybierzmy razem tę, która ma sens.</p>
     <div class="body">
-      <div class="avail" data-anim><span class="d"></span> Serwis jest w <b>fazie demo</b> — dostępny i gotowy do prezentacji oraz przetestowania na żywo.</div>
+      <div class="avail" data-anim><span class="d"></span> Produkt jest <b>gotowy i przed startem</b> — dostępny do prezentacji oraz przetestowania na żywo.</div>
       <div class="ask">
-        <div class="card" data-anim><div class="ico">💰</div><h3>Kapitał</h3><p>Finansowanie rozwoju Fazy 2 i 3 oraz budowy zespołu produktowo-sprzedażowego.</p></div>
-        <div class="card" data-anim><div class="ico">🤝</div><h3>Partnerstwo</h3><p>Dostęp do rynku, klientów HR i agencji rekrutacyjnych oraz wiedzy branżowej.</p></div>
-        <div class="card" data-anim><div class="ico">🚀</div><h3>Skalowanie</h3><p>Wspólne dokończenie roadmapy i komercjalizacja w modelu SaaS B2B.</p></div>
+        <div class="card" data-anim><div class="ico">🤝</div><h3>Partner do rozwoju</h3><p>Wspólnik, który wniesie wiedzę branżową, dostęp do klientów HR / agencji i zaangażowanie — i będzie rozwijał Wakantę razem ze mną.</p></div>
+        <div class="card" data-anim><div class="ico">💰</div><h3>Inwestor</h3><p>Kapitał na wejście na rynek, sprzedaż i dokończenie roadmapy. Kwota i warunki — do ustalenia, w zależności od ambicji.</p></div>
+        <div class="card" data-anim><div class="ico">🔍</div><h3>Walidacja zainteresowania</h3><p>Jeśli to jeszcze nie ten moment — chętnie poznam Twoją opinię o produkcie i rynku. Też jest dla mnie cenna.</p></div>
       </div>
       <div class="cta-row" data-anim>
-        <a class="cta-btn" data-open-modal style="cursor:pointer">Porozmawiajmy o współpracy →</a>
+        <a class="cta-btn" data-open-modal style="cursor:pointer">Porozmawiajmy →</a>
         <div class="contact">Lub napisz wprost: <b>kontakt@wakanta.pl</b> &nbsp;•&nbsp; <b>wakanta.pl</b></div>
       </div>
     </div>
@@ -637,8 +990,8 @@
     <button class="x" id="modalClose" aria-label="Zamknij">✕</button>
     <div id="modalForm">
       <h3 id="modalTitle">Porozmawiajmy o <span class="grad">współpracy</span></h3>
-      <p class="sub">Szukam partnerów i inwestorów do rozwoju Wakanty. Napisz kilka słów o sobie i o tym, co Cię interesuje — odezwę się osobiście.</p>
-      <div class="demo-banner"><span class="d"></span><p><b>Demo gotowe do testów.</b> Platforma jest w fazie demo i mogę ją zaprezentować na żywo oraz udostępnić do samodzielnego przetestowania.</p></div>
+      <p class="sub">Projekt jest przed startem — badam rynek i szukam partnera do wspólnego rozwoju lub inwestora. Napisz kilka słów o sobie i o tym, co Cię interesuje — odezwę się osobiście.</p>
+      <div class="demo-banner"><span class="d"></span><p><b>Produkt gotowy do testów.</b> Mogę zaprezentować Wakantę na żywo oraz udostępnić ją do samodzielnego przetestowania.</p></div>
       <form id="leadForm">
         <div class="row2">
           <div class="field"><label for="f-name">Imię i nazwisko *</label><input id="f-name" name="name" required placeholder="Jan Kowalski"></div>
@@ -687,7 +1040,13 @@
     });
   }
   function runBars(slide){
-    slide.querySelectorAll('.bar-fill[data-w]').forEach(b=>{b.style.width='0';requestAnimationFrame(()=>requestAnimationFrame(()=>b.style.width=b.dataset.w+'%'))});
+    slide.querySelectorAll('.bar-fill[data-w],.fbar-fill[data-w]').forEach(b=>{b.style.width='0';requestAnimationFrame(()=>requestAnimationFrame(()=>b.style.width=b.dataset.w+'%'))});
+  }
+  function runCharts(slide){
+    // Re-trigger SVG/chart entry animations each time the slide is shown.
+    slide.querySelectorAll('.barv,.barlbl,.linepath,.linearea,.dot,.dot-val,.ue-bar').forEach(el=>{
+      const a=el.style.animation;el.style.animation='none';void el.getBoundingClientRect();el.style.animation=a||'';
+    });
   }
   function go(n){
     i=Math.max(0,Math.min(slides.length-1,n));
@@ -696,7 +1055,7 @@
     cur.textContent=i+1;prog.style.width=((i+1)/slides.length*100)+'%';
     const s=slides[i];
     void s.offsetWidth; s.classList.add('run');
-    animateChildren(s); runCounters(s); runBars(s);
+    animateChildren(s); runCounters(s); runBars(s); runCharts(s);
   }
   document.getElementById('next').onclick=()=>go(i+1);
   document.getElementById('prev').onclick=()=>go(i-1);

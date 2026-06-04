@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+# Which deck a token unlocks.
+DeckKind = Literal["investor", "partner"]
 
 # ─────────────────────────────────────────────────────────────────────
 # Admin-side payloads
@@ -16,6 +19,7 @@ class PartnerTokenCreate(BaseModel):
     string itself is generated server-side so it's always high-entropy."""
 
     label: str = Field(min_length=1, max_length=160)
+    deck: DeckKind = "investor"
     note: str | None = Field(default=None, max_length=2000)
     expires_at: datetime | None = None
     max_views: int | None = Field(default=None, ge=1, le=100000)
@@ -25,6 +29,7 @@ class PartnerTokenUpdate(BaseModel):
     """Partial update — revoke (is_active=false), rename, extend expiry, etc."""
 
     label: str | None = Field(default=None, min_length=1, max_length=160)
+    deck: DeckKind | None = None
     note: str | None = Field(default=None, max_length=2000)
     is_active: bool | None = None
     expires_at: datetime | None = None
@@ -36,6 +41,7 @@ class PartnerTokenRead(BaseModel):
 
     id: uuid.UUID
     label: str
+    deck: str
     token: str
     note: str | None
     is_active: bool

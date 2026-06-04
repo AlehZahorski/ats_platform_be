@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.base_service import BaseService
 from app.core.exceptions import ConflictError, NotFoundError, UnprocessableError
 from app.core.i18n import t
+from app.core.ownership import ensure_application_in_company
 from app.modules.audit.service import AuditService
 from app.modules.pipeline.models import ApplicationStageHistory, PipelineStage
 from app.modules.pipeline.repository import PipelineRepository
@@ -25,6 +26,7 @@ class StageChangeContext:
     job_title: str
     stage_name: str
     interview: Any | None
+    tracking_token: str
 
 
 class PipelineService(BaseService[PipelineRepository]):
@@ -123,7 +125,11 @@ class PipelineService(BaseService[PipelineRepository]):
             job_title=job.title if job else "position",
             stage_name=stage.name,
             interview=interview,
+            tracking_token=application.public_token,
         )
 
-    async def get_history(self, application_id: uuid.UUID) -> list[ApplicationStageHistory]:
+    async def get_history(
+        self, application_id: uuid.UUID, company_id: uuid.UUID
+    ) -> list[ApplicationStageHistory]:
+        await ensure_application_in_company(self.db, application_id, company_id)
         return await self.repository.get_history(application_id)

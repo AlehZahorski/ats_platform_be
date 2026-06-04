@@ -9,6 +9,7 @@
   "errors.duplicate_candidate": "Duplicate candidate detected.",
 
   "auth.credentials_invalid": "Could not validate credentials",
+  "auth.oauth_state_invalid": "Invalid or missing OAuth state",
   "auth.email_not_verified_dep": "Email address not verified",
   "auth.company_not_found": "Company not found",
   "auth.role_not_permitted": "Role '{role}' is not permitted for this action",

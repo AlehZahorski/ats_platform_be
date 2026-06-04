@@ -160,6 +160,17 @@ class CandidateScore(BaseModel):
             "culture_fit IS NULL OR (culture_fit BETWEEN 1 AND 5)",
             name="ck_candidate_scores_culture_fit",
         ),
+        # One score per (application, recruiter). PARTIAL on recruiter_id IS NOT
+        # NULL so that ON DELETE SET NULL (when a recruiter leaves) doesn't make
+        # two orphaned NULL rows collide — a plain UNIQUE with NULLS NOT DISTINCT
+        # would break that deletion. Restores the invariant lost from schema.sql.
+        Index(
+            "uq_candidate_scores_application_recruiter",
+            "application_id",
+            "recruiter_id",
+            unique=True,
+            postgresql_where=text("recruiter_id IS NOT NULL"),
+        ),
     )
 
     application_id: Mapped[uuid.UUID] = mapped_column(

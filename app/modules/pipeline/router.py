@@ -92,7 +92,9 @@ async def update_stage(
     )
 
     if data.notify_candidate:
-        tracking_url = f"{settings.frontend_url}/track/{application_id}"
+        # Use the opaque public_token, never the guessable application_id
+        # (the candidate-facing /track route only accepts the token).
+        tracking_url = f"{settings.frontend_url}/track/{ctx.tracking_token}"
         await send_stage_change_notification(
             db=service.db,
             background_tasks=background_tasks,
@@ -116,9 +118,9 @@ async def update_stage(
 @router.get("/applications/{application_id}/history", response_model=list[StageHistoryRead])
 async def get_stage_history(
     application_id: uuid.UUID,
-    _company: CurrentCompany,
+    company: CurrentCompany,
     _user: CurrentUser,
     service: PipelineService = Depends(_get_service),
 ) -> list[StageHistoryRead]:
-    history = await service.get_history(application_id)
+    history = await service.get_history(application_id, company.id)
     return [StageHistoryRead.model_validate(h) for h in history]

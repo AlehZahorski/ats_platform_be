@@ -25,6 +25,11 @@ class PartnerAccessToken(BaseModel):
 
     # Human-readable owner of this token — shown in the admin list.
     label: Mapped[str] = mapped_column(Text, nullable=False)
+    # Which deck this token unlocks: "investor" (pitch deck) or "partner"
+    # (co-founder recruitment deck). The gate serves the matching HTML.
+    deck: Mapped[str] = mapped_column(
+        Text, nullable=False, default="investor", server_default="investor"
+    )
     # The shareable secret the investor types on /prezentacja. Unique so a
     # lookup is unambiguous; indexed for the public verify hot path.
     token: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)

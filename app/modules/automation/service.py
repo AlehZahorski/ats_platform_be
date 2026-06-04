@@ -20,10 +20,25 @@ from app.modules.automation.schemas import (
     AutomationRuleUpdate,
     AutomationTriggerPayload,
 )
+from app.modules.email_templates.repository import EmailTemplateRepository
 
 
 class AutomationService(BaseService[AutomationRepository]):
+    async def _ensure_template_in_company(
+        self, template_id: uuid.UUID | None, company_id: uuid.UUID
+    ) -> None:
+        # Tenant isolation: a rule may only reference an email template owned by
+        # the same company. None means "no template" — nothing to check.
+        if template_id is None:
+            return
+        template = await EmailTemplateRepository(self.repository.db).get_by_id_and_company(
+            template_id, company_id
+        )
+        if template is None:
+            raise NotFoundError(t("forms.template_not_found"))
+
     async def create(self, company_id: uuid.UUID, data: AutomationRuleCreate) -> AutomationRule:
+        await self._ensure_template_in_company(data.template_id, company_id)
         return await self.repository.create(company_id, data)
 
     async def list(self, company_id: uuid.UUID) -> list[AutomationRule]:
@@ -39,6 +54,7 @@ class AutomationService(BaseService[AutomationRepository]):
         self, rule_id: uuid.UUID, company_id: uuid.UUID, data: AutomationRuleUpdate
     ) -> AutomationRule:
         rule = await self.get(rule_id, company_id)
+        await self._ensure_template_in_company(data.template_id, company_id)
         return await self.repository.update(rule, data)
 
     async def delete(self, rule_id: uuid.UUID, company_id: uuid.UUID) -> None:

@@ -39,7 +39,7 @@ class Task(BaseModel):
     title: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     type: Mapped[str | None] = mapped_column(Text)
-    # type: follow_up | reminder | review | call
+    # task type values: follow_up | reminder | review | call
     due_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

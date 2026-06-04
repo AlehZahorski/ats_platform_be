@@ -1,8 +1,15 @@
 # Dev / test-only dependencies. Loaded on top of requirements.txt.
 # Split out by audit_dependencies F-19 so production images do not ship a
-# test runner or an in-memory SQLite driver.
+# test runner or test-only drivers.
 
-# Tests
+# Tests — run against a real PostgreSQL 16 (testcontainers fallback for local
+# dev; CI points TEST_DATABASE_URL at a postgres service container). The old
+# in-memory SQLite path (aiosqlite + a JSONB compile shim) was removed in
+# Faza 0 — see docs/adr/0001-testcontainers-and-blocking-ci.md.
 pytest==8.3.5
 pytest-asyncio==0.26.0
-aiosqlite==0.20.0      # async SQLite for unit tests
+testcontainers[postgres]>=4.8,<5
+
+# Lint / type gates (enforced in CI — see .github/workflows/ci.yml)
+ruff>=0.6,<1.0
+mypy>=1.11,<2

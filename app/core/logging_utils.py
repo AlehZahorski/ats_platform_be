@@ -18,6 +18,7 @@ stack (structlog / OTel / Sentry) later without breaking call sites.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import re
 import uuid
@@ -85,10 +86,9 @@ class PiiRedactionFilter(logging.Filter):
         if isinstance(record.msg, str):
             record.msg = _redact(record.msg)
         if record.args:
-            try:
+            # never let logging crash callers
+            with contextlib.suppress(Exception):
                 record.args = tuple(_redact(a) if isinstance(a, str) else a for a in record.args)
-            except Exception:  # noqa: BLE001 — never let logging crash callers
-                pass
         for field in self._STRING_EXTRA_FIELDS:
             value = getattr(record, field, None)
             if isinstance(value, str):

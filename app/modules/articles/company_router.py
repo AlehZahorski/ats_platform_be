@@ -145,9 +145,12 @@ async def update_company_article(
     # Never let the owner promote themselves into the featured slot.
     payload.pop("is_featured", None)
 
-    if "slug" in payload and payload["slug"] != article.slug:
-        if await _slug_taken(db, payload["slug"], exclude_id=article.id):
-            raise ConflictError("Artykuł o tym adresie URL już istnieje.")
+    if (
+        "slug" in payload
+        and payload["slug"] != article.slug
+        and await _slug_taken(db, payload["slug"], exclude_id=article.id)
+    ):
+        raise ConflictError("Artykuł o tym adresie URL już istnieje.")
 
     if (
         payload.get("is_published") is True

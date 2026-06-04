@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import uuid
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +20,8 @@ from app.modules.automation.schemas import (
     AutomationTriggerPayload,
 )
 from app.modules.email_templates.repository import EmailTemplateRepository
+from app.modules.email_templates.service import EmailTemplateService
+from app.services.mailer import _send_smtp
 
 
 class AutomationService(BaseService[AutomationRepository]):
@@ -72,65 +73,46 @@ class AutomationService(BaseService[AutomationRepository]):
         payload: AutomationTriggerPayload,
         background_tasks: BackgroundTasks,
         candidate_email: str,
-    ) -> None:
+    ) -> bool:
+        """Fire matching automation rules. Returns True if at least one rule
+        with a template was scheduled (so the caller can skip a default
+        notification and avoid double-sending)."""
         rules = await self.repository.get_matching_rules(
             company_id=payload.company_id,
             trigger_type=payload.trigger_type,
             trigger_value=payload.trigger_value,
         )
+        if not rules:
+            return False
+
+        template_svc = EmailTemplateService(EmailTemplateRepository(self.repository.db))
+        fired = False
         for rule in rules:
-            if rule.template:
-                background_tasks.add_task(
-                    self._execute_rule,
-                    rule=rule,
+            if not rule.template:
+                continue
+            # Render now; defer ONLY the email I/O to the background. The
+            # email_sent event + automation audit are recorded transactionally
+            # with the request (so they're testable and roll back together with
+            # the request) instead of in a detached background session.
+            subject, body = await template_svc.render_for_send(rule.template, payload.variables)
+            background_tasks.add_task(_send_smtp, candidate_email, subject, body)
+            self.repository.db.add(
+                ApplicationEvent(
                     application_id=payload.application_id,
                     company_id=payload.company_id,
-                    candidate_email=candidate_email,
-                    variables=payload.variables,
+                    event_type="email_sent",
+                    event_value=rule.template.name,
+                    metadata_={"rule_id": str(rule.id), "template_id": str(rule.template_id)},
                 )
-
-    @staticmethod
-    async def _execute_rule(
-        rule: AutomationRule,
-        application_id: uuid.UUID,
-        company_id: uuid.UUID,
-        candidate_email: str,
-        variables: dict[str, Any],
-    ) -> None:
-        from app.core.database import AsyncSessionLocal
-        from app.modules.email_templates.service import EmailTemplateService
-        from app.services.mailer import _send_smtp
-
-        async with AsyncSessionLocal() as db:
-            try:
-                from app.modules.email_templates.repository import EmailTemplateRepository
-
-                template_svc = EmailTemplateService(EmailTemplateRepository(db))
-                subject, body = await template_svc.render_for_send(rule.template, variables)
-
-                _send_smtp(candidate_email, subject, body)
-
-                db.add(
-                    ApplicationEvent(
-                        application_id=application_id,
-                        company_id=company_id,
-                        event_type="email_sent",
-                        event_value=rule.template.name,
-                        metadata_={"rule_id": str(rule.id), "template_id": str(rule.template_id)},
-                    )
+            )
+            self.repository.db.add(
+                AuditLog(
+                    company_id=payload.company_id,
+                    action="automation_triggered",
+                    entity_type="application",
+                    entity_id=payload.application_id,
+                    metadata_={"rule_name": rule.name},
                 )
-                db.add(
-                    AuditLog(
-                        company_id=company_id,
-                        action="automation_triggered",
-                        entity_type="application",
-                        entity_id=application_id,
-                        metadata_={"rule_name": rule.name},
-                    )
-                )
-                await db.commit()
-            except Exception:
-                # audit_logging_monitoring F-09: was `print(...)` — bypassed
-                # log levels, no stacktrace, no observability hook.
-                await db.rollback()
-                logger.exception("Automation rule failed", extra={"rule_id": str(rule.id)})
+            )
+            fired = True
+        return fired

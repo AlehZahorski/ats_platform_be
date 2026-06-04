@@ -22,6 +22,7 @@ from app.core.enums import CVParseStatus
 from app.core.exceptions import DomainException
 from app.core.i18n import detect_language, set_language, t
 from app.core.logging_utils import (
+    configure_log_format,
     install_root_filters,
     new_request_id,
     request_id_ctx,
@@ -33,6 +34,8 @@ from app.modules.applications.models import CVParseJob
 # goes through PII redaction. Called at import time so we don't lose the
 # first few startup lines.
 install_root_filters()
+# Faza 4: opt into structured JSON logs via LOG_FORMAT=json (text by default).
+configure_log_format(settings.log_format)
 
 
 # ---------------------------------------------------------------------------

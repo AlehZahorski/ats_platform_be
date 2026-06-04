@@ -6,7 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import CurrentCompany, CurrentUser, RecruiterOrOwner
+from app.core.enums.automation import AutomationTriggerType
 from app.modules.audit.service import AuditService
+from app.modules.automation.repository import AutomationRepository
+from app.modules.automation.schemas import AutomationTriggerPayload
+from app.modules.automation.service import AutomationService
 from app.modules.pipeline.repository import PipelineRepository
 from app.modules.pipeline.schemas import (
     StageCreate,
@@ -95,22 +99,51 @@ async def update_stage(
         # Use the opaque public_token, never the guessable application_id
         # (the candidate-facing /track route only accepts the token).
         tracking_url = f"{settings.frontend_url}/track/{ctx.tracking_token}"
-        await send_stage_change_notification(
-            db=service.db,
-            background_tasks=background_tasks,
-            company_id=company.id,
-            stage_id=data.stage_id,
-            candidate_email=ctx.candidate_email,
-            candidate_name=ctx.candidate_name,
-            job_title=ctx.job_title,
-            stage_name=ctx.stage_name,
-            tracking_url=tracking_url,
-            company_name=company.name,
-            interview_at=ctx.interview.scheduled_at if ctx.interview else None,
-            interview_url=ctx.interview.meeting_url if ctx.interview else None,
-            interview_notes=ctx.interview.notes if ctx.interview else None,
-            interview_duration_minutes=ctx.interview.duration_minutes if ctx.interview else None,
+
+        # Automation rules first: if a `stage_changed` rule matches this stage,
+        # it sends the templated email AND records email_sent + audit. If none
+        # fired, fall back to the default status/interview notification — so the
+        # candidate never gets two emails.
+        automation = AutomationService(AutomationRepository(service.db))
+        fired = await automation.trigger(
+            AutomationTriggerPayload(
+                trigger_type=AutomationTriggerType.stage_changed,
+                trigger_value=str(data.stage_id),
+                application_id=application_id,
+                company_id=company.id,
+                variables={
+                    "candidate_name": ctx.candidate_name,
+                    "candidate_email": ctx.candidate_email,
+                    "job_title": ctx.job_title,
+                    "company_name": company.name,
+                    "stage_name": ctx.stage_name,
+                    "tracking_url": tracking_url,
+                    "interview_date": (
+                        ctx.interview.scheduled_at.isoformat() if ctx.interview else ""
+                    ),
+                    "interview_url": ctx.interview.meeting_url if ctx.interview else "",
+                },
+            ),
+            background_tasks,
+            ctx.candidate_email,
         )
+        if not fired:
+            await send_stage_change_notification(
+                db=service.db,
+                background_tasks=background_tasks,
+                company_id=company.id,
+                stage_id=data.stage_id,
+                candidate_email=ctx.candidate_email,
+                candidate_name=ctx.candidate_name,
+                job_title=ctx.job_title,
+                stage_name=ctx.stage_name,
+                tracking_url=tracking_url,
+                company_name=company.name,
+                interview_at=ctx.interview.scheduled_at if ctx.interview else None,
+                interview_url=ctx.interview.meeting_url if ctx.interview else None,
+                interview_notes=ctx.interview.notes if ctx.interview else None,
+                interview_duration_minutes=ctx.interview.duration_minutes if ctx.interview else None,
+            )
 
     return StageHistoryRead.model_validate(ctx.history)
 

@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     debug: bool = False
     secret_key: str
 
+    # Observability (Faza 4): "json" emits one structured JSON object per log
+    # line on stdout (with request_id correlation + PII redaction) ready for a
+    # log collector; "text" keeps the human-readable default for local dev.
+    log_format: Literal["text", "json"] = "text"
+
     # -------------------------------------------------------------------------
     # Database
     # -------------------------------------------------------------------------

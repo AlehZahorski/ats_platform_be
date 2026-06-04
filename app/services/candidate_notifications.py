@@ -6,19 +6,22 @@ from datetime import datetime
 from fastapi import BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.enums.automation import AutomationTriggerType
-from app.modules.automation.repository import AutomationRepository
-from app.modules.email_templates.repository import EmailTemplateRepository
-from app.modules.email_templates.service import EmailTemplateService
 from app.services.mailer import mail_service
 
 
 class CandidateNotificationService:
-    """Orchestrates candidate email notifications triggered by pipeline stage changes."""
+    """Default candidate notification emails for pipeline stage changes.
+
+    Faza 3: automation-RULE emails are now handled by AutomationService.trigger
+    (which also records an `email_sent` ApplicationEvent + `automation_triggered`
+    AuditLog). This service only sends the FALLBACK notification used when no
+    automation rule matched the stage — either the interview-update email or the
+    plain status-change email.
+    """
 
     def __init__(self, db: AsyncSession) -> None:
-        self._automation_repo = AutomationRepository(db)
-        self._template_service = EmailTemplateService(EmailTemplateRepository(db))
+        # db kept for call-site compatibility; no longer used directly here.
+        self._db = db
 
     async def send_stage_change(
         self,
@@ -36,39 +39,7 @@ class CandidateNotificationService:
         interview_url: str | None = None,
         interview_notes: str | None = None,
         interview_duration_minutes: int | None = None,
-    ) -> bool:
-        """Send a stage-change notification email.
-
-        Returns True if an automation template was used, False if a default template
-        was used (or only the interview-update template was triggered).
-        """
-        rules = await self._automation_repo.get_matching_rules(
-            company_id=company_id,
-            trigger_type=AutomationTriggerType.stage_changed,
-            trigger_value=str(stage_id),
-        )
-
-        if rules:
-            rule = rules[0]
-            if rule.template:
-                subject, body = await self._template_service.render_for_send(
-                    rule.template,
-                    {
-                        "candidate_name": candidate_name,
-                        "candidate_email": candidate_email,
-                        "job_title": job_title,
-                        "company_name": company_name,
-                        "stage_name": stage_name,
-                        "tracking_url": tracking_url,
-                        "interview_date": interview_at.isoformat() if interview_at else "",
-                        "interview_url": interview_url or "",
-                        "interview_notes": interview_notes or "",
-                        "interview_duration": interview_duration_minutes or "",
-                    },
-                )
-                mail_service.send_html(background_tasks, candidate_email, subject, body)
-                return True
-
+    ) -> None:
         if stage_name.strip().lower() == "interview" and interview_at and interview_url:
             mail_service.send_interview_stage_update(
                 background_tasks,
@@ -81,7 +52,7 @@ class CandidateNotificationService:
                 duration_minutes=interview_duration_minutes,
                 notes=interview_notes,
             )
-            return False
+            return
 
         mail_service.send_status_change(
             background_tasks,
@@ -91,7 +62,6 @@ class CandidateNotificationService:
             new_stage=stage_name,
             tracking_url=tracking_url,
         )
-        return False
 
 
 async def send_stage_change_notification(
@@ -110,10 +80,11 @@ async def send_stage_change_notification(
     interview_url: str | None = None,
     interview_notes: str | None = None,
     interview_duration_minutes: int | None = None,
-) -> bool:
-    """Module-level entry point kept for backward compatibility with pipeline router."""
+) -> None:
+    """Module-level entry point kept for the pipeline router. Sends the default
+    (non-automation) stage-change notification."""
     service = CandidateNotificationService(db)
-    return await service.send_stage_change(
+    await service.send_stage_change(
         background_tasks=background_tasks,
         company_id=company_id,
         stage_id=stage_id,

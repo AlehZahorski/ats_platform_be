@@ -99,6 +99,17 @@ async def get_application_consents(
     return [ApplicationConsentRead.model_validate(r) for r in records]
 
 
+# ── GDPR: data export (Art. 15 / Art. 20) ──────────────────────────────────────
+@router.get("/applications/{application_id}/export")
+async def export_application_data(
+    application_id: uuid.UUID,
+    company: CurrentCompany,
+    _user: CurrentUser,
+    service: ConsentService = Depends(_get_service),
+) -> dict:
+    return await service.export_application_data(application_id, company.id)
+
+
 # ── GDPR: data retention ───────────────────────────────────────────────────────
 @router.patch("/applications/{application_id}/retention")
 async def set_retention(

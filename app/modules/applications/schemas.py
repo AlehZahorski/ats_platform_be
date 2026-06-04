@@ -169,6 +169,16 @@ class ApplicationTrackingRead(BaseModel):
     job: TrackingJobRead | None = None
 
 
+class ApplicationEventRead(BaseModel):
+    """One row of an application's activity timeline (HR-facing)."""
+
+    id: uuid.UUID
+    event_type: str
+    event_value: str | None = None
+    metadata: dict[str, Any] | None = None
+    created_at: datetime
+
+
 class BulkAction(BaseModel):
     # audit_security M: cap the batch size at the schema layer. Without it a
     # caller could pass a 100k-UUID list and tie up the worker doing

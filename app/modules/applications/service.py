@@ -28,6 +28,7 @@ from app.modules.applications.schemas import (
     AnswerInput,
     AnswerRead,
     ApplicationCreate,
+    ApplicationEventRead,
     ApplicationList,
     ApplicationListItem,
     ApplicationRead,
@@ -162,6 +163,31 @@ class ApplicationService(BaseService[ApplicationRepository]):
             candidate_name=f"{first_name} {last_name}",
             job_title=job.title,
             tracking_url=tracking_url,
+        )
+
+        # Faza 3: fire `application_created` automation rules (e.g. an
+        # auto-acknowledgement email). Each fired rule sends its templated email
+        # and records an email_sent ApplicationEvent + automation_triggered audit.
+        from app.core.enums.automation import AutomationTriggerType
+        from app.modules.automation.repository import AutomationRepository
+        from app.modules.automation.schemas import AutomationTriggerPayload
+        from app.modules.automation.service import AutomationService
+
+        await AutomationService(AutomationRepository(self.db)).trigger(
+            AutomationTriggerPayload(
+                trigger_type=AutomationTriggerType.application_created,
+                trigger_value=None,
+                application_id=application.id,
+                company_id=job.company_id,
+                variables={
+                    "candidate_name": f"{first_name} {last_name}",
+                    "candidate_email": email,
+                    "job_title": job.title,
+                    "tracking_url": tracking_url,
+                },
+            ),
+            background_tasks,
+            email,
         )
 
         return ApplicationSubmitResult(application=application, parse_job=parse_job)
@@ -330,6 +356,30 @@ class ApplicationService(BaseService[ApplicationRepository]):
         await ensure_application_in_company(self.repository.db, application_id, company_id)
         score = await self.repository.upsert_score(application_id, user_id, data)
         return ScoreRead.model_validate(score)
+
+    # ------------------------------------------------------------------
+    # HR: activity timeline (Faza 3 — exposes the previously write-only
+    # application_events table as a read endpoint / "communication history")
+    # ------------------------------------------------------------------
+    async def list_events(
+        self, application_id: uuid.UUID, company_id: uuid.UUID
+    ) -> list[ApplicationEventRead]:
+        await ensure_application_in_company(self.db, application_id, company_id)
+        result = await self.db.execute(
+            select(ApplicationEvent)
+            .where(ApplicationEvent.application_id == application_id)
+            .order_by(ApplicationEvent.created_at.asc())
+        )
+        return [
+            ApplicationEventRead(
+                id=e.id,
+                event_type=e.event_type,
+                event_value=e.event_value,
+                metadata=e.metadata_,
+                created_at=e.created_at,
+            )
+            for e in result.scalars().all()
+        ]
 
     # ------------------------------------------------------------------
     # HR: bulk operations

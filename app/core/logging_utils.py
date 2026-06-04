@@ -19,6 +19,7 @@ stack (structlog / OTel / Sentry) later without breaking call sites.
 from __future__ import annotations
 
 import contextlib
+import json
 import logging
 import re
 import uuid
@@ -133,3 +134,62 @@ def install_root_filters() -> None:
     if not any(isinstance(f, PiiRedactionFilter) for f in root.filters):
         root.addFilter(PiiRedactionFilter())
     _INSTALLED = True
+
+
+# ---------------------------------------------------------------------------
+# Structured (JSON) logging — Faza 4 (plan-naprawy)
+# ---------------------------------------------------------------------------
+# Standard LogRecord attributes we don't want to duplicate as "extra" fields.
+_STD_RECORD_ATTRS = frozenset(
+    logging.LogRecord("", 0, "", 0, "", None, None).__dict__.keys()
+) | {"request_id", "message", "asctime", "taskName"}
+
+
+class JsonFormatter(logging.Formatter):
+    """Emit one JSON object per log line.
+
+    Includes the request-id correlation field stamped by the record factory and
+    any structured ``extra={...}`` fields a caller attached (e.g.
+    ``correlation_id``). Works downstream of ``PiiRedactionFilter`` — by the
+    time ``format`` runs, ``record.msg`` / ``record.args`` are already redacted.
+    """
+
+    def format(self, record: logging.LogRecord) -> str:
+        payload: dict[str, object] = {
+            "timestamp": self.formatTime(record, "%Y-%m-%dT%H:%M:%S%z"),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "request_id": getattr(record, "request_id", "-"),
+        }
+        if record.exc_info:
+            payload["exc_info"] = self.formatException(record.exc_info)
+        # Surface any extra structured fields (correlation_id, etc.).
+        for key, value in record.__dict__.items():
+            if key not in _STD_RECORD_ATTRS and not key.startswith("_"):
+                payload[key] = value
+        return json.dumps(payload, default=str, ensure_ascii=False)
+
+
+def configure_log_format(fmt: str) -> None:
+    """Apply the chosen output format to the root logger's handlers.
+
+    ``fmt == "json"`` switches to :class:`JsonFormatter`; anything else keeps a
+    human-readable text line. A handler-level :class:`PiiRedactionFilter` is
+    attached so redaction also covers records propagated from child loggers
+    (uvicorn, sqlalchemy). Idempotent and safe to call at startup.
+    """
+    root = logging.getLogger()
+    if not root.handlers:
+        root.addHandler(logging.StreamHandler())
+    formatter: logging.Formatter = (
+        JsonFormatter()
+        if fmt == "json"
+        else logging.Formatter("%(asctime)s %(levelname)s [%(request_id)s] %(name)s: %(message)s")
+    )
+    for handler in root.handlers:
+        handler.setFormatter(formatter)
+        if not any(isinstance(f, PiiRedactionFilter) for f in handler.filters):
+            handler.addFilter(PiiRedactionFilter())
+    if root.level == logging.NOTSET:
+        root.setLevel(logging.INFO)

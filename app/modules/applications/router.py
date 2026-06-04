@@ -24,6 +24,7 @@ from app.core.rate_limit import rate_limit
 from app.modules.applications.duplicate_service import DuplicateCheckService
 from app.modules.applications.repository import ApplicationRepository
 from app.modules.applications.schemas import (
+    ApplicationEventRead,
     ApplicationList,
     ApplicationRead,
     ApplicationTrackingRead,
@@ -249,6 +250,19 @@ async def get_job_matches(
     repo = ApplicationRepository(db)
     matches = await repo.get_job_matches(application_id)
     return [CandidateJobMatchRead.model_validate(m) for m in matches]
+
+
+# ──────────────────────────────────────────────
+# HR: activity timeline
+# ──────────────────────────────────────────────
+@router.get("/{application_id}/events", response_model=list[ApplicationEventRead])
+async def list_application_events(
+    application_id: uuid.UUID,
+    company: CurrentCompany,
+    _user: CurrentUser,
+    service: ApplicationService = Depends(_get_service),
+) -> list[ApplicationEventRead]:
+    return await service.list_events(application_id, company.id)
 
 
 # ──────────────────────────────────────────────

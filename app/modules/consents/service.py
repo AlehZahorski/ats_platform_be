@@ -65,6 +65,61 @@ class ConsentService(BaseService[ConsentRepository]):
         await ensure_application_in_company(self.repository.db, application_id, company_id)
         return await self.repository.get_application_consents(application_id)
 
+    # ── GDPR: data export (Art. 15 access / Art. 20 portability) ──────────────
+    async def export_application_data(
+        self, application_id: uuid.UUID, company_id: uuid.UUID
+    ) -> dict:
+        """Return every piece of personal data held about an application as a
+        single JSON-serialisable bundle. Tenant-scoped: 404 for other companies."""
+        from sqlalchemy import inspect as sa_inspect
+
+        from app.modules.application_events.models import ApplicationEvent
+        from app.modules.applications.models import (
+            ApplicationAnswer,
+            CandidateProfile,
+            CandidateScore,
+        )
+        from app.modules.interviews.models import Interview
+        from app.modules.notes.models import Note
+        from app.modules.pipeline.models import ApplicationStageHistory
+
+        application = await ensure_application_in_company(
+            self.repository.db, application_id, company_id
+        )
+        db = self.repository.db
+
+        def dump(obj: object) -> dict | None:
+            if obj is None:
+                return None
+            return {c.key: getattr(obj, c.key) for c in sa_inspect(obj).mapper.column_attrs}
+
+        async def fetch(model: type) -> list[dict | None]:
+            res = await db.execute(
+                select(model).where(model.application_id == application_id)
+            )
+            return [dump(o) for o in res.scalars().all()]
+
+        profile = (
+            await db.execute(
+                select(CandidateProfile).where(
+                    CandidateProfile.application_id == application_id
+                )
+            )
+        ).scalar_one_or_none()
+        consents = await self.repository.get_application_consents(application_id)
+
+        return {
+            "application": dump(application),
+            "answers": await fetch(ApplicationAnswer),
+            "notes": await fetch(Note),
+            "scores": await fetch(CandidateScore),
+            "stage_history": await fetch(ApplicationStageHistory),
+            "interviews": await fetch(Interview),
+            "events": await fetch(ApplicationEvent),
+            "candidate_profile": dump(profile),
+            "consents": [dump(c) for c in consents],
+        }
+
     # ── GDPR: data retention ──────────────────────────────────────────────────
     async def set_retention(
         self,

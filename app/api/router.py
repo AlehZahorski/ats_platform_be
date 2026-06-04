@@ -20,6 +20,8 @@ from app.modules.jobs.router import router as jobs_router
 from app.modules.llm_usage.router import router as llm_usage_router
 from app.modules.notes.router import router as notes_router
 from app.modules.organizer.router import router as organizer_router
+from app.modules.partners.admin_router import router as admin_partners_router
+from app.modules.partners.public_router import router as presentation_public_router
 from app.modules.pipeline.router import router as pipeline_router
 from app.modules.reports.router import router as reports_router
 from app.modules.reviews.router import router as reviews_router
@@ -36,6 +38,10 @@ api_router.include_router(articles_public_router, prefix="/articles", tags=["Art
 api_router.include_router(admin_auth_router, prefix="/admin/auth", tags=["Admin auth"])
 api_router.include_router(admin_articles_router, prefix="/admin/articles", tags=["Admin: Articles"])
 api_router.include_router(admin_usage_router, prefix="/admin/usage", tags=["Admin: Usage"])
+api_router.include_router(admin_partners_router, prefix="/admin/partners", tags=["Admin: Partners"])
+api_router.include_router(
+    presentation_public_router, prefix="/presentation", tags=["Presentation (public)"]
+)
 api_router.include_router(
     company_articles_router, prefix="/company/articles", tags=["Company: Articles"]
 )
